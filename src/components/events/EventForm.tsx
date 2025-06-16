@@ -337,7 +337,6 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                         mode="single"
                         selected={field.value}
                         onSelect={(date) => field.onChange(date)}
-                        disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() -1 )) }
                         initialFocus
                     />
                     </PopoverContent>
