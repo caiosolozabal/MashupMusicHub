@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event, UserDetails } from '@/lib/types';
 import { format, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear } from 'date-fns';
-import { CalendarIcon, Search, Loader2, ArrowRightLeft, TrendingUp, TrendingDown, Info } from 'lucide-react';
+import { CalendarIcon, Search, Loader2, Info, TrendingUp, TrendingDown, ArrowRightLeft } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
@@ -49,19 +49,21 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 interface FinancialSummary {
   totalEvents: number;
-  totalGrossRevenueOfEvents: number; // Valor Bruto dos Eventos (para o DJ selecionado no período)
-  totalDjCostsInPeriod: number; // Total de Custos do DJ no período
-  
-  totalDjNetEntitlementInPeriod: number; // O que o DJ TEM DIREITO no total [(VT - Custo) * %DJ + Custo]
-  totalAgencyNetEntitlementInPeriod: number; // O que a AGÊNCIA TEM DIREITO no total [(VT - Custo) * (1-%DJ)]
+  // 1. Valor Bruto dos Eventos (no período, para o DJ selecionado)
+  grossRevenueInPeriod: number;
 
-  // Detalhamento para o saldo:
-  // Soma do que a agência deve ao DJ (dos eventos que a agência recebeu)
-  sumOwedToDjByAgency: number; 
-  // Soma do que o DJ deve à agência (dos eventos que o DJ recebeu)
-  sumOwedToAgencyByDj: number; 
-  
-  finalBalanceForDj: number; // Saldo final: sumOwedToDjByAgency - sumOwedToAgencyByDj
+  // 2. Valor Líquido DJ (Apurado no Período)
+  djNetEntitlementInPeriod: number;
+  // 2. Valor Líquido Agência (Apurado no Período, dos eventos do DJ)
+  agencyNetEntitlementInPeriod: number;
+
+  // 3. Valor Recebido pelo DJ (Registrado no Período)
+  totalReceivedByDjInPeriod: number;
+  // 4. Valor Recebido pela Agência (Registrado no Período, dos eventos do DJ)
+  totalReceivedByAgencyInPeriod: number;
+
+  // 5. Saldo do Período para o DJ
+  djFinalBalanceInPeriod: number; // djNetEntitlementInPeriod - totalReceivedByDjInPeriod
 }
 
 
@@ -114,24 +116,17 @@ const PaymentsPage: NextPage = () => {
       let q;
       const eventsCollectionRef = collection(db, 'events');
 
-      // Admin/Partner: Fetch based on selected DJ or all.
-      // DJ: Fetch only their own events.
       if (userDetails?.role === 'admin' || userDetails?.role === 'partner') {
         if (selectedDjId === 'all') {
-          // For 'all' DJs, we might not fetch events initially or fetch only limited for performance.
-          // For now, let's assume 'all' means no specific DJ is selected for summary, 
-          // but events list might still show if not filtered.
-          // The financial summary calculations are designed for a *specific* DJ.
-          // If selectedDjId is 'all', the financial summary for a specific DJ won't be calculated.
            q = query(eventsCollectionRef, orderBy('data_evento', 'desc'));
         } else {
           q = query(eventsCollectionRef, where('dj_id', '==', selectedDjId), orderBy('data_evento', 'desc'));
         }
       } else if (userDetails?.role === 'dj') {
         q = query(eventsCollectionRef, where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
-        setSelectedDjId(user.uid); // Auto-select the logged-in DJ
+        setSelectedDjId(user.uid); 
       } else {
-        setAllEvents([]); // No role to view events
+        setAllEvents([]); 
         setIsLoading(false);
         return;
       }
@@ -162,24 +157,20 @@ const PaymentsPage: NextPage = () => {
       }
     };
 
-    // Only fetch if auth is done and user details are available
     if (!authLoading && user && userDetails) {
         fetchEvents();
     } else if (!authLoading && !user) {
-        setAllEvents([]); // Clear events if user logs out
+        setAllEvents([]); 
         setIsLoading(false);
     }
-  }, [user, authLoading, userDetails, selectedDjId, toast]); // userDetails added to re-fetch if role changes
+  }, [user, authLoading, userDetails, selectedDjId, toast]); 
 
   const filteredEvents = useMemo(() => {
     let eventsToFilter = [...allEvents];
     
-    // Filter by DJ if admin/partner is viewing and a specific DJ is selected
-    // OR if the logged-in user is a DJ (selectedDjId will be their UID)
     if (selectedDjId !== 'all') {
         eventsToFilter = eventsToFilter.filter(event => event.dj_id === selectedDjId);
     }
-
 
     if (dateRange?.from) {
       eventsToFilter = eventsToFilter.filter(event => event.data_evento >= dateRange.from!);
@@ -197,7 +188,6 @@ const PaymentsPage: NextPage = () => {
         event.local.toLowerCase().includes(lowerSearch)
       );
     }
-    // Crucially, filter out cancelled events before calculating financial summary
     return eventsToFilter.filter(event => event.status_pagamento !== 'cancelado');
   }, [allEvents, dateRange, searchTerm, selectedDjId]);
 
@@ -211,54 +201,49 @@ const PaymentsPage: NextPage = () => {
       djForSummary = allDjs.find(dj => dj.uid === selectedDjId);
     }
 
-    // If no specific DJ is selected for summary (e.g. admin viewing "all"), or DJ has no percentage, return null
     if (!djForSummary || typeof djForSummary.dj_percentual !== 'number') return null;
 
     const djBasePercentage = djForSummary.dj_percentual;
 
     const summary: FinancialSummary = {
       totalEvents: 0,
-      totalGrossRevenueOfEvents: 0,
-      totalDjCostsInPeriod: 0,
-      totalDjServiceFeeInPeriod: 0,
-      totalDjNetEntitlementInPeriod: 0,
-      totalAgencyNetEntitlementInPeriod: 0,
-      sumOwedToDjByAgency: 0,
-      sumOwedToAgencyByDj: 0,
-      finalBalanceForDj: 0,
+      grossRevenueInPeriod: 0,
+      djNetEntitlementInPeriod: 0,
+      agencyNetEntitlementInPeriod: 0,
+      totalReceivedByDjInPeriod: 0,
+      totalReceivedByAgencyInPeriod: 0,
+      djFinalBalanceInPeriod: 0,
     };
 
-    // filteredEvents already excludes 'cancelado' status and is filtered for the selected DJ (if not 'all')
-    // For financial summary, we must iterate only over events of the djForSummary
     const eventsForThisDjSummary = filteredEvents.filter(event => event.dj_id === djForSummary!.uid);
-
 
     eventsForThisDjSummary.forEach(event => {
       summary.totalEvents += 1;
-      summary.totalGrossRevenueOfEvents += event.valor_total;
+      summary.grossRevenueInPeriod += event.valor_total;
       
       const djCosts = event.dj_costs || 0;
-      summary.totalDjCostsInPeriod += djCosts;
-
       const valueAfterDjCosts = event.valor_total - djCosts;
-      const djServiceFee = valueAfterDjCosts * djBasePercentage; // DJ's cut from profit
-      const agencyServiceFee = valueAfterDjCosts * (1 - djBasePercentage); // Agency's cut from profit
-      const djTotalEntitlementForThisEvent = djServiceFee + djCosts; // What DJ is entitled to (fee + reimbursed costs)
 
-      summary.totalDjServiceFeeInPeriod += djServiceFee;
-      summary.totalDjNetEntitlementInPeriod += djTotalEntitlementForThisEvent;
-      summary.totalAgencyNetEntitlementInPeriod += agencyServiceFee;
+      // Valor Líquido DJ (Apurado)
+      const djEntitlementForEvent = (valueAfterDjCosts * djBasePercentage) + djCosts;
+      summary.djNetEntitlementInPeriod += djEntitlementForEvent;
+
+      // Valor Líquido Agência (Apurado)
+      const agencyEntitlementForEvent = valueAfterDjCosts * (1 - djBasePercentage);
+      summary.agencyNetEntitlementInPeriod += agencyEntitlementForEvent;
       
+      // Valor Recebido pelo DJ
+      if (event.conta_que_recebeu === 'dj') {
+        summary.totalReceivedByDjInPeriod += event.valor_total;
+      }
+      // Valor Recebido pela Agência
       if (event.conta_que_recebeu === 'agencia') {
-        // Agency received full payment, so agency owes DJ their total entitlement for this event
-        summary.sumOwedToDjByAgency += djTotalEntitlementForThisEvent;
-      } else if (event.conta_que_recebeu === 'dj') {
-        // DJ received full payment, so DJ owes Agency their service fee for this event
-        summary.sumOwedToAgencyByDj += agencyServiceFee;
+        summary.totalReceivedByAgencyInPeriod += event.valor_total;
       }
     });
 
-    summary.finalBalanceForDj = summary.sumOwedToDjByAgency - summary.sumOwedToAgencyByDj;
+    // Saldo do Período para o DJ
+    summary.djFinalBalanceInPeriod = summary.djNetEntitlementInPeriod - summary.totalReceivedByDjInPeriod;
     
     return summary;
   }, [filteredEvents, userDetails, selectedDjId, allDjs]);
@@ -349,6 +334,7 @@ const PaymentsPage: NextPage = () => {
                     selected={dateRange}
                     onSelect={setDateRange}
                     numberOfMonths={2}
+                    disabled={(date) => date > new Date() && !isSameDay(date, new Date())}
                   />
                 </PopoverContent>
               </Popover>
@@ -389,66 +375,51 @@ const PaymentsPage: NextPage = () => {
             <Card className="bg-primary/5 border-primary/20 shadow-md">
               <CardHeader>
                 <CardTitle className="font-headline text-xl text-primary">
-                    Resumo Financeiro: {djNameToDisplay}
+                    Resumo Financeiro: {djNameToDisplay} ({calculateFinancialSummary.totalEvents} eventos)
                 </CardTitle>
                 <CardDescription>Referente ao período e filtros selecionados. Status de pagamento do cliente é para fins de cobrança e não afeta este cálculo de fechamento.</CardDescription>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Eventos no Período:</p>
-                  <p className="font-semibold text-lg">{calculateFinancialSummary.totalEvents}</p>
-                </div>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
                   <p className="text-muted-foreground">Valor Bruto dos Eventos:</p>
-                  <p className="font-semibold text-lg">{calculateFinancialSummary.totalGrossRevenueOfEvents.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <p className="font-semibold text-lg">{calculateFinancialSummary.grossRevenueInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 </div>
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Custos Totais do DJ:</p>
-                  <p className="font-semibold text-lg">{calculateFinancialSummary.totalDjCostsInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <p className="text-muted-foreground">Valor Líquido DJ (Apurado):</p>
+                  <p className="font-semibold text-lg text-green-700">{calculateFinancialSummary.djNetEntitlementInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                   <p className="text-xs text-muted-foreground">(Valor Bruto - Custos) * %DJ + Custos</p>
                 </div>
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Total Parcela de Serviço DJ:</p>
-                  <p className="font-semibold text-lg">{calculateFinancialSummary.totalDjServiceFeeInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                   <p className="text-xs text-muted-foreground">(Valor Bruto - Custos) * %DJ</p>
-                </div>
-
-                <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Valor Líquido Total do DJ:</p>
-                  <p className="font-semibold text-lg text-green-700">{calculateFinancialSummary.totalDjNetEntitlementInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                  <p className="text-xs text-muted-foreground">(Parcela Serviço DJ + Custos)</p>
-                </div>
-                <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Valor Líquido Total da Agência:</p>
-                  <p className="font-semibold text-lg text-blue-700">{calculateFinancialSummary.totalAgencyNetEntitlementInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                  <p className="text-xs text-muted-foreground">(Valor Bruto - Custos) * %Agência</p>
+                  <p className="text-muted-foreground">Valor Líquido Agência (Apurado):</p>
+                  <p className="font-semibold text-lg text-blue-700">{calculateFinancialSummary.agencyNetEntitlementInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                   <p className="text-xs text-muted-foreground">(Valor Bruto - Custos) * %Agência</p>
                 </div>
                 
-                <div className="p-3 bg-background/70 rounded-md shadow-sm col-span-1 md:col-span-2 lg:col-span-2 grid grid-cols-2 gap-3">
-                    <div>
-                        <p className="text-muted-foreground text-orange-600">Agência deve ao DJ:</p>
-                        <p className="font-semibold text-lg text-orange-600">
-                            {calculateFinancialSummary.sumOwedToDjByAgency.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">(De eventos pagos à Agência)</p>
-                    </div>
-                    <div>
-                        <p className="text-muted-foreground text-purple-600">DJ deve à Agência:</p>
-                        <p className="font-semibold text-lg text-purple-600">
-                            {calculateFinancialSummary.sumOwedToAgencyByDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </p>
-                        <p className="text-xs text-muted-foreground">(De eventos pagos ao DJ)</p>
-                    </div>
+                <div className="p-3 bg-background/70 rounded-md shadow-sm">
+                  <p className="text-muted-foreground">Total Recebido pelo DJ (Registrado):</p>
+                  <p className="font-semibold text-lg text-orange-600">
+                      {calculateFinancialSummary.totalReceivedByDjInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">(Soma dos VTs de eventos pagos ao DJ)</p>
+                </div>
+                <div className="p-3 bg-background/70 rounded-md shadow-sm">
+                  <p className="text-muted-foreground">Total Recebido pela Agência (Registrado):</p>
+                  <p className="font-semibold text-lg text-purple-600">
+                      {calculateFinancialSummary.totalReceivedByAgencyInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">(Soma dos VTs de eventos pagos à Agência)</p>
                 </div>
                 
-                <div className={`p-4 rounded-md shadow-md text-center col-span-1 md:col-span-2 lg:col-span-4 ${calculateFinancialSummary.finalBalanceForDj >= 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
-                    <p className={`font-semibold text-lg ${calculateFinancialSummary.finalBalanceForDj >= 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                        {calculateFinancialSummary.finalBalanceForDj >= 0 ? 'SALDO A RECEBER PELO DJ:' : 'SALDO A REPASSAR PELO DJ:'}
+                <div className={`p-4 rounded-md shadow-md text-center col-span-1 md:col-span-2 lg:col-span-1 flex flex-col justify-center items-center
+                                 ${calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
+                    <p className={`font-semibold text-md ${calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
+                        {calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? 'SALDO A RECEBER PELO DJ:' : 'SALDO A REPASSAR PELO DJ:'}
                     </p>
-                    <p className={`font-bold text-2xl ${calculateFinancialSummary.finalBalanceForDj >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
-                        {Math.abs(calculateFinancialSummary.finalBalanceForDj).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    <p className={`font-bold text-2xl ${calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                        {Math.abs(calculateFinancialSummary.djFinalBalanceInPeriod).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                        {calculateFinancialSummary.finalBalanceForDj > 0 ? 'A agência deve este valor ao DJ.' : calculateFinancialSummary.finalBalanceForDj < 0 ? 'O DJ deve este valor à agência.' : 'Saldo zerado para o período.'}
+                    <p className="text-xs text-muted-foreground mt-1">
+                        (Valor Líquido DJ - Valor Recebido pelo DJ)
                     </p>
                 </div>
               </CardContent>
@@ -469,9 +440,9 @@ const PaymentsPage: NextPage = () => {
             <CardHeader>
               <CardTitle className="font-headline text-xl">Extrato de Eventos</CardTitle>
               <CardDescription>
-                {(selectedDjId !== 'all' && djNameToDisplay) 
-                  ? `Eventos de ${djNameToDisplay} no período.`
-                  : `Todos os eventos no período.`
+                {showDetailedSummary && djNameToDisplay
+                  ? `Eventos de ${djNameToDisplay} no período (não cancelados).`
+                  : `Todos os eventos no período (não cancelados).`
                 }
               </CardDescription>
             </CardHeader>
@@ -496,9 +467,9 @@ const PaymentsPage: NextPage = () => {
                         <TableHead className="text-right">Custos DJ</TableHead>
                         <TableHead className="text-right">
                           <Tooltip>
-                            <TooltipTrigger className="cursor-help border-b border-dashed border-muted-foreground">Parcela DJ (Serviço)</TooltipTrigger>
+                            <TooltipTrigger className="cursor-help border-b border-dashed border-muted-foreground">Parcela DJ (Apurado)</TooltipTrigger>
                             <TooltipContent>
-                              <p>(Valor Total - Custos) * %DJ</p>
+                              <p>(Valor Total - Custos) * %DJ + Custos</p>
                             </TooltipContent>
                           </Tooltip>
                         </TableHead>
@@ -510,8 +481,9 @@ const PaymentsPage: NextPage = () => {
                     <TableBody>
                       {filteredEvents.map((event) => {
                         const djForEvent = allDjs.find(d => d.uid === event.dj_id) || (userDetails?.uid === event.dj_id ? userDetails : null);
-                        const djPercent = djForEvent?.dj_percentual ?? 0; // Default to 0 if not found, though should exist
-                        const djServiceFee = (event.valor_total - (event.dj_costs || 0)) * djPercent;
+                        const djPercent = djForEvent?.dj_percentual ?? 0; 
+                        const djCosts = event.dj_costs || 0;
+                        const djEntitlementForEvent = (event.valor_total - djCosts) * djPercent + djCosts;
                         
                         return (
                           <TableRow key={event.id}>
@@ -519,8 +491,8 @@ const PaymentsPage: NextPage = () => {
                             <TableCell className="font-medium max-w-xs truncate" title={event.nome_evento}>{event.nome_evento}</TableCell>
                             <TableCell>{event.dj_nome || 'N/A'}</TableCell>
                             <TableCell className="text-right">{Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                            <TableCell className="text-right">{Number(event.dj_costs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
-                            <TableCell className="text-right font-semibold">{djServiceFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-right">{Number(djCosts).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            <TableCell className="text-right font-semibold">{djEntitlementForEvent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
                             <TableCell className="capitalize">{event.conta_que_recebeu}</TableCell>
                             <TableCell>
                               <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
@@ -570,4 +542,4 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
-
+    
