@@ -11,8 +11,8 @@ import { format, parseISO } from 'date-fns';
 import { PlusCircle, Eye, Edit, Trash2, Loader2 } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState } from 'react';
-import { db, auth } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -50,7 +50,7 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 };
 
 const EventsPage: NextPage = () => {
-  const { user } = useAuth();
+  const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,12 +63,28 @@ const EventsPage: NextPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const fetchEvents = async () => {
+    if (authLoading || !user || !userDetails || !db) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
-      if (!db) throw new Error("Firestore not initialized");
-      const eventsCollection = collection(db, 'events');
-      const q = query(eventsCollection, orderBy('data_evento', 'desc'));
-      const eventsSnapshot = await getDocs(q);
+      const eventsCollectionRef = collection(db, 'events');
+      let eventsQuery;
+
+      if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+        eventsQuery = query(eventsCollectionRef, orderBy('data_evento', 'desc'));
+      } else if (userDetails.role === 'dj') {
+        eventsQuery = query(eventsCollectionRef, where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
+      } else {
+        // Should not happen if roles are properly set, but as a fallback:
+        setEvents([]);
+        setIsLoading(false);
+        toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver eventos.' });
+        return;
+      }
+      
+      const eventsSnapshot = await getDocs(eventsQuery);
       const eventsList = eventsSnapshot.docs.map(docSnapshot => {
         const data = docSnapshot.data();
         return {
@@ -98,8 +114,18 @@ const EventsPage: NextPage = () => {
   };
 
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    // Fetch events only when auth is done and user/userDetails are available
+    if (!authLoading && user && userDetails) {
+      fetchEvents();
+    } else if (!authLoading && !user) {
+      // User is not logged in, clear events and stop loading
+      setEvents([]);
+      setIsLoading(false);
+    }
+    // Intentionally not including fetchEvents in dependency array to avoid re-fetching on every render of fetchEvents itself.
+    // It should re-fetch when user, userDetails, or authLoading changes that affect its conditions.
+  }, [user, userDetails, authLoading]);
+
 
   const handleOpenCreateForm = () => {
     setSelectedEvent(null);
@@ -107,22 +133,37 @@ const EventsPage: NextPage = () => {
   };
 
   const handleOpenEditForm = (event: Event) => {
+    // DJs should only be able to edit their own events
+    if (userDetails?.role === 'dj' && event.dj_id !== user?.uid) {
+      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode editar seus próprios eventos.'});
+      return;
+    }
     setSelectedEvent(event);
     setIsFormOpen(true);
   };
 
   const handleOpenView = (event: Event) => {
+    // DJs should only be able to view their own events (already enforced by fetch, but good for direct access attempts)
+    if (userDetails?.role === 'dj' && event.dj_id !== user?.uid) {
+        toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode visualizar seus próprios eventos.'});
+        return;
+    }
     setSelectedEvent(event);
     setIsViewOpen(true);
   };
   
   const handleOpenDeleteConfirm = (event: Event) => {
+     // Only admin/partner can delete
+    if (!(userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
+      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir eventos.'});
+      return;
+    }
     setSelectedEvent(event);
     setIsDeleteConfirmOpen(true);
   };
 
   const handleFormSubmit = async (values: EventFormValues) => {
-    if (!user) {
+    if (!user || !userDetails) {
       toast({ variant: 'destructive', title: 'Erro de autenticação', description: 'Você precisa estar logado.' });
       return;
     }
@@ -130,6 +171,17 @@ const EventsPage: NextPage = () => {
       toast({ variant: 'destructive', title: 'Erro de banco de dados', description: 'Firestore não inicializado.' });
       return;
     }
+
+    // Ensure DJ cannot change dj_id or dj_name if they are editing
+    if (userDetails.role === 'dj' && selectedEvent) {
+        if (values.dj_id !== user.uid || values.dj_nome !== (userDetails.displayName || user.displayName)){
+            toast({ variant: 'destructive', title: 'Operação Inválida', description: 'Você não pode alterar o DJ atribuído.'});
+            // Reset to original values if an attempt was made
+            values.dj_id = user.uid;
+            values.dj_nome = userDetails.displayName || user.displayName || user.email || '';
+        }
+    }
+
 
     setIsSubmitting(true);
     const eventData = {
@@ -145,6 +197,12 @@ const EventsPage: NextPage = () => {
 
     try {
       if (selectedEvent) { 
+        // DJs should only be able to edit their own events
+        if (userDetails?.role === 'dj' && selectedEvent.dj_id !== user?.uid) {
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode atualizar seus próprios eventos.'});
+            setIsSubmitting(false);
+            return;
+        }
         const eventRef = doc(db, 'events', selectedEvent.id);
         await updateDoc(eventRef, {
           ...eventData,
@@ -152,8 +210,11 @@ const EventsPage: NextPage = () => {
         });
         toast({ title: 'Evento atualizado!', description: `"${values.nome_evento}" foi atualizado com sucesso.` });
       } else { 
+        // Creating new event
         await addDoc(collection(db, 'events'), {
           ...eventData,
+          dj_id: userDetails.role === 'dj' ? user.uid : values.dj_id, // Ensure DJ is self if DJ creates
+          dj_nome: userDetails.role === 'dj' ? (userDetails.displayName || user.displayName) : values.dj_nome, // Ensure DJ name is self if DJ creates
           created_by: user.uid,
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
@@ -177,6 +238,11 @@ const EventsPage: NextPage = () => {
       toast({ variant: 'destructive', title: 'Erro', description: 'Evento não selecionado ou Firestore não disponível.' });
       return;
     }
+     // Only admin/partner can delete
+    if (!(userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
+      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir eventos.'});
+      return;
+    }
     setIsSubmitting(true);
     try {
       await deleteDoc(doc(db, 'events', selectedEvent.id));
@@ -194,12 +260,18 @@ const EventsPage: NextPage = () => {
   };
 
   const handleSuccessfulProofUpload = (updatedEvent: Event) => {
-    // Update the selectedEvent in state to reflect the new proof in the form
     setSelectedEvent(updatedEvent);
-    // Optionally, find and update the event in the main 'events' list as well for immediate UI update
     setEvents(prevEvents => prevEvents.map(e => e.id === updatedEvent.id ? updatedEvent : e));
-    // fetchEvents(); // Or just refetch all, simpler but less optimized
   };
+
+  const canCreateEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner' || userDetails?.role === 'dj';
+  const canEditSelectedEvent = (event: Event | null) => {
+    if (!event) return false;
+    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
+    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
+    return false;
+  };
+  const canDeleteEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
 
   return (
@@ -208,12 +280,14 @@ const EventsPage: NextPage = () => {
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>
             <CardTitle className="font-headline text-2xl">Gerenciar Eventos</CardTitle>
-            <CardDescription>Visualize, crie e edite os eventos da agência.</CardDescription>
+            <CardDescription>Visualize, crie e edite os eventos.</CardDescription>
           </div>
-          <Button onClick={handleOpenCreateForm} className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground">
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Novo Evento
-          </Button>
+          {canCreateEvents && (
+            <Button onClick={handleOpenCreateForm} className="ml-auto bg-primary hover:bg-primary/90 text-primary-foreground">
+              <PlusCircle className="mr-2 h-5 w-5" />
+              Novo Evento
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -245,7 +319,7 @@ const EventsPage: NextPage = () => {
                       <TableCell>
                         <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
                         <div className="text-xs text-muted-foreground">{event.dia_da_semana}</div>
-                        <div className="text-xs text-muted-foreground">{format(event.data_evento, 'HH:mm')}</div>
+                        <div className="text-xs text-muted-foreground">{event.horario_inicio ? format(parseISO(`2000-01-01T${event.horario_inicio}`), 'HH:mm') : ''}</div>
                       </TableCell>
                       <TableCell className="font-medium">{event.nome_evento}</TableCell>
                       <TableCell>{event.local}</TableCell>
@@ -266,12 +340,16 @@ const EventsPage: NextPage = () => {
                         <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => handleOpenView(event)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => handleOpenEditForm(event)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => handleOpenDeleteConfirm(event)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canEditSelectedEvent(event) && (
+                          <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => handleOpenEditForm(event)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDeleteEvents && (
+                          <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => handleOpenDeleteConfirm(event)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -339,5 +417,4 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
-
     
