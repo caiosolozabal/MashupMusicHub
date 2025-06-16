@@ -48,19 +48,18 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 interface FinancialSummary {
   totalEvents: number;
-  totalGrossCacheValue: number; 
+  totalGrossCacheValue: number;
   totalDjNetServiceFeeAccrued: number; // Sum of DJ's service fee: ( (valor_total - custos) * % )
-  totalDjCosts: number; 
+  totalDjCosts: number;
 
-  djTotalEntitlementFromPaidToAgency: number; // DJ's total (service fee + costs) from events paid to agency
-  djKeepsFromPaidToDj: number; // DJ's total (service fee + costs) from events paid to DJ (what DJ ultimately keeps)
-  agencyShareFromPaidToDj: number; // Agency's share from events paid to DJ (DJ needs to repass this)
-  
-  djPotentialTotalEntitlementFromPendingToAgency: number; // DJ's potential total (service fee + costs) from events pending/partial payment to agency
-  agencyPotentialShareFromPendingToDj: number; // Agency's potential share from events pending/partial payment to DJ
+  // Gross amounts based on who is the payee, for all non-cancelled events
+  djGrossEntitlementFromAgencyPayeeEvents: number;
+  djGrossEntitlementFromDjPayeeEvents: number;
+  agencyGrossShareFromDjPayeeEvents: number;
 
-  balanceOwedToDjByAgency: number; // Based on events PAID to AGENCY: sum of (djServiceFee + djCosts)
-  balanceOwedToAgencyByDj: number; // Based on events PAID to DJ: sum of agencyServiceFee
+  // Key balances for settlement, calculated on ALL non-cancelled events
+  balanceOwedToDjByAgency: number; // For events where agency is payee: sum of (djServiceFee + djCosts)
+  balanceOwedToAgencyByDj: number; // For events where DJ is payee: sum of agencyServiceFee
 }
 
 
@@ -175,6 +174,7 @@ const PaymentsPage: NextPage = () => {
         event.local.toLowerCase().includes(lowerSearch)
       );
     }
+    // Crucially, filter out cancelled events before calculating financial summary
     return eventsToFilter.filter(event => event.status_pagamento !== 'cancelado');
   }, [allEvents, dateRange, searchTerm]);
 
@@ -197,15 +197,14 @@ const PaymentsPage: NextPage = () => {
       totalGrossCacheValue: 0,
       totalDjNetServiceFeeAccrued: 0,
       totalDjCosts: 0,
-      djTotalEntitlementFromPaidToAgency: 0,
-      djKeepsFromPaidToDj: 0,
-      agencyShareFromPaidToDj: 0,
-      djPotentialTotalEntitlementFromPendingToAgency: 0,
-      agencyPotentialShareFromPendingToDj: 0,
+      djGrossEntitlementFromAgencyPayeeEvents: 0,
+      djGrossEntitlementFromDjPayeeEvents: 0,
+      agencyGrossShareFromDjPayeeEvents: 0,
       balanceOwedToDjByAgency: 0,
       balanceOwedToAgencyByDj: 0,
     };
 
+    // filteredEvents already excludes 'cancelado' status
     filteredEvents.forEach(event => {
       if (event.dj_id !== djForSummary!.uid) return;
 
@@ -217,25 +216,18 @@ const PaymentsPage: NextPage = () => {
       const valueAfterDjCosts = event.valor_total - djCosts;
       const djServiceFee = valueAfterDjCosts * djBasePercentage;
       const agencyServiceFee = valueAfterDjCosts * (1 - djBasePercentage);
-      const djTotalEntitlement = djServiceFee + djCosts; // (TC - C)*P + C
+      const djTotalEntitlement = djServiceFee + djCosts; // DJ's service fee + their costs
 
       summary.totalDjNetServiceFeeAccrued += djServiceFee;
       
-      if (event.status_pagamento === 'pago') {
-        if (event.conta_que_recebeu === 'agencia') {
-          summary.djTotalEntitlementFromPaidToAgency += djTotalEntitlement;
-          summary.balanceOwedToDjByAgency += djTotalEntitlement;
-        } else if (event.conta_que_recebeu === 'dj') {
-          summary.djKeepsFromPaidToDj += djTotalEntitlement; 
-          summary.agencyShareFromPaidToDj += agencyServiceFee; 
-          summary.balanceOwedToAgencyByDj += agencyServiceFee;
-        }
-      } else if (event.status_pagamento === 'pendente' || event.status_pagamento === 'parcial') {
-        if (event.conta_que_recebeu === 'agencia') {
-          summary.djPotentialTotalEntitlementFromPendingToAgency += djTotalEntitlement;
-        } else if (event.conta_que_recebeu === 'dj') {
-          summary.agencyPotentialShareFromPendingToDj += agencyServiceFee;
-        }
+      // Calculate balances irrespective of client payment status (status_pagamento)
+      if (event.conta_que_recebeu === 'agencia') {
+        summary.balanceOwedToDjByAgency += djTotalEntitlement;
+        summary.djGrossEntitlementFromAgencyPayeeEvents += djTotalEntitlement;
+      } else if (event.conta_que_recebeu === 'dj') {
+        summary.balanceOwedToAgencyByDj += agencyServiceFee;
+        summary.djGrossEntitlementFromDjPayeeEvents += djTotalEntitlement;
+        summary.agencyGrossShareFromDjPayeeEvents += agencyServiceFee;
       }
     });
     return summary;
@@ -363,11 +355,11 @@ const PaymentsPage: NextPage = () => {
                 <CardTitle className="font-headline text-xl text-primary">
                     Resumo Financeiro: {allDjs.find(dj => dj.uid === selectedDjId)?.displayName || userDetails?.displayName}
                 </CardTitle>
-                <CardDescription>Referente ao período e filtros selecionados.</CardDescription>
+                <CardDescription>Referente ao período e filtros selecionados. Status de pagamento do cliente é para fins de cobrança.</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Total de Eventos no Período:</p>
+                  <p className="text-muted-foreground">Total de Eventos (Período):</p>
                   <p className="font-semibold text-lg">{calculateFinancialSummary.totalEvents}</p>
                 </div>
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
@@ -379,50 +371,40 @@ const PaymentsPage: NextPage = () => {
                   <p className="font-semibold text-lg">{calculateFinancialSummary.totalDjCosts.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 </div>
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Total Líquido da Parcela do DJ (Pós-Custos):</p>
+                  <p className="text-muted-foreground">Total da Parcela de Serviço do DJ:</p>
                   <p className="font-semibold text-lg text-green-600">{calculateFinancialSummary.totalDjNetServiceFeeAccrued.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   <p className="text-xs text-muted-foreground">(Soma de (% aplicado sobre (Valor Total - Custos)))</p>
                 </div>
 
-                <div className="p-3 bg-background/70 rounded-md shadow-sm col-span-1 md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="p-3 bg-background/70 rounded-md shadow-sm md:col-span-1 lg:col-span-1">
+                    <p className="text-muted-foreground text-blue-700">A Pagar ao DJ (pela Agência):</p>
+                    <p className="font-semibold text-xl text-blue-700">{calculateFinancialSummary.balanceOwedToDjByAgency.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    <p className="text-xs text-muted-foreground">(Eventos onde agência recebeu/receberá. Inclui parcela DJ + custos)</p>
+                </div>
+                 <div className="p-3 bg-background/70 rounded-md shadow-sm md:col-span-1 lg:col-span-1">
+                    <p className="text-muted-foreground text-orange-600">A Pagar à Agência (pelo DJ):</p>
+                    <p className="font-semibold text-xl text-orange-600">{calculateFinancialSummary.balanceOwedToAgencyByDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                    <p className="text-xs text-muted-foreground">(Eventos onde DJ recebeu/receberá. Parcela da agência)</p>
+                </div>
+                
+                {/* Contextual Gross Information */}
+                <div className="p-3 bg-background/70 rounded-md shadow-sm mt-2 md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                        <p className="text-muted-foreground text-blue-700">Valor a Receber pelo DJ (Agência já recebeu do cliente):</p>
-                        <p className="font-semibold text-lg text-blue-700">{calculateFinancialSummary.balanceOwedToDjByAgency.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                        <p className="text-xs text-muted-foreground">(Eventos com status 'Pago' para 'agencia'. Inclui parcela do DJ + reembolso de custos)</p>
+                        <p className="text-muted-foreground text-sm">Direito Bruto DJ (Eventos via Agência):</p>
+                        <p className="font-semibold">{calculateFinancialSummary.djGrossEntitlementFromAgencyPayeeEvents.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p className="text-xs text-muted-foreground">(Parcela DJ + Custos)</p>
                     </div>
-                     <div>
-                        <p className="text-muted-foreground text-orange-600">Valor a Repassar à Agência (DJ já recebeu do cliente):</p>
-                        <p className="font-semibold text-lg text-orange-600">{calculateFinancialSummary.balanceOwedToAgencyByDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                        <p className="text-xs text-muted-foreground">(Eventos com status 'Pago' para 'dj'. Parcela da agência.)</p>
+                    <div>
+                        <p className="text-muted-foreground text-sm">Direito Bruto DJ (Eventos via DJ):</p>
+                        <p className="font-semibold">{calculateFinancialSummary.djGrossEntitlementFromDjPayeeEvents.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p className="text-xs text-muted-foreground">(Parcela DJ + Custos)</p>
+                    </div>
+                    <div>
+                        <p className="text-muted-foreground text-sm">Parcela Bruta Agência (Eventos via DJ):</p>
+                        <p className="font-semibold">{calculateFinancialSummary.agencyGrossShareFromDjPayeeEvents.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        <p className="text-xs text-muted-foreground">(Parcela Agência)</p>
                     </div>
                 </div>
-                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">DJ Receberia (Cliente Pagou Agência):</p>
-                  <p className="font-semibold">{calculateFinancialSummary.djTotalEntitlementFromPaidToAgency.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                   <p className="text-xs text-muted-foreground">(Parcela DJ + Custos)</p>
-                </div>
-                <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">DJ Reteve (Cliente Pagou DJ):</p>
-                  <p className="font-semibold">{calculateFinancialSummary.djKeepsFromPaidToDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                   <p className="text-xs text-muted-foreground">(Parcela DJ + Custos)</p>
-                </div>
-                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Agência a Receber (DJ Recebeu do Cliente):</p>
-                  <p className="font-semibold">{calculateFinancialSummary.agencyShareFromPaidToDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                   <p className="text-xs text-muted-foreground">(Parcela Agência)</p>
-                </div>
-
-                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">DJ Potencial (Cliente não pagou Agência):</p>
-                  <p className="font-semibold">{calculateFinancialSummary.djPotentialTotalEntitlementFromPendingToAgency.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                   <p className="text-xs text-muted-foreground">(Parcela DJ + Custos)</p>
-                </div>
-                <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Agência Potencial (Cliente não pagou DJ):</p>
-                  <p className="font-semibold">{calculateFinancialSummary.agencyPotentialShareFromPendingToDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                   <p className="text-xs text-muted-foreground">(Parcela Agência)</p>
-                </div>
-
               </CardContent>
             </Card>
           )}
@@ -430,6 +412,7 @@ const PaymentsPage: NextPage = () => {
           <Card>
             <CardHeader>
               <CardTitle className="font-headline text-xl">Extrato de Eventos</CardTitle>
+              <CardDescription>Todos os eventos (não cancelados) no período que compõem o resumo acima.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading && filteredEvents.length === 0 ? (
@@ -461,7 +444,7 @@ const PaymentsPage: NextPage = () => {
                             </>
                         )}
                         <TableHead>Recebido Por</TableHead>
-                        <TableHead>Status Pag.</TableHead>
+                        <TableHead>Status Pag. (Cliente)</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -539,3 +522,4 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
+
