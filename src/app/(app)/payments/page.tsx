@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event, UserDetails } from '@/lib/types';
-import { format, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear, isSameDay } from 'date-fns';
 import { CalendarIcon, Search, Loader2, Info, TrendingUp, TrendingDown, ArrowRightLeft } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState, useMemo } from 'react';
@@ -49,21 +49,12 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 interface FinancialSummary {
   totalEvents: number;
-  // 1. Valor Bruto dos Eventos (no período, para o DJ selecionado)
-  grossRevenueInPeriod: number;
-
-  // 2. Valor Líquido DJ (Apurado no Período)
-  djNetEntitlementInPeriod: number;
-  // 2. Valor Líquido Agência (Apurado no Período, dos eventos do DJ)
-  agencyNetEntitlementInPeriod: number;
-
-  // 3. Valor Recebido pelo DJ (Registrado no Período)
-  totalReceivedByDjInPeriod: number;
-  // 4. Valor Recebido pela Agência (Registrado no Período, dos eventos do DJ)
-  totalReceivedByAgencyInPeriod: number;
-
-  // 5. Saldo do Período para o DJ
-  djFinalBalanceInPeriod: number; // djNetEntitlementInPeriod - totalReceivedByDjInPeriod
+  grossRevenueInPeriod: number; // Valor Bruto dos Eventos (Período Selecionado)
+  djNetEntitlementInPeriod: number; // Valor Líquido DJ (Apurado no Período)
+  agencyNetEntitlementInPeriod: number; // Valor Líquido Agência (Apurado no Período, dos eventos do DJ)
+  totalReceivedByDjInPeriod: number; // Valor Recebido pelo DJ (Registrado no Período)
+  totalReceivedByAgencyInPeriod: number; // Valor Recebido pela Agência (Registrado no Período, dos eventos do DJ)
+  djFinalBalanceInPeriod: number; // Saldo do Período para o DJ (djNetEntitlementInPeriod - totalReceivedByDjInPeriod)
 }
 
 
@@ -219,30 +210,31 @@ const PaymentsPage: NextPage = () => {
 
     eventsForThisDjSummary.forEach(event => {
       summary.totalEvents += 1;
+      // 1. Valor Bruto dos Eventos (Período Selecionado)
       summary.grossRevenueInPeriod += event.valor_total;
       
       const djCosts = event.dj_costs || 0;
       const valueAfterDjCosts = event.valor_total - djCosts;
 
-      // Valor Líquido DJ (Apurado)
+      // 2. Valor Líquido DJ (Apurado no Período)
       const djEntitlementForEvent = (valueAfterDjCosts * djBasePercentage) + djCosts;
       summary.djNetEntitlementInPeriod += djEntitlementForEvent;
 
-      // Valor Líquido Agência (Apurado)
+      // 3. Valor Líquido Agência (Apurado no Período, dos eventos do DJ)
       const agencyEntitlementForEvent = valueAfterDjCosts * (1 - djBasePercentage);
       summary.agencyNetEntitlementInPeriod += agencyEntitlementForEvent;
       
-      // Valor Recebido pelo DJ
+      // 4. Valor Recebido pelo DJ (Registrado no Período)
       if (event.conta_que_recebeu === 'dj') {
         summary.totalReceivedByDjInPeriod += event.valor_total;
       }
-      // Valor Recebido pela Agência
+      // 5. Valor Recebido pela Agência (Registrado no Período, dos eventos do DJ)
       if (event.conta_que_recebeu === 'agencia') {
         summary.totalReceivedByAgencyInPeriod += event.valor_total;
       }
     });
 
-    // Saldo do Período para o DJ
+    // 6. Saldo do Período para o DJ
     summary.djFinalBalanceInPeriod = summary.djNetEntitlementInPeriod - summary.totalReceivedByDjInPeriod;
     
     return summary;
@@ -381,29 +373,29 @@ const PaymentsPage: NextPage = () => {
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Valor Bruto dos Eventos:</p>
+                  <p className="text-muted-foreground">1. Valor Bruto dos Eventos (Período):</p>
                   <p className="font-semibold text-lg">{calculateFinancialSummary.grossRevenueInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                 </div>
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Valor Líquido DJ (Apurado):</p>
+                  <p className="text-muted-foreground">2. Valor Líquido DJ (Apurado):</p>
                   <p className="font-semibold text-lg text-green-700">{calculateFinancialSummary.djNetEntitlementInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                    <p className="text-xs text-muted-foreground">(Valor Bruto - Custos) * %DJ + Custos</p>
                 </div>
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Valor Líquido Agência (Apurado):</p>
+                  <p className="text-muted-foreground">3. Valor Líquido Agência (Apurado):</p>
                   <p className="font-semibold text-lg text-blue-700">{calculateFinancialSummary.agencyNetEntitlementInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                    <p className="text-xs text-muted-foreground">(Valor Bruto - Custos) * %Agência</p>
                 </div>
                 
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Total Recebido pelo DJ (Registrado):</p>
+                  <p className="text-muted-foreground">4. Total Recebido pelo DJ (Registrado):</p>
                   <p className="font-semibold text-lg text-orange-600">
                       {calculateFinancialSummary.totalReceivedByDjInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </p>
                   <p className="text-xs text-muted-foreground">(Soma dos VTs de eventos pagos ao DJ)</p>
                 </div>
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
-                  <p className="text-muted-foreground">Total Recebido pela Agência (Registrado):</p>
+                  <p className="text-muted-foreground">5. Total Recebido pela Agência (Registrado):</p>
                   <p className="font-semibold text-lg text-purple-600">
                       {calculateFinancialSummary.totalReceivedByAgencyInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </p>
@@ -413,13 +405,13 @@ const PaymentsPage: NextPage = () => {
                 <div className={`p-4 rounded-md shadow-md text-center col-span-1 md:col-span-2 lg:col-span-1 flex flex-col justify-center items-center
                                  ${calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
                     <p className={`font-semibold text-md ${calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>
-                        {calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? 'SALDO A RECEBER PELO DJ:' : 'SALDO A REPASSAR PELO DJ:'}
+                        {calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? '6. SALDO A RECEBER PELO DJ:' : '6. SALDO A REPASSAR PELO DJ:'}
                     </p>
                     <p className={`font-bold text-2xl ${calculateFinancialSummary.djFinalBalanceInPeriod >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
                         {Math.abs(calculateFinancialSummary.djFinalBalanceInPeriod).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                        (Valor Líquido DJ - Valor Recebido pelo DJ)
+                        (Valor Líquido DJ (2) - Valor Recebido pelo DJ (4))
                     </p>
                 </div>
               </CardContent>
@@ -542,4 +534,6 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
+    
+
     
