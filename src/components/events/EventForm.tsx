@@ -151,7 +151,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
 
   useEffect(() => {
     form.reset(defaultValues);
-  }, [defaultValues, form.reset]);
+  }, [defaultValues, form]);
 
 
   const handleSubmit = async (values: EventFormValues) => {
@@ -313,7 +313,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             render={({ field }) => (
                 <FormItem className="flex flex-col md:col-span-2">
                 <FormLabel>Data do Evento</FormLabel>
-                <Popover>
+                <Popover modal={true}>
                     <PopoverTrigger asChild>
                     <FormControl>
                         <Button
@@ -610,3 +610,5 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
     </Form>
   );
 }
+
+    
