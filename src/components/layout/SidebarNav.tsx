@@ -21,7 +21,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Painel', icon: LayoutDashboard, roles: ['admin', 'partner', 'dj'] },
-  { href: '/events', label: 'Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda', icon: ListMusic, roles: ['admin', 'partner', 'dj'] },
   { 
     href: '/payments', 
