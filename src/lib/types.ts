@@ -8,6 +8,7 @@ export interface UserDetails {
   displayName: string | null;
   role: UserRole;
   dj_percentual?: number | null; // DJ's individual commission percentage (e.g., 0.7 for 70%)
+  dj_color?: string | null; // Hex color code for the DJ (e.g., #ff0000)
   // Bank details for DJs
   bankName?: string | null;
   bankAgency?: string | null;

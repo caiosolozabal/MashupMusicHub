@@ -78,6 +78,7 @@ export default function UserManagementTab() {
               <TableHead>Email</TableHead>
               <TableHead>Função</TableHead>
               <TableHead>Percentual DJ</TableHead>
+              <TableHead>Cor</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -89,6 +90,14 @@ export default function UserManagementTab() {
                 <TableCell className="capitalize">{user.role || 'N/A'}</TableCell>
                 <TableCell>
                   {user.role === 'dj' ? (user.dj_percentual ? `${(user.dj_percentual * 100).toFixed(0)}%` : 'Não definido') : 'N/A'}
+                </TableCell>
+                <TableCell>
+                  {user.role === 'dj' && user.dj_color ? (
+                    <div className="flex items-center gap-2">
+                      <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: user.dj_color }}></div>
+                      <span className="font-mono text-xs">{user.dj_color}</span>
+                    </div>
+                  ) : 'N/A'}
                 </TableCell>
                 <TableCell className="text-right">
                   <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>

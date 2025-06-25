@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { Calendar } from '@/components/ui/calendar';
-import type { Event } from '@/lib/types';
+import type { Event, UserDetails } from '@/lib/types';
 import { format, isSameDay } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -15,6 +15,7 @@ import { buttonVariants } from "@/components/ui/button"
 
 interface ScheduleCalendarViewProps {
   events: Event[];
+  allDjs: UserDetails[];
 }
 
 const getStatusText = (status?: Event['status_pagamento']): string => {
@@ -28,18 +29,8 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
   }
 };
 
-const getEventColorVar = (status?: Event['status_pagamento']): string => {
-  switch (status) {
-    case 'pago': return '--chart-3'; 
-    case 'parcial': return '--chart-4'; 
-    case 'pendente': return '--destructive'; 
-    case 'vencido': return '--destructive'; 
-    case 'cancelado': return '--muted'; 
-    default: return '--foreground'; 
-  }
-};
 
-export default function ScheduleCalendarView({ events }: ScheduleCalendarViewProps) {
+export default function ScheduleCalendarView({ events, allDjs }: ScheduleCalendarViewProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
@@ -63,32 +54,39 @@ export default function ScheduleCalendarView({ events }: ScheduleCalendarViewPro
       <TooltipProvider>
         <div className="flex flex-col items-stretch justify-start w-full h-full relative pt-5 px-1 space-y-0.5 overflow-hidden">
           {renderDateNumber()}
-          {dayEvents.slice(0, MAX_VISIBLE_EVENTS).map(event => (
-            <Tooltip key={event.id} delayDuration={100}>
-              <TooltipTrigger asChild>
-                <div
-                  onClick={() => handleEventClick(event)}
-                  className={cn(
-                    "text-[10px] leading-tight p-1 rounded-sm cursor-pointer hover:opacity-80 w-full text-left truncate text-white font-medium"
-                  )}
-                  style={{ backgroundColor: `hsl(var(${getEventColorVar(event.status_pagamento)}))` }}
-                  title={`${event.nome_evento} (${getStatusText(event.status_pagamento)})`}
-                >
-                  {event.horario_inicio ? `${event.horario_inicio.substring(0,5)} - ` : ''}{event.nome_evento}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="p-2 text-xs bg-background border-border shadow-lg rounded-md">
-                <p className="font-semibold">{event.nome_evento}</p>
-                {event.horario_inicio && <p>{event.horario_inicio}{event.horario_fim ? ` - ${event.horario_fim}`: ''}</p>}
-                <p className="capitalize">{getStatusText(event.status_pagamento)}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
+          {dayEvents.slice(0, MAX_VISIBLE_EVENTS).map(event => {
+            const djForEvent = allDjs.find(dj => dj.uid === event.dj_id);
+            const eventColor = djForEvent?.dj_color || 'hsl(var(--muted))';
+            
+            return (
+              <Tooltip key={event.id} delayDuration={100}>
+                <TooltipTrigger asChild>
+                  <div
+                    onClick={() => handleEventClick(event)}
+                    className={cn(
+                      "text-[10px] leading-tight p-1 rounded-sm cursor-pointer hover:opacity-80 w-full text-left truncate text-white font-medium"
+                    )}
+                    style={{ backgroundColor: eventColor }}
+                    title={`${event.nome_evento} (${event.dj_nome})`}
+                  >
+                    {event.horario_inicio ? `${event.horario_inicio.substring(0,5)} - ` : ''}{event.nome_evento}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="p-2 text-xs bg-background border-border shadow-lg rounded-md">
+                  <p className="font-semibold">{event.nome_evento}</p>
+                  <p>DJ: {event.dj_nome}</p>
+                  {event.horario_inicio && <p>{event.horario_inicio}{event.horario_fim ? ` - ${event.horario_fim}`: ''}</p>}
+                  <p className="capitalize">Status: {getStatusText(event.status_pagamento)}</p>
+                </TooltipContent>
+              </Tooltip>
+            )
+          })}
           {dayEvents.length > MAX_VISIBLE_EVENTS && (
             <div
               className="text-[10px] text-center text-muted-foreground py-0.5 cursor-pointer hover:underline mt-auto"
               onClick={() => {
                 if (dayEvents.length > 0) {
+                    // Clicking this could open a modal with all events for the day, for now it opens the first one
                     handleEventClick(dayEvents[0]); 
                 }
               }}

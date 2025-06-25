@@ -1,16 +1,17 @@
 
 'use client';
 
-import type { Event } from '@/lib/types';
+import type { Event, UserDetails } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
-import { format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import type { VariantProps } from 'class-variance-authority';
 import { Eye, Edit, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface ScheduleListViewProps {
   events: Event[];
+  allDjs: UserDetails[];
   djPercentual: number | null;
   onView: (event: Event) => void;
   onEdit: (event: Event) => void;
@@ -43,6 +44,7 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 export default function ScheduleListView({
   events,
+  allDjs,
   djPercentual,
   onView,
   onEdit,
@@ -62,46 +64,54 @@ export default function ScheduleListView({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Data</TableHead>
-            <TableHead>Horário</TableHead>
-            <TableHead>Evento</TableHead>
-            <TableHead>Local</TableHead>
-            <TableHead>Contratante</TableHead>
-            <TableHead>Status Pag.</TableHead>
-            <TableHead>Valor Total</TableHead>
-            {djPercentual !== null && <TableHead>Seu Cachê (Est.)</TableHead>}
-            <TableHead>DJ</TableHead>
-            <TableHead className="text-right">Ações</TableHead>
+            <TableHead className="px-3 py-2">Data</TableHead>
+            <TableHead className="px-3 py-2">Horário</TableHead>
+            <TableHead className="px-3 py-2">Evento</TableHead>
+            <TableHead className="px-3 py-2">Local</TableHead>
+            <TableHead className="px-3 py-2">Contratante</TableHead>
+            <TableHead className="px-3 py-2">Status Pag.</TableHead>
+            <TableHead className="px-3 py-2">Valor Total</TableHead>
+            {djPercentual !== null && <TableHead className="px-3 py-2">Seu Cachê (Est.)</TableHead>}
+            <TableHead className="px-3 py-2">DJ</TableHead>
+            <TableHead className="text-right px-3 py-2">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {events.map((event) => (
+          {events.map((event) => {
+             const djForEvent = allDjs.find(dj => dj.uid === event.dj_id);
+             const djColor = djForEvent?.dj_color;
+            return(
             <TableRow key={event.id}>
-              <TableCell>
+              <TableCell className="p-2">
                 <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
                 <div className="text-xs text-muted-foreground">{event.dia_da_semana}</div>
               </TableCell>
-              <TableCell>
+              <TableCell className="p-2">
                   {event.horario_inicio ? `${event.horario_inicio}${event.horario_fim ? ` - ${event.horario_fim}` : ''}` : 'N/A'}
               </TableCell>
-              <TableCell className="font-medium">{event.nome_evento}</TableCell>
-              <TableCell>{event.local}</TableCell>
-              <TableCell>{event.contratante_nome}</TableCell>
-              <TableCell>
+              <TableCell className="font-medium p-2">{event.nome_evento}</TableCell>
+              <TableCell className="p-2">{event.local}</TableCell>
+              <TableCell className="p-2">{event.contratante_nome}</TableCell>
+              <TableCell className="p-2">
                 <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
                   {getStatusText(event.status_pagamento)}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="p-2">
                 {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </TableCell>
               {djPercentual !== null && (
-                <TableCell>
+                <TableCell className="p-2">
                   {calculateCache(event).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
               )}
-              <TableCell>{event.dj_nome}</TableCell>
-              <TableCell className="text-right space-x-1">
+              <TableCell className="p-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full border" style={{ backgroundColor: djColor || 'transparent' }}></span>
+                  <span>{event.dj_nome}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-right space-x-1 p-2">
                 <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => onView(event)}>
                   <Eye className="h-4 w-4" />
                 </Button>
@@ -117,7 +127,7 @@ export default function ScheduleListView({
                 )}
               </TableCell>
             </TableRow>
-          ))}
+          )})}
         </TableBody>
       </Table>
     </div>

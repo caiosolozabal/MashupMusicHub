@@ -40,7 +40,7 @@ export default function SchedulePage() {
   
   // Page State
   const [events, setEvents] = useState<Event[]>([]);
-  const [allDjs, setAllDjs] = useState<{ id: string; name: string }[]>([]);
+  const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -100,22 +100,11 @@ export default function SchedulePage() {
       setEvents(eventsList);
 
       if (userDetails?.role === 'admin' || userDetails?.role === 'partner') {
-        const djMap = new Map<string, string>();
          const usersCollection = collection(db, 'users');
          const djsQuery = query(usersCollection, where('role', '==', 'dj'));
          const djsSnapshot = await getDocs(djsQuery);
-         djsSnapshot.docs.forEach(doc => {
-           const djData = doc.data() as UserDetails;
-           djMap.set(djData.uid, djData.displayName || djData.email || 'DJ Desconhecido');
-         });
-         if (djMap.size === 0) {
-           eventsList.forEach(event => {
-             if (event.dj_id && event.dj_nome) {
-               djMap.set(event.dj_id, event.dj_nome);
-             }
-           });
-         }
-        setAllDjs(Array.from(djMap, ([id, name]) => ({ id, name })).sort((a,b) => a.name.localeCompare(b.name)));
+         const djsList = djsSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails));
+         setAllDjs(djsList.sort((a,b) => (a.displayName || '').localeCompare(b.displayName || '')));
       }
 
     } catch (error) {
@@ -355,7 +344,7 @@ export default function SchedulePage() {
                 <SelectContent>
                   <SelectItem value="all">Todos os DJs</SelectItem>
                   {allDjs.map(dj => (
-                    <SelectItem key={dj.id} value={dj.id}>{dj.name}</SelectItem>
+                    <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                   ))}
                    {allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
                 </SelectContent>
@@ -370,10 +359,11 @@ export default function SchedulePage() {
              </div>
           )}
 
-          {viewMode === 'month' && <ScheduleCalendarView events={filteredEvents} />}
+          {viewMode === 'month' && <ScheduleCalendarView events={filteredEvents} allDjs={allDjs} />}
           {viewMode === 'list' && (
             <ScheduleListView
               events={filteredEvents}
+              allDjs={allDjs}
               djPercentual={userDetails?.dj_percentual ?? null}
               onView={handleOpenView}
               onEdit={handleOpenEditForm}
