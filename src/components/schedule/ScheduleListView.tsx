@@ -42,6 +42,14 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
   }
 };
 
+const getRowStyle = (color: string | null | undefined): React.CSSProperties => {
+    if (!color) return {};
+    // convert hsl(h, s%, l%) to hsla(h, s%, l%, a) to make it more subtle
+    const bgColor = color.replace('hsl(', 'hsla(').replace(')', ', 0.15)');
+    return { backgroundColor: bgColor };
+};
+
+
 export default function ScheduleListView({
   events,
   allDjs,
@@ -64,16 +72,16 @@ export default function ScheduleListView({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="px-3 py-2">Data</TableHead>
-            <TableHead className="px-3 py-2">Horário</TableHead>
-            <TableHead className="px-3 py-2">Evento</TableHead>
-            <TableHead className="px-3 py-2">Local</TableHead>
-            <TableHead className="px-3 py-2">Contratante</TableHead>
-            <TableHead className="px-3 py-2">Status Pag.</TableHead>
-            <TableHead className="px-3 py-2">Valor Total</TableHead>
-            {djPercentual !== null && <TableHead className="px-3 py-2">Seu Cachê (Est.)</TableHead>}
-            <TableHead className="px-3 py-2">DJ</TableHead>
-            <TableHead className="text-right px-3 py-2">Ações</TableHead>
+            <TableHead className="px-3 py-1.5">Data</TableHead>
+            <TableHead className="px-3 py-1.5">Horário</TableHead>
+            <TableHead className="px-3 py-1.5">Evento</TableHead>
+            <TableHead className="px-3 py-1.5">Local</TableHead>
+            <TableHead className="px-3 py-1.5">Contratante</TableHead>
+            <TableHead className="px-3 py-1.5">Status Pag.</TableHead>
+            <TableHead className="px-3 py-1.5">Valor Total</TableHead>
+            {djPercentual !== null && <TableHead className="px-3 py-1.5">Seu Cachê (Est.)</TableHead>}
+            <TableHead className="px-3 py-1.5">DJ</TableHead>
+            <TableHead className="text-right px-3 py-1.5">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -81,37 +89,37 @@ export default function ScheduleListView({
              const djForEvent = allDjs.find(dj => dj.uid === event.dj_id);
              const djColor = djForEvent?.dj_color;
             return(
-            <TableRow key={event.id}>
-              <TableCell className="p-2">
-                <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
+            <TableRow key={event.id} style={getRowStyle(djColor)}>
+              <TableCell className="p-1.5">
+                <div className="font-medium text-sm">{format(event.data_evento, 'dd/MM/yyyy')}</div>
                 <div className="text-xs text-muted-foreground">{event.dia_da_semana}</div>
               </TableCell>
-              <TableCell className="p-2">
+              <TableCell className="p-1.5 text-sm">
                   {event.horario_inicio ? `${event.horario_inicio}${event.horario_fim ? ` - ${event.horario_fim}` : ''}` : 'N/A'}
               </TableCell>
-              <TableCell className="font-medium p-2">{event.nome_evento}</TableCell>
-              <TableCell className="p-2">{event.local}</TableCell>
-              <TableCell className="p-2">{event.contratante_nome}</TableCell>
-              <TableCell className="p-2">
+              <TableCell className="font-medium p-1.5 text-sm">{event.nome_evento}</TableCell>
+              <TableCell className="p-1.5 text-sm">{event.local}</TableCell>
+              <TableCell className="p-1.5 text-sm">{event.contratante_nome}</TableCell>
+              <TableCell className="p-1.5">
                 <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
                   {getStatusText(event.status_pagamento)}
                 </Badge>
               </TableCell>
-              <TableCell className="p-2">
+              <TableCell className="p-1.5 text-sm">
                 {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </TableCell>
               {djPercentual !== null && (
-                <TableCell className="p-2">
+                <TableCell className="p-1.5 text-sm">
                   {calculateCache(event).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
               )}
-              <TableCell className="p-2">
+              <TableCell className="p-1.5 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full border" style={{ backgroundColor: djColor || 'transparent' }}></span>
                   <span>{event.dj_nome}</span>
                 </div>
               </TableCell>
-              <TableCell className="text-right space-x-1 p-2">
+              <TableCell className="text-right space-x-1 p-1.5">
                 <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => onView(event)}>
                   <Eye className="h-4 w-4" />
                 </Button>
