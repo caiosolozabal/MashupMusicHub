@@ -53,7 +53,7 @@ export default function SchedulePage() {
 
   // Filters State
   const [selectedDjId, setSelectedDjId] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()) });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: undefined });
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchEventsAndDjs = async () => {
@@ -121,17 +121,28 @@ export default function SchedulePage() {
 
   const filteredEvents = useMemo(() => {
     let filtered = [...events];
+    
+    // DJ Filter
     if (selectedDjId !== 'all' && (userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
       filtered = filtered.filter(event => event.dj_id === selectedDjId);
     }
+    
+    // Date Range Filter
     if (dateRange?.from) {
-      filtered = filtered.filter(event => event.data_evento >= dateRange.from!);
+      const fromDate = startOfDay(dateRange.from); 
+      // If 'to' is not provided, it's an open-ended range from 'from' date.
+      if (!dateRange.to) {
+         filtered = filtered.filter(event => event.data_evento >= fromDate);
+      } 
+      // If 'to' is provided, it's a closed range.
+      else {
+        const toDate = new Date(dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(event => event.data_evento >= fromDate && event.data_evento <= toDate);
+      }
     }
-    if (dateRange?.to) {
-      const toDate = new Date(dateRange.to);
-      toDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(event => event.data_evento <= toDate);
-    }
+    
+    // Search Term Filter
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(event => 
@@ -140,8 +151,10 @@ export default function SchedulePage() {
         event.local.toLowerCase().includes(lowerSearchTerm)
       );
     }
+    
     return filtered;
   }, [events, selectedDjId, dateRange, searchTerm, userDetails?.role]);
+
 
   // --- CRUD Handlers ---
   const canCreateEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner' || userDetails?.role === 'dj';
@@ -318,7 +331,7 @@ export default function SchedulePage() {
                         {format(dateRange.to, "LLL dd, y")}
                       </>
                     ) : (
-                      format(dateRange.from, "LLL dd, y")
+                      `A partir de ${format(dateRange.from, "LLL dd, y")}`
                     )
                   ) : (
                     <span>Selecione o período</span>
