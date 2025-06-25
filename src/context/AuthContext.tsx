@@ -8,6 +8,7 @@ import { createContext, useEffect, useState, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
+import { generateRandomPastelColor } from '@/lib/utils';
 
 
 // Define user roles for Mashup Music
@@ -63,6 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'New User',
               role: 'dj', // Default role
               dj_percentual: 0.7, // Default percentage (70%)
+              dj_color: generateRandomPastelColor(),
             };
             await setDoc(userDocRef, { ...newUserDetails, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
             setUserDetails(newUserDetails);

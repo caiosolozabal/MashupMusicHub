@@ -23,6 +23,7 @@ import { db } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserDetails, UserRole } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
+import { generateRandomPastelColor } from '@/lib/utils';
 
 const editUserFormSchema = z.object({
   displayName: z.string().min(1, 'Nome é obrigatório.'),
@@ -31,7 +32,7 @@ const editUserFormSchema = z.object({
     (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
     z.number().min(0).max(1).nullable().optional() // Percentage between 0 and 1
   ),
-  dj_color: z.string().regex(/^#[0-9a-fA-F]{7}$/, { message: "Formato de cor inválido. Use #rrggbb." }).optional().nullable(),
+  dj_color: z.string().optional().nullable(),
   bankName: z.string().optional().nullable(),
   bankAgency: z.string().optional().nullable(),
   bankAccount: z.string().optional().nullable(),
@@ -65,7 +66,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       displayName: user.displayName || '',
       role: user.role || 'dj', // Default to 'dj' if no role
       dj_percentual: user.dj_percentual ?? null,
-      dj_color: user.dj_color || '#ffffff',
+      dj_color: user.dj_color || null,
       bankName: user.bankName || '',
       bankAgency: user.bankAgency || '',
       bankAccount: user.bankAccount || '',
@@ -82,7 +83,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         displayName: user.displayName || '',
         role: user.role || 'dj',
         dj_percentual: user.dj_percentual ?? null,
-        dj_color: user.dj_color || '#ffffff',
+        dj_color: user.dj_color || null,
         bankName: user.bankName || '',
         bankAgency: user.bankAgency || '',
         bankAccount: user.bankAccount || '',
@@ -109,7 +110,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
 
       if (data.role === 'dj') {
         updateData.dj_percentual = data.dj_percentual;
-        updateData.dj_color = data.dj_color;
+        updateData.dj_color = (data.dj_color && data.dj_color.startsWith('hsl')) ? data.dj_color : generateRandomPastelColor();
         updateData.bankName = data.bankName || null;
         updateData.bankAgency = data.bankAgency || null;
         updateData.bankAccount = data.bankAccount || null;
@@ -193,9 +194,11 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                         {errors.dj_percentual && <p className="text-sm text-destructive mt-1">{errors.dj_percentual.message}</p>}
                     </div>
                     <div>
-                        <Label htmlFor="dj_color">Cor do DJ na Agenda</Label>
-                        <Input id="dj_color" type="color" {...register('dj_color')} className="p-1 h-10 w-full" />
-                        {errors.dj_color && <p className="text-sm text-destructive mt-1">{errors.dj_color.message}</p>}
+                        <Label>Cor do DJ na Agenda</Label>
+                        <div className="flex items-center gap-2 mt-1 p-2 border rounded-md bg-muted/50 h-10">
+                            <div className="h-6 w-6 rounded-full border" style={{ backgroundColor: watch('dj_color') || 'transparent' }}></div>
+                            <span className="text-sm text-muted-foreground font-mono">{watch('dj_color') || 'Cor será gerada ao salvar'}</span>
+                        </div>
                     </div>
                 </div>
               </div>
