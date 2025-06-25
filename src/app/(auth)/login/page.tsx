@@ -5,9 +5,9 @@ export default function LoginPage() {
   return (
     <Card className="shadow-xl">
       <CardHeader>
-        <CardTitle className="font-headline text-3xl text-center">Welcome Back!</CardTitle>
+        <CardTitle className="font-headline text-3xl text-center">Bem-vindo de Volta!</CardTitle>
         <CardDescription className="text-center">
-          Sign in to manage your DJ agency.
+          Faça login para gerenciar sua agência de DJs.
         </CardDescription>
       </CardHeader>
       <CardContent>
