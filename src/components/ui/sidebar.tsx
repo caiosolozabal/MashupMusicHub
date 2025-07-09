@@ -158,20 +158,6 @@ const SidebarProvider = React.forwardRef<
 SidebarProvider.displayName = "SidebarProvider"
 
 
-// New Client-only Sidebar Provider to prevent hydration errors
-const ClientSidebarProvider = ({ children }: { children: React.ReactNode }) => {
-  const [isClient, setIsClient] = React.useState(false)
-
-  React.useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  // Render children only on the client-side after mount to prevent hydration mismatch.
-  // Before that, render null to match the server render.
-  return isClient ? <SidebarProvider defaultOpen>{children}</SidebarProvider> : null
-}
-
-
 const Sidebar = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
@@ -752,7 +738,6 @@ const SidebarMenuSubButton = React.forwardRef<
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton"
 
 export {
-  ClientSidebarProvider,
   Sidebar,
   SidebarContent,
   SidebarFooter,
