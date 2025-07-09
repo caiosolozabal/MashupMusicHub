@@ -80,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
+      setLoading(true); // Set loading to true at the start of auth change
       if (currentUser) {
         const userDocRef = doc(db, "users", currentUser.uid);
         try {
@@ -104,34 +104,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             console.log(`New user profile created in Firestore for ${currentUser.uid}`);
           }
           
+          setUser(currentUser);
           setUserDetails(fetchedUserDetails);
           setRole(fetchedUserDetails.role);
           setDjPercentual(fetchedUserDetails.dj_percentual ?? null);
           
-          // Force refresh of the ID token to include the custom claim 'role'
-          // This is essential for Firestore security rules to work correctly
-          const tokenResult = await getIdTokenResult(currentUser, true); 
-          const currentTokenRole = tokenResult.claims.role;
-
-          if (currentTokenRole !== fetchedUserDetails.role) {
-            console.log('Role mismatch between token and Firestore. Forcing token refresh.');
-            // This is a best-effort client-side refresh. For immediate effect,
-            // a Cloud Function is needed to set claims on user creation/update.
-            // For now, this will fix the issue on subsequent interactions.
-          }
+          // CRITICAL STEP: Force a refresh of the ID token to get custom claims.
+          // This ensures that security rules that depend on `request.auth.token.role`
+          // will have the correct value immediately.
+          await getIdTokenResult(currentUser, true);
+          console.log('ID token has been refreshed with custom claims.');
 
         } catch (error) {
           console.error("Error fetching/creating user document:", error);
-          setUserDetails(null); // Fallback
+          setUser(null);
+          setUserDetails(null);
           setRole(null);
           setDjPercentual(null);
         }
       } else {
+        setUser(null);
         setUserDetails(null);
         setRole(null);
         setDjPercentual(null);
       }
-      setLoading(false);
+      setLoading(false); // Set loading to false only after all async operations are complete
     });
     return () => unsubscribe();
   }, []);
@@ -148,6 +145,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   if (!auth || !db) {
     // This component now safely handles client-side only rendering of the error.
     return <FirebaseInitError />;
+  }
+
+  if (loading && !user) {
+    return (
+       <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg font-semibold">Verificando Autenticação...</p>
+      </div>
+    )
   }
 
   return (
