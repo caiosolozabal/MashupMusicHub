@@ -74,6 +74,14 @@ export interface FinancialSettlement {
   id: string;
   djId: string;
   djName: string;
+  djDetails: {
+    bankName?: string | null;
+    bankAgency?: string | null;
+    bankAccount?: string | null;
+    bankAccountType?: 'corrente' | 'poupanca' | null;
+    bankDocument?: string | null;
+    pixKey?: string | null;
+  };
   periodStart: Date | Timestamp;
   periodEnd: Date | Timestamp;
   events: Event[]; // Array of event objects included in this settlement

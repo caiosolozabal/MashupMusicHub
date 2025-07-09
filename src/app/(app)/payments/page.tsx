@@ -282,6 +282,14 @@ const PaymentsPage: NextPage = () => {
     const newSettlement: Omit<FinancialSettlement, 'id' | 'generatedAt'> & { generatedAt: any } = {
         djId: selectedDjId,
         djName: dj.displayName || dj.email || 'N/A',
+        djDetails: {
+            bankName: dj.bankName || null,
+            bankAgency: dj.bankAgency || null,
+            bankAccount: dj.bankAccount || null,
+            bankAccountType: dj.bankAccountType || null,
+            bankDocument: dj.bankDocument || null,
+            pixKey: dj.pixKey || null,
+        },
         periodStart: Timestamp.fromDate(dateRange.from),
         periodEnd: Timestamp.fromDate(dateRange.to),
         events: filteredEvents,
@@ -323,7 +331,7 @@ const PaymentsPage: NextPage = () => {
 
   const generatePdf = (settlement: FinancialSettlement) => {
     const doc = new jsPDF();
-    const dj = allDjs.find(d => d.uid === settlement.djId);
+    const djDetails = settlement.djDetails;
 
     // Header
     doc.setFontSize(18);
@@ -396,19 +404,19 @@ const PaymentsPage: NextPage = () => {
     y = (doc as any).lastAutoTable.finalY + 20;
 
     // Bank Details
-    if (dj?.bankName) {
+    if (djDetails?.bankName) {
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('Dados para Pagamento (DJ):', 14, y);
         y += 6;
         doc.setFont('helvetica', 'normal');
-        doc.text(`Banco: ${dj.bankName || ''}`, 14, y);
+        doc.text(`Banco: ${djDetails.bankName || ''}`, 14, y);
         y += 5;
-        doc.text(`Agência: ${dj.bankAgency || ''} / Conta ${dj.bankAccountType || ''}: ${dj.bankAccount || ''}`, 14, y);
+        doc.text(`Agência: ${djDetails.bankAgency || ''} / Conta ${djDetails.bankAccountType || ''}: ${djDetails.bankAccount || ''}`, 14, y);
         y += 5;
-        doc.text(`Documento: ${dj.bankDocument || ''}`, 14, y);
+        doc.text(`Documento: ${djDetails.bankDocument || ''}`, 14, y);
         y += 5;
-        doc.text(`Chave PIX: ${dj.pixKey || ''}`, 14, y);
+        doc.text(`Chave PIX: ${djDetails.pixKey || ''}`, 14, y);
     }
     
     // Signature
