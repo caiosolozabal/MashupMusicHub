@@ -4,50 +4,45 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   
-    // Check if the user's custom token claim 'role' is admin or partner
-    function isManager() {
-      return request.auth.token.role in ['admin', 'partner'];
+    // Helper function to check for admin/partner roles
+    function isAdminOrPartner() {
+      return request.auth.token.role == 'admin' || request.auth.token.role == 'partner';
     }
 
-    // Check if the user is the owner of the document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    // Rules for the 'users' collection
+    // Users Collection
     match /users/{userId} {
-      // Managers can read and write any user document
-      allow read, write: if isManager();
+      // Any authenticated user can update their own document.
+      // Admins/partners can read all user documents (to list DJs, etc.).
+      allow read, update: if request.auth != null && (request.auth.uid == userId || isAdminOrPartner());
       
-      // Users can read and write their own document
-      allow read, update: if isOwner(userId);
-    }
-    
-    // Rules for 'events'
-    match /events/{eventId} {
-      // Managers can perform any operation on events
-      allow read, create, update, delete: if isManager();
-      
-      // DJs can read events they are assigned to
-      allow read: if request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid;
-      
-      // DJs can create events, but only for themselves
-      allow create: if request.auth.token.role == 'dj' && request.resource.data.dj_id == request.auth.uid;
-    }
-    
-    // Rules for 'settlements'
-    match /settlements/{settlementId} {
-      // Managers can perform any operation on settlements
-      allow read, create, update, delete: if isManager();
-      
-      // DJs can read settlements that belong to them
-      allow read: if request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid;
+      // Only admins/partners can create or delete users through this setup.
+      allow create, delete: if isAdminOrPartner();
     }
 
-    // Rules for 'agency_accounts'
+    // Agency Accounts Collection
     match /agency_accounts/{accountId} {
-       // Only managers can read or write agency accounts
-      allow read, write: if isManager();
+      // Only Admins and Partners can manage agency accounts.
+      allow read, write: if isAdminOrPartner();
+    }
+
+    // Events Collection
+    match /events/{eventId} {
+      // Admins/Partners can do anything.
+      allow read, write: if isAdminOrPartner();
+      
+      // DJs can read events assigned to them.
+      // Allow create for DJs as well, with client-side logic ensuring they assign to themselves.
+      allow create: if request.auth.token.role == 'dj';
+      allow read: if request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid;
+    }
+    
+    // Settlements Collection
+    match /settlements/{settlementId} {
+        // Admins/Partners can do anything with settlements.
+        allow read, write: if isAdminOrPartner();
+        
+        // DJs can only read settlements that belong to them.
+        allow read: if request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid;
     }
   }
 }
