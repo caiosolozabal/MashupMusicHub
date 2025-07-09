@@ -4,54 +4,48 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check for admin/partner roles
-    function isPrivileged() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'partner'];
-    }
-    
-    // Helper function to check if the user is the owner of the document
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    // Helper function to check if a user is an admin or partner
+    function isAdminOrPartner(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role in ['admin', 'partner'];
     }
 
-    // /users/{userId}
+    // Rules for the 'users' collection
     match /users/{userId} {
-      // Anyone can create their own user document on first login (handled by AuthContext)
-      allow create: if request.auth != null && request.auth.uid == userId;
-      // Users can read their own data. Privileged users can read anyone's data.
-      allow read: if isOwner(userId) || isPrivileged();
-      // Users can update their own data. Privileged users can update anyone's data.
-      allow update: if isOwner(userId) || isPrivileged();
-      // Only privileged users can delete user accounts from Firestore.
-      allow delete: if isPrivileged();
+      // Any authenticated user can read their own data
+      // Admins/partners can read any user's data
+      allow read: if request.auth.uid == userId || isAdminOrPartner(request.auth.uid);
+
+      // Only the user themselves can update their own data.
+      // Admins/partners can also update any user's data.
+      allow write: if request.auth.uid == userId || isAdminOrPartner(request.auth.uid);
+      
+      // Creating a user document is handled by the AuthProvider on first login
+      allow create: if request.auth.uid == userId;
     }
 
-    // /events/{eventId}
+    // Rules for the 'events' collection
     match /events/{eventId} {
-      // Read: Privileged users can read all. DJs can read events assigned to them.
-      allow read: if isPrivileged() || (request.auth != null && resource.data.dj_id == request.auth.uid);
-      // Create: Any authenticated user can create an event (DJ, admin, partner).
-      allow create: if request.auth != null;
-      // Update: Privileged users can update any event. DJs can only update events assigned to them.
-      // Also allow updating settlementId by privileged users.
-      allow update: if isPrivileged() || (request.auth != null && resource.data.dj_id == request.auth.uid);
-      // Delete: Only privileged users can delete events.
-      allow delete: if isPrivileged();
+        // Admins and partners can read any event.
+        // DJs can read events assigned to them.
+        allow read: if isAdminOrPartner(request.auth.uid) || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dj' && resource.data.dj_id == request.auth.uid);
+
+        // Admins and partners can create, update, and delete any event.
+        // DJs can create events and update events assigned to them.
+        allow create: if request.auth != null; // Any authenticated user can create, logic is handled in UI
+        allow update: if isAdminOrPartner(request.auth.uid) || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dj' && resource.data.dj_id == request.auth.uid);
+        allow delete: if isAdminOrPartner(request.auth.uid);
     }
     
-    // /agency_accounts/{accountId}
-    match /agency_accounts/{accountId} {
-        // Only privileged users can manage agency accounts.
-    	allow read, write: if isPrivileged();
-    }
-
-    // /settlements/{settlementId}
+    // Rules for the 'settlements' collection
     match /settlements/{settlementId} {
-        // Read: Privileged users can read all. DJs can read settlements that belong to them.
-        allow read: if isPrivivileged() || (request.auth != null && resource.data.djId == request.auth.uid);
-        // Create, Update, Delete: Only privileged users can manage settlements.
-        allow write: if isPrivileged();
+        // Admins and partners can manage settlements
+        allow read, write, create, delete: if isAdminOrPartner(request.auth.uid);
     }
-
+    
+    // Rules for the 'agency_accounts' collection
+    match /agency_accounts/{accountId} {
+      // Only admins and partners can manage agency accounts
+      allow read, write, create, delete: if isAdminOrPartner(request.auth.uid);
+    }
   }
 }
