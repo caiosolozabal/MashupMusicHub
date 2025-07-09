@@ -1,7 +1,7 @@
 
 import type { ReactNode } from 'react';
 import {
-  SidebarProvider,
+  ClientSidebarProvider,
   Sidebar,
   SidebarHeader,
   SidebarContent,
@@ -14,7 +14,7 @@ import Logo from '@/components/shared/Logo';
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <SidebarProvider defaultOpen>
+    <ClientSidebarProvider>
       {/* A div intermediária com flex-col foi removida. 
           SidebarProvider já tem um root div com 'display: flex' que organizará Sidebar e SidebarInset lado a lado. */}
       <Sidebar side="left" variant="sidebar" collapsible="icon">
@@ -42,6 +42,6 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           {children}
         </main>
       </SidebarInset>
-    </SidebarProvider>
+    </ClientSidebarProvider>
   );
 }
