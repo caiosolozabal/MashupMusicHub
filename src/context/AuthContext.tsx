@@ -69,12 +69,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
   // role and dj_percentual will be derived from userDetails but kept for quick access
   const [role, setRole] = useState<UserRole>(null);
   const [djPercentual, setDjPercentual] = useState<number | null>(null);
 
 
   useEffect(() => {
+    setIsMounted(true); // Component is now mounted on the client
+
     if (!auth || !db) { 
       setLoading(false); // Ensure loading stops if Firebase isn't initialized
       return;
@@ -84,6 +87,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (currentUser) {
         const userDocRef = doc(db, "users", currentUser.uid);
         try {
+          // CRITICAL STEP: Force a refresh of the ID token to get custom claims.
+          // This must happen before any Firestore reads that depend on security rules.
+          await getIdTokenResult(currentUser, true);
+          console.log('ID token has been refreshed with custom claims.');
+
           const userDocSnap = await getDoc(userDocRef);
           let fetchedUserDetails: UserDetails;
 
@@ -108,12 +116,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUserDetails(fetchedUserDetails);
           setRole(fetchedUserDetails.role);
           setDjPercentual(fetchedUserDetails.dj_percentual ?? null);
-          
-          // CRITICAL STEP: Force a refresh of the ID token to get custom claims.
-          // This ensures that security rules that depend on `request.auth.token.role`
-          // will have the correct value immediately.
-          await getIdTokenResult(currentUser, true);
-          console.log('ID token has been refreshed with custom claims.');
 
         } catch (error) {
           console.error("Error fetching/creating user document:", error);
@@ -146,19 +148,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // This component now safely handles client-side only rendering of the error.
     return <FirebaseInitError />;
   }
-
-  if (loading && !user) {
-    return (
-       <div className="flex h-screen w-screen items-center justify-center bg-background">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="ml-4 text-lg font-semibold">Verificando Autenticação...</p>
-      </div>
-    )
-  }
+  
+  // To prevent hydration mismatch, we must ensure that the initial render on the client
+  // is identical to the server render. We show a loader until the component is mounted on the client
+  // and auth state is confirmed.
+  const showLoader = !isMounted || loading;
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {showLoader ? (
+        <div className="flex h-screen w-screen items-center justify-center bg-background">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="ml-4 text-lg font-semibold">Verificando Autenticação...</p>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };
