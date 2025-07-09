@@ -13,16 +13,6 @@ import React from "react"
 
 export function Toaster() {
   const { toasts } = useToast()
-  const [isClient, setIsClient] = React.useState(false)
-
-  React.useEffect(() => {
-    setIsClient(true)
-  }, [])
-  
-  // Render nothing on the server, and only render on the client after mounting.
-  if (!isClient) {
-    return null
-  }
 
   return (
     <ToastProvider>
