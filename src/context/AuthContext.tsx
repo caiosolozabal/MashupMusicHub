@@ -30,6 +30,41 @@ export const AuthContext = createContext<AuthContextType>({
   dj_percentual: null,
 });
 
+// A new client component to safely render the Firebase initialization error message on the client side only.
+function FirebaseInitError() {
+  const [showError, setShowError] = useState(false);
+
+  useEffect(() => {
+    // This effect runs only on the client.
+    // If auth or db is not available after mount, we can safely show the error.
+    if (!auth || !db) {
+      setShowError(true);
+    }
+  }, []);
+
+  if (!showError) {
+    // Render nothing initially to match the server render.
+    return null;
+  }
+
+  return (
+    <div className="flex h-screen w-screen flex-col items-center justify-center bg-background p-6 text-center">
+      <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <p className="mt-4 text-lg font-semibold">Initializing Firebase...</p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        If this message persists, it likely means Firebase could not initialize.
+        This is often due to missing or incorrect Firebase configuration.
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Please check your browser&apos;s developer console for detailed error messages
+        and ensure your Firebase environment variables (e.g., <code>NEXT_PUBLIC_FIREBASE_API_KEY</code>)
+        are correctly set up in a <code>.env.local</code> file at the root of your project.
+      </p>
+    </div>
+  );
+}
+
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
@@ -96,24 +131,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     dj_percentual: djPercentual // Derived from userDetails.dj_percentual
   }), [user, userDetails, loading, role, djPercentual]);
 
-  if (loading && typeof window !== 'undefined' && (!auth || !db)) {
-     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center bg-background p-6 text-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-4 text-lg font-semibold">Initializing Firebase...</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          If this message persists, it likely means Firebase could not initialize.
-          This is often due to missing or incorrect Firebase configuration.
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Please check your browser&apos;s developer console for detailed error messages
-          and ensure your Firebase environment variables (e.g., <code>NEXT_PUBLIC_FIREBASE_API_KEY</code>)
-          are correctly set up in a <code>.env.local</code> file at the root of your project.
-        </p>
-      </div>
-    );
+  // Check for firebase initialization failure outside the main return.
+  if (!auth || !db) {
+    // This component now safely handles client-side only rendering of the error.
+    return <FirebaseInitError />;
   }
-
 
   return (
     <AuthContext.Provider value={value}>
