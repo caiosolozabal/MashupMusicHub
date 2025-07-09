@@ -1,59 +1,57 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
-      return request.auth != null;
+    // Helper function to check for admin/partner roles
+    function isPrivileged() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'partner'];
     }
-
+    
+    // Helper function to check if the user is the owner of the document
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // It's often better to get role from the token if using custom claims,
-    // but for Firestore-only roles, this is a common pattern.
-    // Ensure this path is correct and doesn't cause excessive reads if used in many rules.
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && getUserRole() == 'admin';
-    }
-
-    function isPartner() {
-      return isSignedIn() && getUserRole() == 'partner';
-    }
-
-    function isDJ() {
-      return isSignedIn() && getUserRole() == 'dj';
-    }
-
+    // /users/{userId}
     match /users/{userId} {
-      allow read: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
-      allow create: if isSignedIn(); // For initial profile creation
-      allow update: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
-      // Delete should be handled carefully, perhaps by admins or via soft delete
+      // Anyone can create their own user document on first login (handled by AuthContext)
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Users can read their own data. Privileged users can read anyone's data.
+      allow read: if isOwner(userId) || isPrivileged();
+      // Users can update their own data. Privileged users can update anyone's data.
+      allow update: if isOwner(userId) || isPrivileged();
+      // Only privileged users can delete user accounts from Firestore.
+      allow delete: if isPrivileged();
     }
 
+    // /events/{eventId}
     match /events/{eventId} {
-      // Individual document reads
-      allow read: if isSignedIn() && (isAdmin() || isPartner() || (isDJ() && resource.data.dj_id == request.auth.uid));
-      // For queries: Firestore security rules are not filters.
-      // The client MUST build queries that only request data the user is allowed to see.
-      // e.g., a DJ querying events MUST include where('dj_id', '==', request.auth.uid)
-      // This rule allows such a filtered query to succeed for a DJ.
-      // Admins/Partners can query without the dj_id filter.
-      allow list: if isSignedIn() && (isAdmin() || isPartner() || isDJ()); // DJ needs this to query their own events.
-
-      allow create: if isSignedIn() && (isAdmin() || isPartner() || isDJ());
-      allow update: if isSignedIn() && (isAdmin() || isPartner() || (isDJ() && resource.data.dj_id == request.auth.uid));
-      allow delete: if isSignedIn() && (isAdmin() || isPartner());
+      // Read: Privileged users can read all. DJs can read events assigned to them.
+      allow read: if isPrivileged() || (request.auth != null && resource.data.dj_id == request.auth.uid);
+      // Create: Any authenticated user can create an event (DJ, admin, partner).
+      allow create: if request.auth != null;
+      // Update: Privileged users can update any event. DJs can only update events assigned to them.
+      // Also allow updating settlementId by privileged users.
+      allow update: if isPrivileged() || (request.auth != null && resource.data.dj_id == request.auth.uid);
+      // Delete: Only privileged users can delete events.
+      allow delete: if isPrivileged();
     }
-
+    
+    // /agency_accounts/{accountId}
     match /agency_accounts/{accountId} {
-      allow read, write: if isSignedIn() && (isAdmin() || isPartner());
+        // Only privileged users can manage agency accounts.
+    	allow read, write: if isPrivileged();
     }
+
+    // /settlements/{settlementId}
+    match /settlements/{settlementId} {
+        // Read: Privileged users can read all. DJs can read settlements that belong to them.
+        allow read: if isPrivivileged() || (request.auth != null && resource.data.djId == request.auth.uid);
+        // Create, Update, Delete: Only privileged users can manage settlements.
+        allow write: if isPrivileged();
+    }
+
   }
 }

@@ -7,12 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
-import { format, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear, isSameDay } from 'date-fns';
-import { CalendarIcon, Search, Loader2, Info, FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear } from 'date-fns';
+import { CalendarIcon, Search, Loader2, Info, FileText, CheckCircle, AlertCircle, Clock, Trash2 } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, Timestamp, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, Timestamp, addDoc, serverTimestamp, writeBatch, doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
@@ -70,6 +71,8 @@ const PaymentsPage: NextPage = () => {
   const [isViewEventOpen, setIsViewEventOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
   const [isConfirmSettlementOpen, setIsConfirmSettlementOpen] = useState(false);
+  const [isConfirmRevertOpen, setIsConfirmRevertOpen] = useState(false);
+  const [selectedSettlementForRevert, setSelectedSettlementForRevert] = useState<FinancialSettlement | null>(null);
   const [settlements, setSettlements] = useState<FinancialSettlement[]>([]);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -417,6 +420,43 @@ const PaymentsPage: NextPage = () => {
     doc.save(`Fechamento_${settlement.djName}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
+  const handleDeleteSettlement = async () => {
+        if (!selectedSettlementForRevert || !db) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum fechamento selecionado.' });
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const batch = writeBatch(db);
+
+            // 1. Un-tag all events associated with this settlement
+            selectedSettlementForRevert.events.forEach(event => {
+                const eventRef = doc(db, 'events', event.id);
+                batch.update(eventRef, { settlementId: null });
+            });
+
+            // 2. Delete the settlement document itself
+            const settlementRef = doc(db, 'settlements', selectedSettlementForRevert.id);
+            batch.delete(settlementRef);
+
+            await batch.commit();
+
+            toast({ title: 'Fechamento Revertido!', description: 'Os eventos foram liberados e o fechamento foi excluído.' });
+            fetchEventsAndSettlements(); // Refresh all data
+        } catch (error) {
+            console.error("Error reverting settlement: ", error);
+            toast({ variant: 'destructive', title: 'Erro ao reverter', description: (error as Error).message });
+        } finally {
+            setIsSubmitting(false);
+            setIsConfirmRevertOpen(false);
+            setSelectedSettlementForRevert(null);
+        }
+    };
+
+    const handleOpenRevertDialog = (settlement: FinancialSettlement) => {
+        setSelectedSettlementForRevert(settlement);
+        setIsConfirmRevertOpen(true);
+    };
 
 
   const handleQuickFilter = (filter: 'month' | 'last30' | 'year') => {
@@ -737,11 +777,17 @@ const PaymentsPage: NextPage = () => {
                                             <span className="capitalize">{settlement.status === 'pending' ? 'Pendente' : settlement.status}</span>
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right">
+                                    <TableCell className="text-right space-x-1">
                                         <Button variant="outline" size="sm" onClick={() => generatePdf(settlement)}>
                                             <FileText className="mr-2 h-4 w-4" />
                                             PDF
                                         </Button>
+                                         {canGenerateSettlement && (
+                                            <Button variant="destructive" size="sm" onClick={() => handleOpenRevertDialog(settlement)} disabled={isSubmitting}>
+                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                Reverter
+                                            </Button>
+                                         )}
                                     </TableCell>
                                 </TableRow>
                             ))}
@@ -773,7 +819,7 @@ const PaymentsPage: NextPage = () => {
                 <AlertDialogDescription>
                     Você está prestes a gerar um fechamento para <strong>{djNameToDisplay}</strong> no período de <strong>{dateRange?.from ? format(dateRange.from, 'dd/MM/yy') : ''}</strong> a <strong>{dateRange?.to ? format(dateRange.to, 'dd/MM/yy') : ''}</strong>.
                     <br/><br/>
-                    Isso marcará <strong>{filteredEvents.length} eventos</strong> como "fechados" e eles não aparecerão em cálculos futuros. Esta ação não pode ser desfeita facilmente.
+                    Isso marcará <strong>{filteredEvents.length} eventos</strong> como "fechados" e eles não aparecerão em cálculos futuros. Esta ação pode ser revertida.
                     <br/><br/>
                     O saldo final para o DJ é de <strong className={calculateFinancialSummary?.djFinalBalanceInPeriod ?? 0 >= 0 ? 'text-green-600' : 'text-red-600'}>{calculateFinancialSummary?.djFinalBalanceInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>.
                     <br/><br/>
@@ -785,6 +831,32 @@ const PaymentsPage: NextPage = () => {
                 <AlertDialogAction onClick={handleCreateSettlement} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Confirmar e Gerar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+       <AlertDialog open={isConfirmRevertOpen} onOpenChange={setIsConfirmRevertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Reversão de Fechamento</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Tem certeza que deseja reverter este fechamento?
+                    <br/><br/>
+                    Esta ação irá <strong>excluir o registro do fechamento</strong> e <strong>liberar todos os {selectedSettlementForRevert?.events.length || 0} eventos associados</strong> para que possam ser incluídos em um novo cálculo.
+                    <br/><br/>
+                    Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setSelectedSettlementForRevert(null)} disabled={isSubmitting}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeleteSettlement}
+                    disabled={isSubmitting}
+                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                >
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                    Sim, Reverter
                 </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
