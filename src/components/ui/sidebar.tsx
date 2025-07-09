@@ -166,6 +166,8 @@ const ClientSidebarProvider = ({ children }: { children: React.ReactNode }) => {
     setIsClient(true)
   }, [])
 
+  // Render children only on the client-side after mount to prevent hydration mismatch.
+  // Before that, render null to match the server render.
   return isClient ? <SidebarProvider defaultOpen>{children}</SidebarProvider> : null
 }
 
