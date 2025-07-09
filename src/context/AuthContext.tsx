@@ -2,7 +2,7 @@
 'use client';
 import type { User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase'; // Ensure firebase is initialized before auth is imported
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, getIdTokenResult } from 'firebase/auth';
 import type { ReactNode } from 'react';
 import { createContext, useEffect, useState, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -85,15 +85,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userDocRef = doc(db, "users", currentUser.uid);
         try {
           const userDocSnap = await getDoc(userDocRef);
+          let fetchedUserDetails: UserDetails;
+
           if (userDocSnap.exists()) {
-            const fetchedUserDetails = userDocSnap.data() as UserDetails;
-            setUserDetails(fetchedUserDetails);
-            setRole(fetchedUserDetails.role);
-            setDjPercentual(fetchedUserDetails.dj_percentual ?? null);
+            fetchedUserDetails = userDocSnap.data() as UserDetails;
           } else {
             // User exists in Auth but not Firestore (e.g. first login)
             // Create a default user profile
-            const newUserDetails: UserDetails = {
+            fetchedUserDetails = {
               uid: currentUser.uid,
               email: currentUser.email,
               displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'New User',
@@ -101,12 +100,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               dj_percentual: 0.7, // Default percentage (70%)
               dj_color: generateRandomPastelColor(),
             };
-            await setDoc(userDocRef, { ...newUserDetails, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-            setUserDetails(newUserDetails);
-            setRole(newUserDetails.role);
-            setDjPercentual(newUserDetails.dj_percentual ?? null);
+            await setDoc(userDocRef, { ...fetchedUserDetails, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
             console.log(`New user profile created in Firestore for ${currentUser.uid}`);
           }
+          
+          setUserDetails(fetchedUserDetails);
+          setRole(fetchedUserDetails.role);
+          setDjPercentual(fetchedUserDetails.dj_percentual ?? null);
+          
+          // Force refresh of the ID token to include the custom claim 'role'
+          // This is essential for Firestore security rules to work correctly
+          const tokenResult = await getIdTokenResult(currentUser, true); 
+          const currentTokenRole = tokenResult.claims.role;
+
+          if (currentTokenRole !== fetchedUserDetails.role) {
+            console.log('Role mismatch between token and Firestore. Forcing token refresh.');
+            // This is a best-effort client-side refresh. For immediate effect,
+            // a Cloud Function is needed to set claims on user creation/update.
+            // For now, this will fix the issue on subsequent interactions.
+          }
+
         } catch (error) {
           console.error("Error fetching/creating user document:", error);
           setUserDetails(null); // Fallback

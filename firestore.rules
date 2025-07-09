@@ -3,50 +3,51 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the user is an admin or partner.
+  
+    // Check if the user's custom token claim 'role' is admin or partner
     function isManager() {
-      return request.auth.uid != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'partner'];
+      return request.auth.token.role in ['admin', 'partner'];
     }
 
-    // Users Collection
+    // Check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Rules for the 'users' collection
     match /users/{userId} {
-      // A user can read and update their own data.
-      allow read, update: if request.auth.uid == userId;
-      // Managers can list and get any user's data.
-      allow list, get: if isManager();
-      // Managers can create and delete users (though typically done via backend functions).
-      allow create, delete: if isManager();
-    }
-
-    // Events Collection
-    match /events/{eventId} {
-      // Managers can perform any action on events. This covers list, get, create, update, delete.
-      allow read, write, delete: if isManager();
-
-      // DJs can read events assigned to them.
-      allow get, list: if request.auth.uid == resource.data.dj_id;
-
-      // DJs can create events, but only assign themselves.
-      allow create: if request.auth.uid != null && request.resource.data.dj_id == request.auth.uid;
+      // Managers can read and write any user document
+      allow read, write: if isManager();
       
-      // DJs can update events assigned to them.
-      allow update: if request.auth.uid == resource.data.dj_id;
+      // Users can read and write their own document
+      allow read, update: if isOwner(userId);
     }
-
-    // Settlements Collection
+    
+    // Rules for 'events'
+    match /events/{eventId} {
+      // Managers can perform any operation on events
+      allow read, create, update, delete: if isManager();
+      
+      // DJs can read events they are assigned to
+      allow read: if request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid;
+      
+      // DJs can create events, but only for themselves
+      allow create: if request.auth.token.role == 'dj' && request.resource.data.dj_id == request.auth.uid;
+    }
+    
+    // Rules for 'settlements'
     match /settlements/{settlementId} {
-        // Managers can perform any action on settlements.
-        allow read, write, delete: if isManager();
-
-        // DJs can read settlements where they are the djId.
-        allow get, list: if request.auth.uid == resource.data.djId;
+      // Managers can perform any operation on settlements
+      allow read, create, update, delete: if isManager();
+      
+      // DJs can read settlements that belong to them
+      allow read: if request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid;
     }
 
-    // Agency Accounts Collection
+    // Rules for 'agency_accounts'
     match /agency_accounts/{accountId} {
-        // Only Managers can perform actions on agency accounts.
-        allow read, write, delete: if isManager();
+       // Only managers can read or write agency accounts
+      allow read, write: if isManager();
     }
   }
 }
