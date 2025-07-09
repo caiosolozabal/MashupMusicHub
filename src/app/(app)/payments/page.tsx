@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
-import type { Event, UserDetails } from '@/lib/types';
+import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
 import { format, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear, isSameDay } from 'date-fns';
-import { CalendarIcon, Search, Loader2, Info, TrendingUp, TrendingDown, ArrowRightLeft } from 'lucide-react';
+import { CalendarIcon, Search, Loader2, Info, FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, Timestamp, addDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,8 @@ import type { DateRange } from 'react-day-picker';
 import EventView from '@/components/events/EventView';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import jsPDF from 'jspdf';
 
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
@@ -49,12 +51,12 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 interface FinancialSummary {
   totalEvents: number;
-  grossRevenueInPeriod: number; // Valor Bruto dos Eventos (Período Selecionado)
-  djNetEntitlementInPeriod: number; // Valor Líquido DJ (Apurado no Período)
-  agencyNetEntitlementInPeriod: number; // Valor Líquido Agência (Apurado no Período, dos eventos do DJ)
-  totalReceivedByDjInPeriod: number; // Valor Recebido pelo DJ (Registrado no Período)
-  totalReceivedByAgencyInPeriod: number; // Valor Recebido pela Agência (Registrado no Período, dos eventos do DJ)
-  djFinalBalanceInPeriod: number; // Saldo do Período para o DJ (djNetEntitlementInPeriod - totalReceivedByDjInPeriod)
+  grossRevenueInPeriod: number;
+  djNetEntitlementInPeriod: number;
+  agencyNetEntitlementInPeriod: number;
+  totalReceivedByDjInPeriod: number;
+  totalReceivedByAgencyInPeriod: number;
+  djFinalBalanceInPeriod: number;
 }
 
 
@@ -64,8 +66,11 @@ const PaymentsPage: NextPage = () => {
   
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isViewEventOpen, setIsViewEventOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
+  const [isConfirmSettlementOpen, setIsConfirmSettlementOpen] = useState(false);
+  const [settlements, setSettlements] = useState<FinancialSettlement[]>([]);
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfMonth(new Date()),
@@ -96,34 +101,32 @@ const PaymentsPage: NextPage = () => {
     fetchDjs();
   }, [userDetails?.role, toast]);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
+  const fetchEventsAndSettlements = async () => {
       if (authLoading || !user || !db) {
         setIsLoading(false);
         return;
       }
       setIsLoading(true);
       
-      let q;
-      const eventsCollectionRef = collection(db, 'events');
-
-      if (userDetails?.role === 'admin' || userDetails?.role === 'partner') {
-        if (selectedDjId === 'all') {
-           q = query(eventsCollectionRef, orderBy('data_evento', 'desc'));
-        } else {
-          q = query(eventsCollectionRef, where('dj_id', '==', selectedDjId), orderBy('data_evento', 'desc'));
-        }
-      } else if (userDetails?.role === 'dj') {
-        q = query(eventsCollectionRef, where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
-        setSelectedDjId(user.uid); 
-      } else {
-        setAllEvents([]); 
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const eventsSnapshot = await getDocs(q);
+        let eventsQuery;
+        const eventsCollectionRef = collection(db, 'events');
+        
+        if (userDetails?.role === 'admin' || userDetails?.role === 'partner') {
+            eventsQuery = selectedDjId === 'all'
+              ? query(eventsCollectionRef, orderBy('data_evento', 'desc'))
+              : query(eventsCollectionRef, where('dj_id', '==', selectedDjId), orderBy('data_evento', 'desc'));
+        } else if (userDetails?.role === 'dj') {
+            eventsQuery = query(eventsCollectionRef, where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
+            setSelectedDjId(user.uid); 
+        } else {
+          setAllEvents([]); 
+          setSettlements([]);
+          setIsLoading(false);
+          return;
+        }
+
+        const eventsSnapshot = await getDocs(eventsQuery);
         const eventsList = eventsSnapshot.docs.map(docSnapshot => {
           const data = docSnapshot.data();
           return {
@@ -140,24 +143,49 @@ const PaymentsPage: NextPage = () => {
           } as Event;
         });
         setAllEvents(eventsList);
+
+        if (selectedDjId !== 'all') {
+            const settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', selectedDjId), orderBy('generatedAt', 'desc'));
+            const settlementsSnapshot = await getDocs(settlementsQuery);
+            const settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
+                const data = docSnapshot.data();
+                return {
+                    id: docSnapshot.id,
+                    ...data,
+                    periodStart: (data.periodStart as Timestamp).toDate(),
+                    periodEnd: (data.periodEnd as Timestamp).toDate(),
+                    generatedAt: (data.generatedAt as Timestamp).toDate(),
+                } as FinancialSettlement;
+            });
+            setSettlements(settlementsList);
+        } else {
+            setSettlements([]);
+        }
+
       } catch (error) {
-        console.error("Error fetching events for payments: ", error);
-        toast({ variant: 'destructive', title: 'Erro ao buscar eventos', description: (error as Error).message });
+        console.error("Error fetching data: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: (error as Error).message });
       } finally {
         setIsLoading(false);
       }
     };
 
+
+  useEffect(() => {
     if (!authLoading && user && userDetails) {
-        fetchEvents();
+        fetchEventsAndSettlements();
     } else if (!authLoading && !user) {
-        setAllEvents([]); 
+        setAllEvents([]);
+        setSettlements([]);
         setIsLoading(false);
     }
   }, [user, authLoading, userDetails, selectedDjId, toast]); 
 
   const filteredEvents = useMemo(() => {
     let eventsToFilter = [...allEvents];
+    
+    // Mostra apenas eventos que ainda não fazem parte de um fechamento.
+    eventsToFilter = eventsToFilter.filter(event => !event.settlementId);
     
     if (selectedDjId !== 'all') {
         eventsToFilter = eventsToFilter.filter(event => event.dj_id === selectedDjId);
@@ -210,35 +238,186 @@ const PaymentsPage: NextPage = () => {
 
     eventsForThisDjSummary.forEach(event => {
       summary.totalEvents += 1;
-      // 1. Valor Bruto dos Eventos (Período Selecionado)
       summary.grossRevenueInPeriod += event.valor_total;
       
       const djCosts = event.dj_costs || 0;
       const valueAfterDjCosts = event.valor_total - djCosts;
 
-      // 2. Valor Líquido DJ (Apurado no Período)
       const djEntitlementForEvent = (valueAfterDjCosts * djBasePercentage) + djCosts;
       summary.djNetEntitlementInPeriod += djEntitlementForEvent;
 
-      // 3. Valor Líquido Agência (Apurado no Período, dos eventos do DJ)
       const agencyEntitlementForEvent = valueAfterDjCosts * (1 - djBasePercentage);
       summary.agencyNetEntitlementInPeriod += agencyEntitlementForEvent;
       
-      // 4. Valor Recebido pelo DJ (Registrado no Período)
       if (event.conta_que_recebeu === 'dj') {
         summary.totalReceivedByDjInPeriod += event.valor_total;
       }
-      // 5. Valor Recebido pela Agência (Registrado no Período, dos eventos do DJ)
       if (event.conta_que_recebeu === 'agencia') {
         summary.totalReceivedByAgencyInPeriod += event.valor_total;
       }
     });
 
-    // 6. Saldo do Período para o DJ
     summary.djFinalBalanceInPeriod = summary.djNetEntitlementInPeriod - summary.totalReceivedByDjInPeriod;
     
     return summary;
   }, [filteredEvents, userDetails, selectedDjId, allDjs]);
+
+
+  const handleCreateSettlement = async () => {
+    if (!user || !db || selectedDjId === 'all' || !dateRange?.from || !dateRange?.to || !calculateFinancialSummary || filteredEvents.length === 0) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Selecione um DJ, um período completo e certifique-se que há eventos a serem fechados.' });
+        return;
+    }
+    setIsSubmitting(true);
+    const dj = allDjs.find(d => d.uid === selectedDjId);
+    if (!dj) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'DJ selecionado não encontrado.' });
+        setIsSubmitting(false);
+        return;
+    }
+
+    const newSettlement: Omit<FinancialSettlement, 'id' | 'generatedAt'> & { generatedAt: any } = {
+        djId: selectedDjId,
+        djName: dj.displayName || dj.email || 'N/A',
+        periodStart: Timestamp.fromDate(dateRange.from),
+        periodEnd: Timestamp.fromDate(dateRange.to),
+        events: filteredEvents,
+        summary: {
+            totalEvents: calculateFinancialSummary.totalEvents,
+            grossRevenueInPeriod: calculateFinancialSummary.grossRevenueInPeriod,
+            djNetEntitlementInPeriod: calculateFinancialSummary.djNetEntitlementInPeriod,
+            totalReceivedByDjInPeriod: calculateFinancialSummary.totalReceivedByDjInPeriod,
+            djFinalBalanceInPeriod: calculateFinancialSummary.djFinalBalanceInPeriod,
+        },
+        status: 'pending',
+        generatedBy: user.uid,
+        generatedAt: serverTimestamp(),
+    };
+
+    try {
+        const settlementsCollection = collection(db, 'settlements');
+        const settlementRef = await addDoc(settlementsCollection, newSettlement);
+        
+        // Marcar eventos como fechados
+        const batch = writeBatch(db);
+        filteredEvents.forEach(event => {
+            const eventRef = doc(db, 'events', event.id);
+            batch.update(eventRef, { settlementId: settlementRef.id });
+        });
+        await batch.commit();
+
+        toast({ title: 'Sucesso!', description: `Fechamento para ${dj.displayName} gerado com sucesso.` });
+        fetchEventsAndSettlements(); // Recarrega eventos e fechamentos
+    } catch (error) {
+        console.error("Error creating settlement: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao gerar fechamento', description: (error as Error).message });
+    } finally {
+        setIsSubmitting(false);
+        setIsConfirmSettlementOpen(false);
+    }
+  };
+
+
+  const generatePdf = (settlement: FinancialSettlement) => {
+    const doc = new jsPDF();
+    const dj = allDjs.find(d => d.uid === settlement.djId);
+
+    // Header
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Fechamento Financeiro - Mashup Music', 105, 20, { align: 'center' });
+
+    // Sub-header
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Período: ${format(settlement.periodStart instanceof Timestamp ? settlement.periodStart.toDate() : settlement.periodStart, 'dd/MM/yyyy')} a ${format(settlement.periodEnd instanceof Timestamp ? settlement.periodEnd.toDate() : settlement.periodEnd, 'dd/MM/yyyy')}`, 105, 30, { align: 'center' });
+    doc.text(`Gerado em: ${format(settlement.generatedAt instanceof Timestamp ? settlement.generatedAt.toDate() : settlement.generatedAt, 'dd/MM/yyyy HH:mm')}`, 105, 36, { align: 'center' });
+
+    // DJ Info
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`DJ: ${settlement.djName}`, 14, 50);
+
+    // Summary
+    doc.setFontSize(12);
+    let y = 60;
+    const summary = settlement.summary;
+    const addLine = (label: string, value: string) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, 14, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(value, 90, y);
+        y += 7;
+    };
+    addLine('Total de Eventos no Período:', `${summary.totalEvents}`);
+    addLine('Valor Bruto dos Eventos:', `${summary.grossRevenueInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`);
+    addLine('Valor Líquido Apurado para o DJ:', `${summary.djNetEntitlementInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`);
+    addLine('Total Recebido Diretamente pelo DJ:', `${summary.totalReceivedByDjInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`);
+    
+    y += 3;
+    doc.setLineWidth(0.5);
+    doc.line(14, y, 196, y);
+    y += 7;
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    const balanceText = summary.djFinalBalanceInPeriod >= 0 ? 'SALDO A RECEBER PELO DJ:' : 'SALDO A REPASSAR PELO DJ:';
+    doc.text(balanceText, 14, y);
+    doc.text(`${Math.abs(summary.djFinalBalanceInPeriod).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`, 196, y, { align: 'right' });
+    y += 15;
+    
+    // Events Table
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Eventos Incluídos no Fechamento', 14, y);
+    y += 10;
+    
+    const tableHeaders = [['Data', 'Evento', 'Valor Total', 'Recebido Por']];
+    const tableData = settlement.events.map(event => [
+        format(event.data_evento instanceof Timestamp ? event.data_evento.toDate() : event.data_evento, 'dd/MM/yy'),
+        event.nome_evento,
+        Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'
+    ]);
+
+    // @ts-ignore
+    doc.autoTable({
+      startY: y,
+      head: tableHeaders,
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [157, 78, 221], textColor: [255,255,255], fontStyle: 'bold' },
+      styles: { fontSize: 9 },
+    });
+    
+    y = (doc as any).lastAutoTable.finalY + 20;
+
+    // Bank Details
+    if (dj?.bankName) {
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Dados para Pagamento (DJ):', 14, y);
+        y += 6;
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Banco: ${dj.bankName || ''}`, 14, y);
+        y += 5;
+        doc.text(`Agência: ${dj.bankAgency || ''} / Conta ${dj.bankAccountType || ''}: ${dj.bankAccount || ''}`, 14, y);
+        y += 5;
+        doc.text(`Documento: ${dj.bankDocument || ''}`, 14, y);
+        y += 5;
+        doc.text(`Chave PIX: ${dj.pixKey || ''}`, 14, y);
+    }
+    
+    // Signature
+    y = doc.internal.pageSize.height - 30;
+    doc.line(40, y, 170, y);
+    doc.text('Assinatura do Responsável (Agência)', 105, y + 5, { align: 'center'});
+
+
+    doc.save(`Fechamento_${settlement.djName}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  };
+
+
 
   const handleQuickFilter = (filter: 'month' | 'last30' | 'year') => {
     setActiveQuickFilter(filter);
@@ -275,6 +454,7 @@ const PaymentsPage: NextPage = () => {
     ? (userDetails.displayName || userDetails.email) 
     : (allDjs.find(dj => dj.uid === selectedDjId)?.displayName || allDjs.find(dj => dj.uid === selectedDjId)?.email);
 
+  const canGenerateSettlement = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
   return (
     <div className="space-y-8">
@@ -326,7 +506,6 @@ const PaymentsPage: NextPage = () => {
                     selected={dateRange}
                     onSelect={setDateRange}
                     numberOfMonths={2}
-                    disabled={(date) => date > new Date() && !isSameDay(date, new Date())}
                   />
                 </PopoverContent>
               </Popover>
@@ -367,9 +546,9 @@ const PaymentsPage: NextPage = () => {
             <Card className="bg-primary/5 border-primary/20 shadow-md">
               <CardHeader>
                 <CardTitle className="font-headline text-xl text-primary">
-                    Resumo Financeiro: {djNameToDisplay} ({calculateFinancialSummary.totalEvents} eventos)
+                    Resumo Financeiro: {djNameToDisplay} ({calculateFinancialSummary.totalEvents} eventos para fechar)
                 </CardTitle>
-                <CardDescription>Referente ao período e filtros selecionados. Status de pagamento do cliente é para fins de cobrança e não afeta este cálculo de fechamento.</CardDescription>
+                <CardDescription>Referente ao período e filtros selecionados. Apenas eventos ainda não inclusos em fechamentos anteriores são considerados.</CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
                 <div className="p-3 bg-background/70 rounded-md shadow-sm">
@@ -430,11 +609,11 @@ const PaymentsPage: NextPage = () => {
           
           <Card>
             <CardHeader>
-              <CardTitle className="font-headline text-xl">Extrato de Eventos</CardTitle>
+              <CardTitle className="font-headline text-xl">Extrato de Eventos para Fechamento</CardTitle>
               <CardDescription>
                 {showDetailedSummary && djNameToDisplay
-                  ? `Eventos de ${djNameToDisplay} no período (não cancelados).`
-                  : `Todos os eventos no período (não cancelados).`
+                  ? `Eventos de ${djNameToDisplay} no período que ainda não foram fechados.`
+                  : `Selecione um DJ para ver os eventos.`
                 }
               </CardDescription>
             </CardHeader>
@@ -445,7 +624,7 @@ const PaymentsPage: NextPage = () => {
                   <p className="ml-2">Carregando eventos...</p>
                 </div>
               ) : filteredEvents.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum evento encontrado para os filtros selecionados.</p>
+                <p className="text-muted-foreground text-center py-8">Nenhum evento pendente de fechamento para os filtros selecionados.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <TooltipProvider>
@@ -506,13 +685,70 @@ const PaymentsPage: NextPage = () => {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="font-headline text-xl">Fechamentos Financeiros</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="font-headline text-xl">Fechamentos Financeiros</CardTitle>
+                <CardDescription>
+                  {selectedDjId !== 'all' ? `Histórico de fechamentos para ${djNameToDisplay}.` : 'Selecione um DJ para ver o histórico.'}
+                </CardDescription>
+              </div>
+              {canGenerateSettlement && selectedDjId !== 'all' && dateRange?.from && dateRange?.to && filteredEvents.length > 0 && (
+                 <Button onClick={() => setIsConfirmSettlementOpen(true)} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
+                    Gerar Fechamento
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
-                A funcionalidade de fechamentos financeiros (para registrar acertos entre agência e DJs) será implementada aqui.
-              </p>
+              {selectedDjId === 'all' ? (
+                 <p className="text-muted-foreground text-center py-8">Selecione um DJ para ver o histórico de fechamentos.</p>
+              ) : isLoading ? (
+                 <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-2">Carregando histórico...</p>
+                 </div>
+              ) : settlements.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nenhum fechamento encontrado para este DJ.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Data Geração</TableHead>
+                                <TableHead>Período</TableHead>
+                                <TableHead className="text-right">Saldo Final</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="text-right">Ações</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {settlements.map((settlement) => (
+                                <TableRow key={settlement.id}>
+                                    <TableCell>{format(settlement.generatedAt instanceof Timestamp ? settlement.generatedAt.toDate() : settlement.generatedAt, 'dd/MM/yy HH:mm')}</TableCell>
+                                    <TableCell>{`${format(settlement.periodStart instanceof Timestamp ? settlement.periodStart.toDate() : settlement.periodStart, 'dd/MM/yy')} - ${format(settlement.periodEnd instanceof Timestamp ? settlement.periodEnd.toDate() : settlement.periodEnd, 'dd/MM/yy')}`}</TableCell>
+                                    <TableCell className={`text-right font-semibold ${settlement.summary.djFinalBalanceInPeriod >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {settlement.summary.djFinalBalanceInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={settlement.status === 'paid' ? 'default' : 'secondary'}>
+                                            {settlement.status === 'pending' && <Clock className="mr-1 h-3 w-3" />}
+                                            {settlement.status === 'paid' && <CheckCircle className="mr-1 h-3 w-3" />}
+                                            {settlement.status === 'disputed' && <AlertCircle className="mr-1 h-3 w-3" />}
+                                            <span className="capitalize">{settlement.status === 'pending' ? 'Pendente' : settlement.status}</span>
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="outline" size="sm" onClick={() => generatePdf(settlement)}>
+                                            <FileText className="mr-2 h-4 w-4" />
+                                            PDF
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </CardContent>
@@ -529,11 +765,34 @@ const PaymentsPage: NextPage = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={isConfirmSettlementOpen} onOpenChange={setIsConfirmSettlementOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Geração de Fechamento</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Você está prestes a gerar um fechamento para <strong>{djNameToDisplay}</strong> no período de <strong>{dateRange?.from ? format(dateRange.from, 'dd/MM/yy') : ''}</strong> a <strong>{dateRange?.to ? format(dateRange.to, 'dd/MM/yy') : ''}</strong>.
+                    <br/><br/>
+                    Isso marcará <strong>{filteredEvents.length} eventos</strong> como "fechados" e eles não aparecerão em cálculos futuros. Esta ação não pode ser desfeita facilmente.
+                    <br/><br/>
+                    O saldo final para o DJ é de <strong className={calculateFinancialSummary?.djFinalBalanceInPeriod ?? 0 >= 0 ? 'text-green-600' : 'text-red-600'}>{calculateFinancialSummary?.djFinalBalanceInPeriod.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>.
+                    <br/><br/>
+                    Deseja continuar?
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel disabled={isSubmitting}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleCreateSettlement} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Confirmar e Gerar
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 };
 
 export default PaymentsPage;
-    
-
     

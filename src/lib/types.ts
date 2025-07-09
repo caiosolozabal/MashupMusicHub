@@ -1,5 +1,6 @@
 
 import type { UserRole } from '@/context/AuthContext';
+import type { Timestamp } from 'firebase/firestore';
 
 // UserDetails structure, to be refined
 export interface UserDetails {
@@ -65,9 +66,32 @@ export interface Event {
   created_at: Date; // Stored as Firestore Timestamp
   updated_at?: Date; // Stored as Firestore Timestamp
   files?: EventFile[] | null; // Outros arquivos gerais do evento
+  settlementId?: string | null; // ID do fechamento ao qual este evento pertence
 }
 
-// Represents a financial transaction, could be part of a settlement or a standalone payment
+// Represents a periodic financial closing for a DJ
+export interface FinancialSettlement {
+  id: string;
+  djId: string;
+  djName: string;
+  periodStart: Date | Timestamp;
+  periodEnd: Date | Timestamp;
+  events: Event[]; // Array of event objects included in this settlement
+  summary: {
+      totalEvents: number;
+      grossRevenueInPeriod: number;
+      djNetEntitlementInPeriod: number;
+      totalReceivedByDjInPeriod: number;
+      djFinalBalanceInPeriod: number;
+  };
+  status: 'pending' | 'paid' | 'disputed';
+  generatedAt: Date | Timestamp;
+  generatedBy: string; // UID of admin/partner
+  paidAt?: Date | Timestamp | null;
+  paymentProofUrl?: string | null;
+}
+
+
 export interface FinancialTransaction {
   id:string;
   eventId?: string; // Optional, if transaction is linked to a specific event
@@ -86,24 +110,6 @@ export interface FinancialTransaction {
   proofUrl?: string; // Link to Firebase Storage for payment slip
   createdBy: string; // UID of user who recorded this transaction
   createdAt: Date;
-}
-
-
-// Represents a periodic financial closing for a DJ
-export interface FinancialSettlement {
-  id: string;
-  djId: string;
-  periodStart: Date;
-  periodEnd: Date;
-  eventsCovered: string[]; // Array of event IDs included in this settlement
-  totalValueFromEventsForDJ: number; // Sum of DJ's share from events where agency received payment
-  totalValueFromEventsForAgency: number; // Sum of Agency's share from events where DJ received payment
-  netAmount: number; // Positive: Agency owes DJ. Negative: DJ owes Agency.
-  status: 'pending_calculation' | 'pending_payment' | 'paid' | 'disputed';
-  paymentProofUrl?: string; // Uploaded by admin/partner when paying DJ or by DJ when paying agency
-  notes?: string;
-  generatedAt: Date;
-  paidAt?: Date;
 }
 
 

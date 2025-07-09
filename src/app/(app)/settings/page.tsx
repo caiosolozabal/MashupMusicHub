@@ -11,6 +11,28 @@ import { Building, Cog, Users } from 'lucide-react';
 export default function SettingsPage() {
   const { userDetails } = useAuth();
 
+  // Allow DJ to see the page but with a custom message
+  if (userDetails?.role === 'dj') {
+      return (
+         <div className="space-y-6">
+             <div>
+                <h1 className="text-3xl font-bold tracking-tight font-headline">Configurações</h1>
+                <p className="text-muted-foreground">
+                    Sua visão de configurações é limitada.
+                </p>
+            </div>
+             <Card>
+                <CardHeader>
+                    <CardTitle className="font-headline">Acesso Restrito</CardTitle>
+                </CardHeader>
+                <CardContent>
+                <p>Nesta seção, apenas administradores e sócios podem gerenciar usuários e contas da agência. Você pode editar suas informações pessoais no seu perfil.</p>
+                </CardContent>
+            </Card>
+        </div>
+      )
+  }
+
   if (userDetails?.role !== 'admin' && userDetails?.role !== 'partner') {
     return (
       <Card>
