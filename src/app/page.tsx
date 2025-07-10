@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect } from 'react';
@@ -10,15 +11,21 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
+    // We only want to redirect once the auth state is conclusive.
     if (!loading) {
       if (user) {
+        // If there's a user, go to the main dashboard.
         router.replace('/dashboard');
       } else {
+        // If there's no user, go to the login page.
         router.replace('/login');
       }
     }
+    // The effect depends on the loading and user state to run redirects.
   }, [user, loading, router]);
 
+  // While loading is true, this component will show a full-screen loader.
+  // This is the single source of truth for the initial loading UI.
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-background">
       <Loader2 className="h-12 w-12 animate-spin text-primary" />
