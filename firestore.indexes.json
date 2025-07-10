@@ -1,0 +1,34 @@
+
+{
+  "indexes": [
+    {
+      "collectionGroup": "events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "dj_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "data_evento",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "settlements",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "djId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "generatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
