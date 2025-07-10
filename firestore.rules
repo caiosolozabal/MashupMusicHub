@@ -4,33 +4,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   
+    // Helper Functions
     function isAuth() {
       return request.auth != null;
     }
 
     function isAdminOrPartner() {
-      return isAuth() && (request.auth.token.role == 'admin' || request.auth.token.role == 'partner');
+      return isAuth() && request.auth.token.role in ['admin', 'partner'];
     }
     
+    // Collections Rules
     match /users/{userId} {
-      allow read, update: if isAuth() && request.auth.uid == userId;
-      allow list: if isAdminOrPartner();
-    }
-    
-    match /events/{eventId} {
-      allow read: if (isAdminOrPartner()) || (isAuth() && resource.data.dj_id == request.auth.uid);
-      allow write: if isAdminOrPartner();
-      allow create: if isAuth(); // DJ can create, admin/partner can create
-      allow update: if (isAdminOrPartner()) || (isAuth() && resource.data.dj_id == request.auth.uid);
+      allow read: if isAuth();
+      allow update: if isAuth() && request.auth.uid == userId;
+      // create/delete handled by backend functions or specific logic
     }
 
+    match /events/{eventId} {
+      allow read: if isAdminOrPartner() || (isAuth() && resource.data.dj_id == request.auth.uid);
+      allow write: if isAdminOrPartner();
+      allow create: if isAuth(); // DJ can create their own events
+    }
+    
     match /settlements/{settlementId} {
-       allow read: if (isAdminOrPartner()) || (isAuth() && resource.data.djId == request.auth.uid);
-       allow write: if isAdminOrPartner();
+        allow read: if isAdminOrPartner() || (isAuth() && resource.data.djId == request.auth.uid);
+        allow write: if isAdminOrPartner();
     }
     
     match /agency_accounts/{accountId} {
-      allow read, write: if isAdminOrPartner();
+        allow read, write: if isAdminOrPartner();
     }
   }
 }
+
+    
