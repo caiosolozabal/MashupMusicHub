@@ -1,56 +1,55 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check for admin or partner roles from the auth token
-    function isAdminOrPartner() {
+  
+    // Check if the user is an Admin or Partner by their custom claim
+    function isOwner() {
       return request.auth.token.role == 'admin' || request.auth.token.role == 'partner';
     }
 
-    // Users collection rules
+    // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins/Partners can read any user profile (for management)
-      // Users can read and update their own profile
-      allow read, update: if request.auth.uid == userId || isAdminOrPartner();
+      // Admins/Partners can read any user document
+      // Users can read their own document
+      allow read: if isOwner() || request.auth.uid == userId;
+
+      // Users can update their own document
+      // Admins/Partners can update any user document
+      allow update: if isOwner() || request.auth.uid == userId;
       
-      // Only admins can create or delete user records through dedicated functions/backend logic
-      // For this app, creation happens on first login, and we'll restrict deletion.
-      allow create: if request.auth.uid != null; // Allow creation for any authenticated user on first login
-      allow delete: if isAdminOrPartner(); // Only admins can delete users
+      // Admins/Partners can list all users
+      allow list: if isOwner();
+
+      // Any authenticated user can create their own user document upon first login
+      allow create: if request.auth.uid == userId;
     }
 
-    // Events collection rules
+    // Rules for the 'events' collection
     match /events/{eventId} {
-      // Admins/Partners can perform any action on events
-      allow read, write: if isAdminOrPartner();
-
-      // DJs can read events assigned to them
-      allow get: if request.auth.uid == resource.data.dj_id;
-      allow list: if request.auth.uid == request.query.where.dj_id; // Allow DJ to list their own events via query
-
-      // DJs can create events, but only for themselves
-      allow create: if request.auth.uid != null && request.resource.data.dj_id == request.auth.uid;
+      // Admins/Partners can perform any action on any event
+      allow read, write: if isOwner();
       
-      // DJs can update events assigned to them
-      allow update: if request.auth.uid == resource.data.dj_id;
-    }
-
-    // Settlements collection rules
-    match /settlements/{settlementId} {
-        // Admins/Partners can do anything with settlements
-        allow read, write: if isAdminOrPartner();
-
-        // DJs can read settlements that belong to them
-        allow get: if request.auth.uid == resource.data.djId;
-        allow list: if request.auth.uid == request.query.where.djId; // Allow DJ to query their own settlements
+      // DJs can read events they are assigned to
+      allow read: if request.auth.uid == resource.data.dj_id;
+      
+      // DJs can create events (validation should ensure they assign it to themselves)
+      allow create: if request.auth.uid != null;
     }
     
-    // Agency accounts collection rules
+    // Rules for the 'settlements' collection
+    match /settlements/{settlementId} {
+        // Admins/Partners can perform any action on any settlement
+        allow read, write: if isOwner();
+
+        // DJs can read settlements that belong to them
+        allow read: if request.auth.uid == resource.data.djId;
+    }
+
+    // Rules for the 'agency_accounts' collection
     match /agency_accounts/{accountId} {
-      // Only admins and partners can manage agency accounts
-      allow read, write: if isAdminOrPartner();
+      // Only Admins/Partners can manage agency bank accounts
+      allow read, write: if isOwner();
     }
   }
 }
