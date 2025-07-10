@@ -166,15 +166,6 @@ const PaymentsPage: NextPage = () => {
         }
 
       } catch (error) {
-        // --- DEBUGGING LOG ---
-        console.error("--------------------------------------------------");
-        console.error("--- MASHUP MUSIC HUB - DEBUG DE PERMISSÃO ---");
-        console.error(`- Timestamp: ${new Date().toISOString()}`);
-        console.error(`- User Role: ${userDetails?.role}`);
-        console.error(`- User UID: ${user?.uid}`);
-        console.error(`- Selected DJ ID: ${selectedDjId}`);
-        console.error("- Error Details:", error);
-        console.error("--------------------------------------------------");
         toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: (error as Error).message });
       } finally {
         setIsLoading(false);
@@ -190,7 +181,7 @@ const PaymentsPage: NextPage = () => {
         setSettlements([]);
         setIsLoading(false);
     }
-  }, [user, authLoading, userDetails, selectedDjId, toast]); 
+  }, [user, authLoading, userDetails, selectedDjId]); 
 
   const filteredEvents = useMemo(() => {
     let eventsToFilter = [...allEvents];
