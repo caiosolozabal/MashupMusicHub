@@ -3,53 +3,44 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
   
-    // Check if the user is an Admin or Partner by their custom claim
-    function isOwner() {
+    // Helper function to check for admin or partner roles
+    function isAdminOrPartner() {
       return request.auth.token.role == 'admin' || request.auth.token.role == 'partner';
     }
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins/Partners can read any user document
-      // Users can read their own document
-      allow read: if isOwner() || request.auth.uid == userId;
-
-      // Users can update their own document
-      // Admins/Partners can update any user document
-      allow update: if isOwner() || request.auth.uid == userId;
-      
-      // Admins/Partners can list all users
-      allow list: if isOwner();
-
-      // Any authenticated user can create their own user document upon first login
-      allow create: if request.auth.uid == userId;
-    }
-
-    // Rules for the 'events' collection
-    match /events/{eventId} {
-      // Admins/Partners can perform any action on any event
-      allow read, write: if isOwner();
-      
-      // DJs can read events they are assigned to
-      allow read: if request.auth.uid == resource.data.dj_id;
-      
-      // DJs can create events (validation should ensure they assign it to themselves)
-      allow create: if request.auth.uid != null;
-    }
-    
-    // Rules for the 'settlements' collection
-    match /settlements/{settlementId} {
-        // Admins/Partners can perform any action on any settlement
-        allow read, write: if isOwner();
-
-        // DJs can read settlements that belong to them
-        allow read: if request.auth.uid == resource.data.djId;
+      // Admins/Partners can read any user profile
+      allow read: if isAdminOrPartner();
+      // Any authenticated user can update their OWN profile
+      allow update: if request.auth.uid == userId;
+      // No one can create or delete users directly via client SDK for security
+      allow create, delete: if false;
     }
 
     // Rules for the 'agency_accounts' collection
     match /agency_accounts/{accountId} {
-      // Only Admins/Partners can manage agency bank accounts
-      allow read, write: if isOwner();
+      // Only Admins/Partners can read or write agency accounts
+      allow read, write: if isAdminOrPartner();
     }
+
+    // Rules for the 'events' collection
+    match /events/{eventId} {
+      // Admins/Partners can read/write all events
+      allow read, write: if isAdminOrPartner();
+      
+      // DJs can read events they are assigned to
+      allow read: if resource.data.dj_id == request.auth.uid;
+    }
+
+    // Rules for the 'settlements' collection
+    match /settlements/{settlementId} {
+      // Admins/Partners can read/write all settlements
+      allow read, write: if isAdminOrParent();
+      
+      // DJs can read their own settlements
+      allow read: if resource.data.djId == request.auth.uid;
+    }
+    
   }
 }
