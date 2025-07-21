@@ -97,6 +97,7 @@ const PaymentsPage: NextPage = () => {
           let eventsQuery;
           let settlementsQuery;
 
+          // Define queries based on user role
           if (userDetails.role === 'admin' || userDetails.role === 'partner') {
               eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
@@ -555,7 +556,7 @@ const PaymentsPage: NextPage = () => {
                 <label htmlFor="dj-filter-payments" className="text-sm font-medium text-foreground">Filtrar por DJ</label>
                 <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
                   <SelectTrigger id="dj-filter-payments" className="bg-background">
-                    <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione um DJ"} />
+                    <SelectValue placeholder={isLoading ? "Carregando DJs..." : "Selecione um DJ"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Ver todos os eventos (sem resumo)</SelectItem>
@@ -855,5 +856,5 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
-
+    
     
