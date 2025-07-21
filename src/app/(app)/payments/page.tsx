@@ -553,16 +553,16 @@ const PaymentsPage: NextPage = () => {
             {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
               <div className="lg:col-span-1">
                 <label htmlFor="dj-filter-payments" className="text-sm font-medium text-foreground">Filtrar por DJ</label>
-                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={authLoading || djs.length === 0}>
+                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
                   <SelectTrigger id="dj-filter-payments" className="bg-background">
-                    <SelectValue placeholder={authLoading ? "Carregando..." : "Selecione um DJ"} />
+                    <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione um DJ"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Ver todos os eventos (sem resumo)</SelectItem>
                     {djs.map(dj => (
                       <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                     ))}
-                    {!authLoading && djs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                    {!isLoading && djs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
@@ -855,10 +855,5 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
-    
-
-    
-
-    
 
     
