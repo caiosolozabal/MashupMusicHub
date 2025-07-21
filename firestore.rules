@@ -3,54 +3,57 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // As 'custom claims' (request.auth.token.role) são a fonte de verdade para a função do usuário.
+    // Isso é mais seguro e eficiente do que usar get() nas regras.
+    
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
 
     // 🔐 users
     match /users/{userId} {
-      // Admins/Partners can get any user. Users can get their own profile.
+      // get: Permite que um admin/partner leia qualquer perfil, e um usuário leia o seu próprio.
       allow get: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
-      // Admins/Partners can list users (e.g., to populate DJ dropdowns).
+      // list: Permite APENAS que admin/partner listem usuários (necessário para o dropdown de DJs).
       allow list: if request.auth.token.role in ['admin', 'partner'];
-      // Users can create their own document.
+      // create: Um usuário só pode criar seu próprio documento (geralmente no primeiro login).
       allow create: if isOwner(userId);
-      // Admins/Partners can update any user. Users can update their own profile.
+      // update: Permite que um admin/partner atualize qualquer perfil, e um usuário o seu próprio.
       allow update: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
-      // Deletion is not allowed.
+      // delete: Ninguém pode deletar usuários via cliente por segurança.
       allow delete: if false;
     }
 
     // 🔐 events
     match /events/{eventId} {
-      // Admins/Partners can read any event. DJs can read their own events.
+      // Admins/partners podem ler qualquer evento. DJs podem ler apenas os eventos que lhes são atribuídos.
       allow read: if request.auth.token.role in ['admin', 'partner'] || 
                    (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
-      // Admins, Partners, and DJs can create events.
+      // Admins, partners e DJs podem criar eventos.
       allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
-      // Admins/Partners can update any event. DJs can update their own events.
+      // Admins/partners podem atualizar qualquer evento. DJs podem atualizar apenas os seus.
       allow update: if request.auth.token.role in ['admin', 'partner'] || 
                      (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
-      // Only Admins/Partners can delete events.
+      // Apenas admins/partners podem deletar eventos.
       allow delete: if request.auth.token.role in ['admin', 'partner'];
     }
 
     // 🔐 settlements
     match /settlements/{settlementId} {
-       // Admins/Partners can read any settlement. DJs can read their own settlements.
+      // Admins/partners podem ler qualquer fechamento. DJs podem ler apenas os seus.
       allow read: if request.auth.token.role in ['admin', 'partner'] || 
                    (request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid);
-      // Only Admins/Partners can write settlements.
+      // Apenas admins/partners podem criar/atualizar/deletar fechamentos.
       allow write: if request.auth.token.role in ['admin', 'partner'];
     }
 
     // 🔐 agency_accounts
     match /agency_accounts/{accountId} {
-      // Only Admins/Partners can read/write agency accounts.
+      // Apenas admins/partners podem gerenciar as contas da agência.
       allow read, write: if request.auth.token.role in ['admin', 'partner'];
     }
 
-    // 🔒 fallback: deny all other reads/writes
+    // 🔒 Regra de fallback: nega acesso a qualquer outro caminho por padrão.
     match /{document=**} {
       allow read, write: if false;
     }
