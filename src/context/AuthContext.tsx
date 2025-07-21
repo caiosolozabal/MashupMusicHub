@@ -35,18 +35,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!auth || !db) { 
+      console.error("Firebase auth or db not available");
       setLoading(false); 
       return;
     }
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setLoading(true); 
+      setLoading(true); // Set loading to true at the start of auth state change
       if (currentUser) {
         try {
           // CRITICAL STEP: Force a refresh of the ID token to get custom claims.
           // This makes the user's role available in firestore.rules via request.auth.token.role
-          const idTokenResult = await getIdTokenResult(currentUser, true);
-          const claimsRole = idTokenResult.claims.role as UserRole || null;
-
+          await getIdTokenResult(currentUser, true);
+          
           const userDocRef = doc(db, "users", currentUser.uid);
           const userDocSnap = await getDoc(userDocRef);
           
@@ -54,22 +54,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           if (userDocSnap.exists()) {
             fetchedUserDetails = userDocSnap.data() as UserDetails;
-            // Ensure the role in Firestore matches the custom claim.
-            // This syncs up any changes made by an admin to a user's role.
-            if (fetchedUserDetails.role !== claimsRole) {
-               console.warn(`Role mismatch for ${currentUser.uid}. Claim: ${claimsRole}, Firestore: ${fetchedUserDetails.role}. Using claim role.`);
-               fetchedUserDetails.role = claimsRole;
-            }
-
           } else {
             // User exists in Auth but not Firestore (e.g. first login)
-            // Create a default user profile. The 'role' will be set by a Cloud Function trigger on user creation,
-            // but we can default to 'dj' on the client for immediate UI feedback.
+            // The role should be set by a Cloud Function trigger, but we create a client-side placeholder.
             fetchedUserDetails = {
               uid: currentUser.uid,
               email: currentUser.email,
               displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'New User',
-              role: claimsRole || 'dj', // Use claim role if available, otherwise default
+              role: null, // Role will be assigned by backend trigger
               dj_percentual: 0.7, // Default percentage (70%)
               dj_color: generateRandomPastelColor(),
             };
@@ -88,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         setUserDetails(null);
       }
-      setLoading(false); 
+      setLoading(false); // Set loading to false after all async operations are done
     });
 
     return () => unsubscribe();
