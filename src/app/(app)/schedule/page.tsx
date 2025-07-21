@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CalendarDays, List, Loader2, PlusCircle, Eye, Edit, Trash2 } from 'lucide-react';
@@ -56,28 +56,37 @@ export default function SchedulePage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: undefined });
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchEventsAndDjs = async () => {
-    if (authLoading || !user) {
+  const fetchEventsAndDjs = useCallback(async () => {
+    if (authLoading || !user || !userDetails) {
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
       if (!db) throw new Error("Firestore not initialized");
-      const eventsCollection = collection(db, 'events');
-      let q;
 
-      if (userDetails?.role === 'admin' || userDetails?.role === 'partner') {
-        q = query(eventsCollection, orderBy('data_evento', 'asc'));
-      } else if (userDetails?.role === 'dj') {
-        q = query(eventsCollection, where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
+      const dataPromises = [];
+      let eventsQuery;
+
+      // Define queries based on user role
+      if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+        eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
+        const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
+        dataPromises.push(getDocs(djsQuery));
+      } else if (userDetails.role === 'dj') {
+        eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
       } else {
         setEvents([]);
+        setAllDjs([]);
         setIsLoading(false);
         return;
       }
       
-      const eventsSnapshot = await getDocs(q);
+      dataPromises.unshift(getDocs(eventsQuery));
+      
+      const results = await Promise.all(dataPromises);
+
+      const eventsSnapshot = results[0];
       const eventsList = eventsSnapshot.docs.map(docSnapshot => {
         const data = docSnapshot.data();
         return {
@@ -99,25 +108,28 @@ export default function SchedulePage() {
       });
       setEvents(eventsList);
 
-      if (userDetails?.role === 'admin' || userDetails?.role === 'partner') {
-         const usersCollection = collection(db, 'users');
-         const djsQuery = query(usersCollection, where('role', '==', 'dj'));
-         const djsSnapshot = await getDocs(djsQuery);
+      if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+         const djsSnapshot = results[1];
          const djsList = djsSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails));
-         setAllDjs(djsList.sort((a,b) => (a.displayName || '').localeCompare(b.displayName || '')));
+         setAllDjs(djsList);
       }
 
     } catch (error) {
-      console.error("Error fetching events: ", error);
-      toast({ variant: 'destructive', title: 'Erro ao carregar agenda', description: (error as Error).message });
+      console.error("Error fetching data: ", error);
+      toast({ variant: 'destructive', title: 'Erro ao carregar dados', description: (error as Error).message });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [authLoading, user, userDetails, toast]);
+
 
   useEffect(() => {
-    fetchEventsAndDjs();
-  }, [user, authLoading, userDetails?.role]);
+    if (!authLoading && user && userDetails) {
+        fetchEventsAndDjs();
+    } else if (!authLoading && (!user || !userDetails)) {
+        setIsLoading(false);
+    }
+  }, [authLoading, user, userDetails, fetchEventsAndDjs]);
 
   const filteredEvents = useMemo(() => {
     let filtered = [...events];
@@ -268,7 +280,7 @@ export default function SchedulePage() {
   };
 
 
-  if (authLoading || (isLoading && events.length === 0)) {
+  if (authLoading || isLoading) {
     return (
         <div className="flex flex-col justify-center items-center h-64 space-y-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
