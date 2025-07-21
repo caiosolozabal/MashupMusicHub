@@ -389,8 +389,7 @@ const PaymentsPage: NextPage = () => {
         event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'
     ]);
 
-    // @ts-ignore
-    doc.autoTable({
+    (doc as any).autoTable({
       startY: y,
       head: tableHeaders,
       body: tableData,
