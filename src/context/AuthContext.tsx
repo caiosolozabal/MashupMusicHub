@@ -8,6 +8,7 @@ import { createContext, useEffect, useState, useMemo } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
 import { generateRandomPastelColor } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 
 // Define user roles for Mashup Music
@@ -18,7 +19,6 @@ interface AuthContextType {
   userDetails: UserDetails | null; 
   loading: boolean;
   role: UserRole; // Kept for convenience, derived from userDetails.role
-  dj_percentual: number | null; // Kept for convenience, derived from userDetails.dj_percentual
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -26,72 +26,71 @@ export const AuthContext = createContext<AuthContextType>({
   userDetails: null,
   loading: true,
   role: null, 
-  dj_percentual: null,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
   const [loading, setLoading] = useState(true);
-  // role and dj_percentual will be derived from userDetails but kept for quick access
-  const [role, setRole] = useState<UserRole>(null);
-  const [djPercentual, setDjPercentual] = useState<number | null>(null);
-
 
   useEffect(() => {
     if (!auth || !db) { 
-      setLoading(false); // Ensure loading stops if Firebase isn't initialized
+      setLoading(false); 
       return;
     }
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setLoading(true); // Set loading to true at the start of auth change
+      setLoading(true); 
       if (currentUser) {
-        const userDocRef = doc(db, "users", currentUser.uid);
         try {
           // CRITICAL STEP: Force a refresh of the ID token to get custom claims.
-          await getIdTokenResult(currentUser, true);
-          console.log('ID token has been refreshed with custom claims.');
+          // This makes the user's role available in firestore.rules via request.auth.token.role
+          const idTokenResult = await getIdTokenResult(currentUser, true);
+          const claimsRole = idTokenResult.claims.role as UserRole || null;
 
+          const userDocRef = doc(db, "users", currentUser.uid);
           const userDocSnap = await getDoc(userDocRef);
+          
           let fetchedUserDetails: UserDetails;
 
           if (userDocSnap.exists()) {
             fetchedUserDetails = userDocSnap.data() as UserDetails;
+            // Ensure the role in Firestore matches the custom claim.
+            // This syncs up any changes made by an admin to a user's role.
+            if (fetchedUserDetails.role !== claimsRole) {
+               console.warn(`Role mismatch for ${currentUser.uid}. Claim: ${claimsRole}, Firestore: ${fetchedUserDetails.role}. Using claim role.`);
+               fetchedUserDetails.role = claimsRole;
+            }
+
           } else {
             // User exists in Auth but not Firestore (e.g. first login)
-            // Create a default user profile
+            // Create a default user profile. The 'role' will be set by a Cloud Function trigger on user creation,
+            // but we can default to 'dj' on the client for immediate UI feedback.
             fetchedUserDetails = {
               uid: currentUser.uid,
               email: currentUser.email,
               displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'New User',
-              role: 'dj', // Default role
+              role: claimsRole || 'dj', // Use claim role if available, otherwise default
               dj_percentual: 0.7, // Default percentage (70%)
               dj_color: generateRandomPastelColor(),
             };
             await setDoc(userDocRef, { ...fetchedUserDetails, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-            console.log(`New user profile created in Firestore for ${currentUser.uid}`);
           }
           
           setUser(currentUser);
           setUserDetails(fetchedUserDetails);
-          setRole(fetchedUserDetails.role);
-          setDjPercentual(fetchedUserDetails.dj_percentual ?? null);
 
         } catch (error) {
-          console.error("Error fetching/creating user document:", error);
+          console.error("AuthContext Error: Error fetching user data or claims:", error);
           setUser(null);
           setUserDetails(null);
-          setRole(null);
-          setDjPercentual(null);
         }
       } else {
         setUser(null);
         setUserDetails(null);
-        setRole(null);
-        setDjPercentual(null);
       }
-      setLoading(false); // Set loading to false only after all async operations are complete
+      setLoading(false); 
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -99,9 +98,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user,
     userDetails,
     loading,
-    role, // Derived from userDetails.role
-    dj_percentual: djPercentual // Derived from userDetails.dj_percentual
-  }), [user, userDetails, loading, role, djPercentual]);
+    role: userDetails?.role ?? null,
+  }), [user, userDetails, loading]);
 
   // The provider now always renders its children,
   // letting consumer components decide what to show based on the 'loading' state.

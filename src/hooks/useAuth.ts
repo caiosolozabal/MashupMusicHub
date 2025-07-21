@@ -8,6 +8,6 @@ export const useAuth = () => {
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
-  // context already includes user, userDetails, loading, role, dj_percentual
+  // context already includes user, userDetails, loading, role
   return context; 
 };

@@ -3,38 +3,67 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Helper Functions
-    function isAuth() {
-      return request.auth != null;
+    
+    // As funções são uma boa prática, mas a lógica principal será movida para as regras de correspondência (match)
+    // para evitar a complexidade que estava causando problemas.
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    function isAdminOrPartner() {
-      return isAuth() && request.auth.token.role in ['admin', 'partner'];
-    }
-    
-    // Collections Rules
+    // --- REGRAS PARA CADA COLEÇÃO ---
+
+    // 🔐 Controle da coleção "users"
     match /users/{userId} {
-      allow read: if isAuth();
-      allow update: if isAuth() && request.auth.uid == userId;
-      // create/delete handled by backend functions or specific logic
+      // Admins/Partners podem ler qualquer perfil. Usuários podem ler seu próprio perfil.
+      allow read: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
+
+      // Usuários podem criar seu próprio documento ao se registrar.
+      allow create: if isOwner(userId);
+      
+      // Admins/Partners podem atualizar qualquer perfil. Usuários podem atualizar seu próprio perfil.
+      allow update: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
+
+      // A exclusão de usuários deve ser gerenciada pelo back-end (Cloud Functions) ou console do Firebase.
+      allow delete: if false; 
     }
 
+    // 🔐 Controle da coleção "events"
     match /events/{eventId} {
-      allow read: if isAdminOrPartner() || (isAuth() && resource.data.dj_id == request.auth.uid);
-      allow write: if isAdminOrPartner();
-      allow create: if isAuth(); // DJ can create their own events
+      // Admins/Partners podem ler qualquer evento. DJs podem ler eventos nos quais estão atribuídos.
+      // Esta regra FUNCIONA para consultas de lista (queries) porque não usa `get()`.
+      allow read: if request.auth.token.role in ['admin', 'partner'] || 
+                     (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
+                     
+      // Admins, Partners e DJs podem criar eventos.
+      allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
+
+      // Admins/Partners podem atualizar qualquer evento. DJs podem atualizar eventos nos quais estão atribuídos.
+      allow update: if request.auth.token.role in ['admin', 'partner'] || 
+                       (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
+                       
+      // Apenas Admins/Partners podem excluir eventos.
+      allow delete: if request.auth.token.role in ['admin', 'partner'];
     }
-    
+
+    // 🔐 Controle da coleção "settlements"
     match /settlements/{settlementId} {
-        allow read: if isAdminOrPartner() || (isAuth() && resource.data.djId == request.auth.uid);
-        allow write: if isAdminOrPartner();
+      // Admins/Partners podem ler qualquer fechamento. DJs podem ler seus próprios fechamentos.
+      allow read: if request.auth.token.role in ['admin', 'partner'] || 
+                     (request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid);
+      
+      // Apenas Admins/Partners podem criar, atualizar ou excluir fechamentos.
+      allow write: if request.auth.token.role in ['admin', 'partner'];
+    }
+
+    // 🔐 Controle da coleção "agency_accounts"
+    match /agency_accounts/{accountId} {
+      // Apenas Admins/Partners podem ler e escrever nas contas da agência.
+      allow read, write: if request.auth.token.role in ['admin', 'partner'];
     }
     
-    match /agency_accounts/{accountId} {
-        allow read, write: if isAdminOrPartner();
+    // Regra de fallback: nega acesso a qualquer outra coleção não especificada.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
-
-    
