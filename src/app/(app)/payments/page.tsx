@@ -65,10 +65,11 @@ const PaymentsPage: NextPage = () => {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
-  const [allEvents, setAllEvents] = useState<Event[]>([]);
-  const [allSettlements, setAllSettlements] = useState<FinancialSettlement[]>([]);
-  const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [settlements, setSettlements] = useState<FinancialSettlement[]>([]);
+  const [djs, setDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDjs, setIsLoadingDjs] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isViewEventOpen, setIsViewEventOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
@@ -84,7 +85,7 @@ const PaymentsPage: NextPage = () => {
   const [selectedDjId, setSelectedDjId] = useState<string>('all'); 
   const [activeQuickFilter, setActiveQuickFilter] = useState<string>('month');
 
-  const fetchAllData = useCallback(async () => {
+  const fetchEventsAndSettlements = useCallback(async () => {
       if (!user || !userDetails || !db) {
           setIsLoading(false);
           return;
@@ -92,36 +93,26 @@ const PaymentsPage: NextPage = () => {
       setIsLoading(true);
 
       try {
-          // Base queries
+          // Base queries for events and settlements
           let eventsQuery, settlementsQuery;
           const dataPromises = [];
 
           if (userDetails.role === 'admin' || userDetails.role === 'partner') {
               eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
-              
-              const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
-              dataPromises.push(getDocs(djsQuery));
-
           } else if (userDetails.role === 'dj') {
               eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', user.uid), orderBy('generatedAt', 'desc'));
               setSelectedDjId(user.uid);
           } else {
-              setAllEvents([]);
-              setAllSettlements([]);
-              setAllDjs([]);
+              setEvents([]);
+              setSettlements([]);
               setIsLoading(false);
               return;
           }
 
-          dataPromises.unshift(getDocs(eventsQuery), getDocs(settlementsQuery));
-
-          const results = await Promise.all(dataPromises);
-          
-          const eventsSnapshot = results[0];
-          const settlementsSnapshot = results[1];
-          const djsSnapshot = (userDetails.role === 'admin' || userDetails.role === 'partner') ? results[2] : null;
+          const eventsSnapshot = await getDocs(eventsQuery);
+          const settlementsSnapshot = await getDocs(settlementsQuery);
 
           // Process Events
           const eventsList = eventsSnapshot.docs.map(docSnapshot => {
@@ -139,7 +130,7 @@ const PaymentsPage: NextPage = () => {
                   })) : [],
               } as Event;
           });
-          setAllEvents(eventsList);
+          setEvents(eventsList);
 
           // Process Settlements
           const settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
@@ -152,35 +143,52 @@ const PaymentsPage: NextPage = () => {
                   generatedAt: (data.generatedAt as Timestamp).toDate(),
               } as FinancialSettlement;
           });
-          setAllSettlements(settlementsList);
-
-          // Process DJs
-          if (djsSnapshot) {
-              const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
-              setAllDjs(djsList);
-          }
+          setSettlements(settlementsList);
 
       } catch (error: any) {
-          console.error("Error fetching all data: ", error);
+          console.error("Error fetching events/settlements data: ", error);
           toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
       } finally {
           setIsLoading(false);
       }
-  }, [user, userDetails, db, toast]);
+  }, [user, userDetails, toast]);
+  
+  const fetchDjs = useCallback(async () => {
+    if (!db || userDetails?.role !== 'admin' && userDetails?.role !== 'partner') {
+        setIsLoadingDjs(false);
+        return;
+    }
+    setIsLoadingDjs(true);
+    try {
+        const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
+        const djsSnapshot = await getDocs(djsQuery);
+        const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
+        setDjs(djsList);
+    } catch (error: any) {
+        console.error("Error fetching DJs: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao buscar DJs', description: error.message });
+    } finally {
+        setIsLoadingDjs(false);
+    }
+  }, [db, userDetails?.role, toast]);
 
 
   useEffect(() => {
     if (!authLoading && user && userDetails) {
-        fetchAllData();
+        fetchEventsAndSettlements();
+        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+            fetchDjs();
+        }
     } else if (!authLoading && !user) {
-        setAllEvents([]);
-        setAllSettlements([]);
+        setEvents([]);
+        setSettlements([]);
         setIsLoading(false);
+        setIsLoadingDjs(false);
     }
-  }, [user, userDetails, authLoading, fetchAllData]);
+  }, [user, userDetails, authLoading, fetchEventsAndSettlements, fetchDjs]);
 
   const filteredEventsForSettlement = useMemo(() => {
-    let eventsToFilter = [...allEvents];
+    let eventsToFilter = [...events];
     
     // Only unsettled events are available for new settlements
     eventsToFilter = eventsToFilter.filter(event => !event.settlementId && event.status_pagamento !== 'cancelado');
@@ -205,15 +213,15 @@ const PaymentsPage: NextPage = () => {
       );
     }
     return eventsToFilter;
-  }, [allEvents, dateRange, searchTerm, selectedDjId, userDetails]);
+  }, [events, dateRange, searchTerm, selectedDjId, userDetails]);
 
   const filteredSettlements = useMemo(() => {
     if (selectedDjId === 'all' && userDetails?.role !== 'dj') {
       return [];
     }
     const djId = userDetails?.role === 'dj' ? userDetails.uid : selectedDjId;
-    return allSettlements.filter(s => s.djId === djId);
-  }, [allSettlements, selectedDjId, userDetails]);
+    return settlements.filter(s => s.djId === djId);
+  }, [settlements, selectedDjId, userDetails]);
 
 
   const calculateFinancialSummary = useMemo((): FinancialSummary | null => {
@@ -222,7 +230,7 @@ const PaymentsPage: NextPage = () => {
     if (userDetails?.role === 'dj') {
       djForSummary = userDetails;
     } else if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedDjId !== 'all') {
-      djForSummary = allDjs.find(dj => dj.uid === selectedDjId);
+      djForSummary = djs.find(dj => dj.uid === selectedDjId);
     }
 
     if (!djForSummary || typeof djForSummary.dj_percentual !== 'number') return null;
@@ -264,7 +272,7 @@ const PaymentsPage: NextPage = () => {
     summary.djFinalBalanceInPeriod = summary.djNetEntitlementInPeriod - summary.totalReceivedByDjInPeriod;
     
     return summary;
-  }, [filteredEventsForSettlement, userDetails, selectedDjId, allDjs]);
+  }, [filteredEventsForSettlement, userDetails, selectedDjId, djs]);
 
 
   const handleCreateSettlement = async () => {
@@ -273,7 +281,7 @@ const PaymentsPage: NextPage = () => {
         return;
     }
     setIsSubmitting(true);
-    const dj = allDjs.find(d => d.uid === selectedDjId);
+    const dj = djs.find(d => d.uid === selectedDjId);
     if (!dj) {
         toast({ variant: 'destructive', title: 'Erro', description: 'DJ selecionado não encontrado.' });
         setIsSubmitting(false);
@@ -318,7 +326,7 @@ const PaymentsPage: NextPage = () => {
         await batch.commit();
 
         toast({ title: 'Sucesso!', description: `Fechamento para ${dj.displayName} gerado com sucesso.` });
-        fetchAllData(); 
+        fetchEventsAndSettlements(); 
     } catch (error) {
         console.error("Error creating settlement: ", error);
         toast({ variant: 'destructive', title: 'Erro ao gerar fechamento', description: (error as Error).message });
@@ -441,7 +449,7 @@ const PaymentsPage: NextPage = () => {
             await batch.commit();
 
             toast({ title: 'Fechamento Revertido!', description: 'Os eventos foram liberados e o fechamento foi excluído.' });
-            fetchAllData(); 
+            fetchEventsAndSettlements(); 
         } catch (error) {
             console.error("Error reverting settlement: ", error);
             toast({ variant: 'destructive', title: 'Erro ao reverter', description: (error as Error).message });
@@ -491,7 +499,7 @@ const PaymentsPage: NextPage = () => {
   );
   const djNameToDisplay = userDetails?.role === 'dj' 
     ? (userDetails.displayName || userDetails.email) 
-    : (allDjs.find(dj => dj.uid === selectedDjId)?.displayName || allDjs.find(dj => dj.uid === selectedDjId)?.email);
+    : (djs.find(dj => dj.uid === selectedDjId)?.displayName || djs.find(dj => dj.uid === selectedDjId)?.email);
 
   const canGenerateSettlement = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
@@ -558,16 +566,16 @@ const PaymentsPage: NextPage = () => {
             {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
               <div className="lg:col-span-1">
                 <label htmlFor="dj-filter-payments" className="text-sm font-medium text-foreground">Filtrar por DJ</label>
-                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
+                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs || djs.length === 0}>
                   <SelectTrigger id="dj-filter-payments" className="bg-background">
-                    <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione um DJ"} />
+                    <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione um DJ"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Ver todos os eventos (sem resumo)</SelectItem>
-                    {allDjs.map(dj => (
+                    {djs.map(dj => (
                       <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                     ))}
-                    {!isLoading && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                    {!isLoadingDjs && djs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
@@ -684,7 +692,7 @@ const PaymentsPage: NextPage = () => {
                     </TableHeader>
                     <TableBody>
                       {filteredEventsForSettlement.map((event) => {
-                        const djForEvent = allDjs.find(d => d.uid === event.dj_id) || (userDetails?.uid === event.dj_id ? userDetails : null);
+                        const djForEvent = djs.find(d => d.uid === event.dj_id) || (userDetails?.uid === event.dj_id ? userDetails : null);
                         const djPercent = djForEvent?.dj_percentual ?? 0; 
                         const djCosts = event.dj_costs || 0;
                         const djEntitlementForEvent = (event.valor_total - djCosts) * djPercent + djCosts;
