@@ -69,7 +69,6 @@ const PaymentsPage: NextPage = () => {
   const [allSettlements, setAllSettlements] = useState<FinancialSettlement[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingDjs, setIsLoadingDjs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isViewEventOpen, setIsViewEventOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
@@ -91,19 +90,16 @@ const PaymentsPage: NextPage = () => {
           return;
       }
       setIsLoading(true);
-      setIsLoadingDjs(true);
 
       try {
-          const dataPromises = [];
-
           // Base queries
           let eventsQuery, settlementsQuery;
+          const dataPromises = [];
 
           if (userDetails.role === 'admin' || userDetails.role === 'partner') {
               eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
               
-              // Add DJ fetch promise for admins/partners
               const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
               dataPromises.push(getDocs(djsQuery));
 
@@ -116,7 +112,6 @@ const PaymentsPage: NextPage = () => {
               setAllSettlements([]);
               setAllDjs([]);
               setIsLoading(false);
-              setIsLoadingDjs(false);
               return;
           }
 
@@ -170,7 +165,6 @@ const PaymentsPage: NextPage = () => {
           toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
       } finally {
           setIsLoading(false);
-          setIsLoadingDjs(false);
       }
   }, [user, userDetails, db, toast]);
 
@@ -564,16 +558,16 @@ const PaymentsPage: NextPage = () => {
             {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
               <div className="lg:col-span-1">
                 <label htmlFor="dj-filter-payments" className="text-sm font-medium text-foreground">Filtrar por DJ</label>
-                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs}>
+                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
                   <SelectTrigger id="dj-filter-payments" className="bg-background">
-                    <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione um DJ"} />
+                    <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione um DJ"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Ver todos os eventos (sem resumo)</SelectItem>
                     {allDjs.map(dj => (
                       <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                     ))}
-                    {!isLoadingDjs && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                    {!isLoading && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
@@ -866,6 +860,8 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
+    
+
     
 
     

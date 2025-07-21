@@ -56,7 +56,7 @@ export default function SchedulePage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfDay(new Date()), to: undefined });
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchEventsAndDjs = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     if (authLoading || !user || !userDetails) {
       setIsLoading(false);
       return;
@@ -125,11 +125,11 @@ export default function SchedulePage() {
 
   useEffect(() => {
     if (!authLoading && user && userDetails) {
-        fetchEventsAndDjs();
+        fetchAllData();
     } else if (!authLoading && (!user || !userDetails)) {
         setIsLoading(false);
     }
-  }, [authLoading, user, userDetails, fetchEventsAndDjs]);
+  }, [authLoading, user, userDetails, fetchAllData]);
 
   const filteredEvents = useMemo(() => {
     let filtered = [...events];
@@ -245,7 +245,7 @@ export default function SchedulePage() {
         toast({ title: 'Evento criado!', description: `"${values.nome_evento}" foi criado.` });
       }
       setIsFormOpen(false);
-      fetchEventsAndDjs(); 
+      fetchAllData(); 
     } catch (error) {
       console.error("Error saving event: ", error);
       toast({ variant: 'destructive', title: 'Erro ao salvar evento', description: (error as Error).message });
@@ -263,7 +263,7 @@ export default function SchedulePage() {
     try {
       await deleteDoc(doc(db, 'events', selectedEvent.id));
       toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
-      fetchEventsAndDjs(); 
+      fetchAllData(); 
       setIsDeleteConfirmOpen(false);
       setSelectedEvent(null);
     } catch (error) {
@@ -362,16 +362,16 @@ export default function SchedulePage() {
               </PopoverContent>
             </Popover>
             {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
-              <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={allDjs.length === 0}>
+              <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por DJ" />
+                  <SelectValue placeholder={isLoading ? "Carregando..." : "Filtrar por DJ"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os DJs</SelectItem>
                   {allDjs.map(dj => (
                     <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                   ))}
-                   {allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                   {!isLoading && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
                 </SelectContent>
               </Select>
             )}
@@ -459,3 +459,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
