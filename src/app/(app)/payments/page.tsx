@@ -96,6 +96,7 @@ const PaymentsPage: NextPage = () => {
           const promises = [];
           let eventsQuery, settlementsQuery;
 
+          // Admin/Partner gets all data, DJ gets their own
           if (userDetails.role === 'admin' || userDetails.role === 'partner') {
               eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
@@ -157,15 +158,14 @@ const PaymentsPage: NextPage = () => {
               const djsSnapshot = results[2];
               const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
               setDjs(djsList);
-              setIsLoadingDjs(false);
           }
 
       } catch (error: any) {
           console.error("Error fetching financial data:", error);
           toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
-          setIsLoadingDjs(false);
       } finally {
           setIsLoading(false);
+          setIsLoadingDjs(false);
       }
   }, [user, userDetails, toast]);
   
@@ -561,7 +561,7 @@ const PaymentsPage: NextPage = () => {
             {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
               <div className="lg:col-span-1">
                 <label htmlFor="dj-filter-payments" className="text-sm font-medium text-foreground">Filtrar por DJ</label>
-                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs}>
+                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs || djs.length === 0}>
                   <SelectTrigger id="dj-filter-payments" className="bg-background">
                     <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione um DJ"} />
                   </SelectTrigger>
