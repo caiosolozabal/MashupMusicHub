@@ -69,7 +69,7 @@ const PaymentsPage: NextPage = () => {
   const [settlements, setSettlements] = useState<FinancialSettlement[]>([]);
   const [djs, setDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingDjs, setIsLoadingDjs] = useState(true);
+  const [isLoadingDjs, setIsLoadingDjs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isViewEventOpen, setIsViewEventOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
@@ -85,7 +85,7 @@ const PaymentsPage: NextPage = () => {
   const [selectedDjId, setSelectedDjId] = useState<string>('all'); 
   const [activeQuickFilter, setActiveQuickFilter] = useState<string>('month');
 
-  const fetchEventsAndSettlements = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
       if (!user || !userDetails || !db) {
           setIsLoading(false);
           return;
@@ -93,13 +93,16 @@ const PaymentsPage: NextPage = () => {
       setIsLoading(true);
 
       try {
-          // Base queries for events and settlements
+          const promises = [];
           let eventsQuery, settlementsQuery;
-          const dataPromises = [];
 
           if (userDetails.role === 'admin' || userDetails.role === 'partner') {
               eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
+              
+              setIsLoadingDjs(true);
+              const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
+              promises.push(getDocs(djsQuery));
           } else if (userDetails.role === 'dj') {
               eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', user.uid), orderBy('generatedAt', 'desc'));
@@ -107,14 +110,17 @@ const PaymentsPage: NextPage = () => {
           } else {
               setEvents([]);
               setSettlements([]);
+              setDjs([]);
               setIsLoading(false);
               return;
           }
 
-          const eventsSnapshot = await getDocs(eventsQuery);
-          const settlementsSnapshot = await getDocs(settlementsQuery);
-
+          promises.unshift(getDocs(eventsQuery), getDocs(settlementsQuery));
+          
+          const results = await Promise.all(promises);
+          
           // Process Events
+          const eventsSnapshot = results[0];
           const eventsList = eventsSnapshot.docs.map(docSnapshot => {
               const data = docSnapshot.data();
               return {
@@ -133,6 +139,7 @@ const PaymentsPage: NextPage = () => {
           setEvents(eventsList);
 
           // Process Settlements
+          const settlementsSnapshot = results[1];
           const settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
               const data = docSnapshot.data();
               return {
@@ -145,47 +152,35 @@ const PaymentsPage: NextPage = () => {
           });
           setSettlements(settlementsList);
 
+          // Process DJs for admin/partner
+          if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+              const djsSnapshot = results[2];
+              const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
+              setDjs(djsList);
+              setIsLoadingDjs(false);
+          }
+
       } catch (error: any) {
-          console.error("Error fetching events/settlements data: ", error);
+          console.error("Error fetching financial data:", error);
           toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
+          setIsLoadingDjs(false);
       } finally {
           setIsLoading(false);
       }
   }, [user, userDetails, toast]);
   
-  const fetchDjs = useCallback(async () => {
-    if (!db || userDetails?.role !== 'admin' && userDetails?.role !== 'partner') {
-        setIsLoadingDjs(false);
-        return;
-    }
-    setIsLoadingDjs(true);
-    try {
-        const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
-        const djsSnapshot = await getDocs(djsQuery);
-        const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
-        setDjs(djsList);
-    } catch (error: any) {
-        console.error("Error fetching DJs: ", error);
-        toast({ variant: 'destructive', title: 'Erro ao buscar DJs', description: error.message });
-    } finally {
-        setIsLoadingDjs(false);
-    }
-  }, [db, userDetails?.role, toast]);
-
 
   useEffect(() => {
     if (!authLoading && user && userDetails) {
-        fetchEventsAndSettlements();
-        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-            fetchDjs();
-        }
+        fetchAllData();
     } else if (!authLoading && !user) {
         setEvents([]);
         setSettlements([]);
+        setDjs([]);
         setIsLoading(false);
         setIsLoadingDjs(false);
     }
-  }, [user, userDetails, authLoading, fetchEventsAndSettlements, fetchDjs]);
+  }, [user, userDetails, authLoading, fetchAllData]);
 
   const filteredEventsForSettlement = useMemo(() => {
     let eventsToFilter = [...events];
@@ -326,7 +321,7 @@ const PaymentsPage: NextPage = () => {
         await batch.commit();
 
         toast({ title: 'Sucesso!', description: `Fechamento para ${dj.displayName} gerado com sucesso.` });
-        fetchEventsAndSettlements(); 
+        fetchAllData(); 
     } catch (error) {
         console.error("Error creating settlement: ", error);
         toast({ variant: 'destructive', title: 'Erro ao gerar fechamento', description: (error as Error).message });
@@ -449,7 +444,7 @@ const PaymentsPage: NextPage = () => {
             await batch.commit();
 
             toast({ title: 'Fechamento Revertido!', description: 'Os eventos foram liberados e o fechamento foi excluído.' });
-            fetchEventsAndSettlements(); 
+            fetchAllData(); 
         } catch (error) {
             console.error("Error reverting settlement: ", error);
             toast({ variant: 'destructive', title: 'Erro ao reverter', description: (error as Error).message });
@@ -566,7 +561,7 @@ const PaymentsPage: NextPage = () => {
             {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
               <div className="lg:col-span-1">
                 <label htmlFor="dj-filter-payments" className="text-sm font-medium text-foreground">Filtrar por DJ</label>
-                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs || djs.length === 0}>
+                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs}>
                   <SelectTrigger id="dj-filter-payments" className="bg-background">
                     <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione um DJ"} />
                   </SelectTrigger>
