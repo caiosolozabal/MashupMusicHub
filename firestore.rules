@@ -3,11 +3,69 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regra global: Permite leitura e escrita para qualquer usuário autenticado.
-    // Esta é uma regra de reversão para restaurar a funcionalidade.
-    // A segurança granular pode ser reimplementada passo a passo posteriormente.
+
+    function isOwner(userId) {
+      // Check if the requesting user is the owner of the document.
+      return request.auth.uid == userId;
+    }
+
+    // 🔐 USERS COLLECTION
+    // Rules for accessing user profile data.
+    match /users/{userId} {
+      // GET: Allows a user to read their own profile, or an admin/partner to read any profile.
+      allow get: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
+      // LIST: Only admins and partners can list multiple users (e.g., for the DJ dropdown).
+      allow list: if request.auth.token.role in ['admin', 'partner'];
+      // CREATE: Any authenticated user can create their own user document upon first sign-up.
+      allow create: if isOwner(userId);
+      // UPDATE: A user can update their own profile, or an admin/partner can update any profile.
+      allow update: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
+       // DELETE: Deleting users is disallowed from the client for safety.
+      allow delete: if false;
+    }
+
+    // 🔐 EVENTS COLLECTION
+    // Rules for accessing event data.
+    match /events/{eventId} {
+       // READ: Admins/partners can read any event. DJs can only read events they are assigned to.
+      allow read: if request.auth.token.role in ['admin', 'partner'] || 
+                     (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
+      // LIST: Admins/partners can list all events. DJs can list events to find their own.
+      // The client-side query for DJs MUST include `where('dj_id', '==', auth.uid)`.
+      allow list: if request.auth.token.role in ['admin', 'partner', 'dj'];
+      // CREATE: Admins, partners, and DJs can create new events.
+      allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
+      // UPDATE: Admins/partners can update any event. DJs can only update their own events.
+      allow update: if request.auth.token.role in ['admin', 'partner'] || 
+                       (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
+      // DELETE: Only admins and partners can delete events.
+      allow delete: if request.auth.token.role in ['admin', 'partner'];
+    }
+    
+    // 🔐 SETTLEMENTS COLLECTION
+    // Rules for financial settlement documents.
+    match /settlements/{settlementId} {
+        // READ: Admins/partners can read any settlement. DJs can only read their own.
+       allow read: if request.auth.token.role in ['admin', 'partner'] || 
+                   (request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid);
+       // LIST: Admins/partners can list all settlements. DJs can list to find their own.
+       // The client-side query for DJs MUST include `where('djId', '==', auth.uid)`.
+       allow list: if request.auth.token.role in ['admin', 'partner', 'dj'];
+       // WRITE (Create, Update, Delete): Only admins and partners can manage settlements.
+      allow write: if request.auth.token.role in ['admin', 'partner'];
+    }
+
+    // 🔐 AGENCY ACCOUNTS COLLECTION
+    // Rules for the agency's bank account information.
+    match /agency_accounts/{accountId} {
+      // Only admins and partners can read or write agency account details.
+      allow read, write: if request.auth.token.role in ['admin', 'partner'];
+    }
+
+    // 🔒 FALLBACK RULE
+    // Explicitly deny all other access to prevent accidental exposure of data.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }
