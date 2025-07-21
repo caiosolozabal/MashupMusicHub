@@ -1,69 +1,51 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // As funções são uma boa prática, mas a lógica principal será movida para as regras de correspondência (match)
-    // para evitar a complexidade que estava causando problemas.
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    // --- REGRAS PARA CADA COLEÇÃO ---
-
-    // 🔐 Controle da coleção "users"
+    // 🔐 users
     match /users/{userId} {
-      // Admins/Partners podem ler qualquer perfil. Usuários podem ler seu próprio perfil.
+      // Admins/Partners podem ler qualquer perfil. Usuários podem ler o próprio perfil.
       allow read: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
-
-      // Usuários podem criar seu próprio documento ao se registrar.
-      allow create: if isOwner(userId);
-      
-      // Admins/Partners podem atualizar qualquer perfil. Usuários podem atualizar seu próprio perfil.
+      // Qualquer usuário autenticado pode criar seu próprio registro de usuário.
+      allow create: if request.auth.uid != null;
+      // Admins/Partners podem atualizar qualquer perfil. Usuários podem atualizar o próprio perfil.
       allow update: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
-
-      // A exclusão de usuários deve ser gerenciada pelo back-end (Cloud Functions) ou console do Firebase.
-      allow delete: if false; 
+      // Ninguém pode deletar um usuário diretamente pelas regras.
+      allow delete: if false;
     }
 
-    // 🔐 Controle da coleção "events"
+    // 🔐 events
     match /events/{eventId} {
-      // Admins/Partners podem ler qualquer evento. DJs podem ler eventos nos quais estão atribuídos.
-      // Esta regra FUNCIONA para consultas de lista (queries) porque não usa `get()`.
+      // Admins/Partners podem ler qualquer evento. DJs podem ler eventos atribuídos a eles.
       allow read: if request.auth.token.role in ['admin', 'partner'] || 
-                     (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
-                     
+                   (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
       // Admins, Partners e DJs podem criar eventos.
       allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
-
-      // Admins/Partners podem atualizar qualquer evento. DJs podem atualizar eventos nos quais estão atribuídos.
+      // Admins/Partners podem atualizar qualquer evento. DJs podem atualizar eventos atribuídos a eles.
       allow update: if request.auth.token.role in ['admin', 'partner'] || 
-                       (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
-                       
-      // Apenas Admins/Partners podem excluir eventos.
+                     (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
+      // Apenas Admins/Partners podem deletar eventos.
       allow delete: if request.auth.token.role in ['admin', 'partner'];
     }
 
-    // 🔐 Controle da coleção "settlements"
+    // 🔐 settlements
     match /settlements/{settlementId} {
       // Admins/Partners podem ler qualquer fechamento. DJs podem ler seus próprios fechamentos.
       allow read: if request.auth.token.role in ['admin', 'partner'] || 
-                     (request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid);
-      
-      // Apenas Admins/Partners podem criar, atualizar ou excluir fechamentos.
+                   (request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid);
+      // Apenas Admins/Partners podem criar, atualizar ou deletar fechamentos.
       allow write: if request.auth.token.role in ['admin', 'partner'];
     }
 
-    // 🔐 Controle da coleção "agency_accounts"
+    // 🔐 agency_accounts
     match /agency_accounts/{accountId} {
-      // Apenas Admins/Partners podem ler e escrever nas contas da agência.
+      // Apenas Admins/Partners podem ler ou escrever nas contas da agência.
       allow read, write: if request.auth.token.role in ['admin', 'partner'];
-    }
-    
-    // Regra de fallback: nega acesso a qualquer outra coleção não especificada.
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }
