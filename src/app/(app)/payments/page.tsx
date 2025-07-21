@@ -69,7 +69,6 @@ const PaymentsPage: NextPage = () => {
   const [settlements, setSettlements] = useState<FinancialSettlement[]>([]);
   const [djs, setDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingDjs, setIsLoadingDjs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isViewEventOpen, setIsViewEventOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
@@ -93,17 +92,16 @@ const PaymentsPage: NextPage = () => {
       setIsLoading(true);
 
       try {
-          const promises = [];
-          let eventsQuery, settlementsQuery;
+          const dataPromises = [];
+          
+          let eventsQuery;
+          let settlementsQuery;
 
-          // Admin/Partner gets all data, DJ gets their own
           if (userDetails.role === 'admin' || userDetails.role === 'partner') {
               eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
-              
-              setIsLoadingDjs(true);
               const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
-              promises.push(getDocs(djsQuery));
+              dataPromises.push(getDocs(djsQuery));
           } else if (userDetails.role === 'dj') {
               eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
               settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', user.uid), orderBy('generatedAt', 'desc'));
@@ -116,11 +114,10 @@ const PaymentsPage: NextPage = () => {
               return;
           }
 
-          promises.unshift(getDocs(eventsQuery), getDocs(settlementsQuery));
+          dataPromises.unshift(getDocs(eventsQuery), getDocs(settlementsQuery));
           
-          const results = await Promise.all(promises);
+          const results = await Promise.all(dataPromises);
           
-          // Process Events
           const eventsSnapshot = results[0];
           const eventsList = eventsSnapshot.docs.map(docSnapshot => {
               const data = docSnapshot.data();
@@ -139,7 +136,6 @@ const PaymentsPage: NextPage = () => {
           });
           setEvents(eventsList);
 
-          // Process Settlements
           const settlementsSnapshot = results[1];
           const settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
               const data = docSnapshot.data();
@@ -153,7 +149,6 @@ const PaymentsPage: NextPage = () => {
           });
           setSettlements(settlementsList);
 
-          // Process DJs for admin/partner
           if (userDetails.role === 'admin' || userDetails.role === 'partner') {
               const djsSnapshot = results[2];
               const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
@@ -165,7 +160,6 @@ const PaymentsPage: NextPage = () => {
           toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
       } finally {
           setIsLoading(false);
-          setIsLoadingDjs(false);
       }
   }, [user, userDetails, toast]);
   
@@ -178,7 +172,6 @@ const PaymentsPage: NextPage = () => {
         setSettlements([]);
         setDjs([]);
         setIsLoading(false);
-        setIsLoadingDjs(false);
     }
   }, [user, userDetails, authLoading, fetchAllData]);
 
@@ -560,16 +553,16 @@ const PaymentsPage: NextPage = () => {
             {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
               <div className="lg:col-span-1">
                 <label htmlFor="dj-filter-payments" className="text-sm font-medium text-foreground">Filtrar por DJ</label>
-                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs || djs.length === 0}>
+                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={authLoading || djs.length === 0}>
                   <SelectTrigger id="dj-filter-payments" className="bg-background">
-                    <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione um DJ"} />
+                    <SelectValue placeholder={authLoading ? "Carregando..." : "Selecione um DJ"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Ver todos os eventos (sem resumo)</SelectItem>
                     {djs.map(dj => (
                       <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                     ))}
-                    {!isLoadingDjs && djs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                    {!authLoading && djs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
