@@ -10,7 +10,7 @@ import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
 import { format, startOfMonth, endOfMonth, subDays, startOfYear, endOfYear, isWithinInterval } from 'date-fns';
 import { CalendarIcon, Search, Loader2, Info, FileText, CheckCircle, AlertCircle, Clock, Trash2 } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy, Timestamp, addDoc, serverTimestamp, writeBatch, doc, deleteDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -67,7 +67,9 @@ const PaymentsPage: NextPage = () => {
   
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [allSettlements, setAllSettlements] = useState<FinancialSettlement[]>([]);
+  const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingDjs, setIsLoadingDjs] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isViewEventOpen, setIsViewEventOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
@@ -81,96 +83,96 @@ const PaymentsPage: NextPage = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDjId, setSelectedDjId] = useState<string>('all'); 
-  const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   const [activeQuickFilter, setActiveQuickFilter] = useState<string>('month');
 
-
-  useEffect(() => {
-    const fetchDjs = async () => {
-      if (!db || !(userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
-        setAllDjs([]);
-        return;
-      }
-      try {
-        const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
-        const djsSnapshot = await getDocs(djsQuery);
-        const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
-        setAllDjs(djsList);
-      } catch (error) {
-        console.error("Error fetching DJs: ", error);
-        toast({ variant: 'destructive', title: 'Erro ao buscar DJs', description: (error as Error).message });
-      }
-    };
-    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') {
-      fetchDjs();
-    }
-  }, [userDetails?.role, toast]);
-
-  const fetchAllData = async () => {
-      if (authLoading || !user || !userDetails || !db) {
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      
-      try {
-        let eventsQuery, settlementsQuery;
-        
-        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-            eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
-            settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
-        } else if (userDetails.role === 'dj') {
-            eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
-            settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', user.uid), orderBy('generatedAt', 'desc'));
-            setSelectedDjId(user.uid); 
-        } else {
-          setAllEvents([]); 
-          setAllSettlements([]);
+  const fetchAllData = useCallback(async () => {
+      if (!user || !userDetails || !db) {
           setIsLoading(false);
           return;
-        }
+      }
+      setIsLoading(true);
+      setIsLoadingDjs(true);
 
-        const [eventsSnapshot, settlementsSnapshot] = await Promise.all([
-          getDocs(eventsQuery),
-          getDocs(settlementsQuery),
-        ]);
+      try {
+          const dataPromises = [];
 
-        const eventsList = eventsSnapshot.docs.map(docSnapshot => {
-          const data = docSnapshot.data();
-          return {
-            id: docSnapshot.id,
-            ...data,
-            data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
-            dj_costs: data.dj_costs ?? 0,
-            created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(data.created_at),
-            updated_at: data.updated_at && (data.updated_at instanceof Timestamp ? data.updated_at.toDate() : new Date(data.updated_at)),
-            payment_proofs: Array.isArray(data.payment_proofs) ? data.payment_proofs.map(proof => ({
-              ...proof,
-              uploadedAt: proof.uploadedAt instanceof Timestamp ? proof.uploadedAt.toDate() : new Date(proof.uploadedAt)
-            })) : [],
-          } as Event;
-        });
-        setAllEvents(eventsList);
+          // Base queries
+          let eventsQuery, settlementsQuery;
 
-        const settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
-            const data = docSnapshot.data();
-            return {
-                id: docSnapshot.id,
-                ...data,
-                periodStart: (data.periodStart as Timestamp).toDate(),
-                periodEnd: (data.periodEnd as Timestamp).toDate(),
-                generatedAt: (data.generatedAt as Timestamp).toDate(),
-            } as FinancialSettlement;
-        });
-        setAllSettlements(settlementsList);
+          if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+              eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
+              settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
+              
+              // Add DJ fetch promise for admins/partners
+              const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
+              dataPromises.push(getDocs(djsQuery));
+
+          } else if (userDetails.role === 'dj') {
+              eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
+              settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', user.uid), orderBy('generatedAt', 'desc'));
+              setSelectedDjId(user.uid);
+          } else {
+              setAllEvents([]);
+              setAllSettlements([]);
+              setAllDjs([]);
+              setIsLoading(false);
+              setIsLoadingDjs(false);
+              return;
+          }
+
+          dataPromises.unshift(getDocs(eventsQuery), getDocs(settlementsQuery));
+
+          const results = await Promise.all(dataPromises);
+          
+          const eventsSnapshot = results[0];
+          const settlementsSnapshot = results[1];
+          const djsSnapshot = (userDetails.role === 'admin' || userDetails.role === 'partner') ? results[2] : null;
+
+          // Process Events
+          const eventsList = eventsSnapshot.docs.map(docSnapshot => {
+              const data = docSnapshot.data();
+              return {
+                  id: docSnapshot.id,
+                  ...data,
+                  data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
+                  dj_costs: data.dj_costs ?? 0,
+                  created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(data.created_at),
+                  updated_at: data.updated_at && (data.updated_at instanceof Timestamp ? data.updated_at.toDate() : new Date(data.updated_at)),
+                  payment_proofs: Array.isArray(data.payment_proofs) ? data.payment_proofs.map(proof => ({
+                      ...proof,
+                      uploadedAt: proof.uploadedAt instanceof Timestamp ? proof.uploadedAt.toDate() : new Date(proof.uploadedAt)
+                  })) : [],
+              } as Event;
+          });
+          setAllEvents(eventsList);
+
+          // Process Settlements
+          const settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
+              const data = docSnapshot.data();
+              return {
+                  id: docSnapshot.id,
+                  ...data,
+                  periodStart: (data.periodStart as Timestamp).toDate(),
+                  periodEnd: (data.periodEnd as Timestamp).toDate(),
+                  generatedAt: (data.generatedAt as Timestamp).toDate(),
+              } as FinancialSettlement;
+          });
+          setAllSettlements(settlementsList);
+
+          // Process DJs
+          if (djsSnapshot) {
+              const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
+              setAllDjs(djsList);
+          }
 
       } catch (error: any) {
-        console.error("Error fetching all data: ", error);
-        toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
+          console.error("Error fetching all data: ", error);
+          toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
       } finally {
-        setIsLoading(false);
+          setIsLoading(false);
+          setIsLoadingDjs(false);
       }
-    };
+  }, [user, userDetails, db, toast]);
 
 
   useEffect(() => {
@@ -181,7 +183,7 @@ const PaymentsPage: NextPage = () => {
         setAllSettlements([]);
         setIsLoading(false);
     }
-  }, [user, userDetails, authLoading]);
+  }, [user, userDetails, authLoading, fetchAllData]);
 
   const filteredEventsForSettlement = useMemo(() => {
     let eventsToFilter = [...allEvents];
@@ -562,16 +564,16 @@ const PaymentsPage: NextPage = () => {
             {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
               <div className="lg:col-span-1">
                 <label htmlFor="dj-filter-payments" className="text-sm font-medium text-foreground">Filtrar por DJ</label>
-                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={allDjs.length === 0}>
+                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs}>
                   <SelectTrigger id="dj-filter-payments" className="bg-background">
-                    <SelectValue placeholder="Selecione um DJ para ver resumo" />
+                    <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione um DJ"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Ver todos os eventos (sem resumo)</SelectItem>
                     {allDjs.map(dj => (
                       <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                     ))}
-                    {allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                    {!isLoadingDjs && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
                   </SelectContent>
                 </Select>
               </div>
@@ -864,6 +866,8 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
+    
+
     
 
     
