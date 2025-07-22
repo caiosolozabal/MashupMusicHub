@@ -24,15 +24,9 @@ const navItems: NavItem[] = [
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { 
     href: '/payments', 
-    label: 'Pagamentos', 
+    label: 'Financeiro / Fechamentos', 
     icon: DollarSign,
     roles: ['admin', 'partner', 'dj'] 
-  },
-  { 
-    href: '/settlements', 
-    label: 'Fechamentos', 
-    icon: FileText,
-    roles: ['admin', 'partner'] 
   },
   // Documentos and Listas VIP are deferred for now based on core focus.
   // { 

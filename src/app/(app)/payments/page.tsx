@@ -497,7 +497,7 @@ const PaymentsPage: NextPage = () => {
     <div className="space-y-8">
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="font-headline text-2xl">Financeiro e Pagamentos</CardTitle>
+          <CardTitle className="font-headline text-2xl">Financeiro e Fechamentos</CardTitle>
           <CardDescription>Acompanhe os recebimentos, pagamentos e saldos. Os fechamentos são calculados independente do status de pagamento do cliente.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
