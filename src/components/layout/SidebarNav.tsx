@@ -8,7 +8,7 @@ import {
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, CalendarDays, DollarSign, Settings, FileText } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -22,25 +22,6 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Painel', icon: LayoutDashboard, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
-  { 
-    href: '/payments', 
-    label: 'Financeiro / Fechamentos', 
-    icon: DollarSign,
-    roles: ['admin', 'partner', 'dj'] 
-  },
-  // Documentos and Listas VIP are deferred for now based on core focus.
-  // { 
-  //   href: '/documents', 
-  //   label: 'Documentos', 
-  //   icon: FileText,
-  //   roles: ['admin', 'partner'] // DJs might view event-specific docs
-  // },
-  // { 
-  //   href: '/guests', 
-  //   label: 'Listas VIP', 
-  //   icon: Users,
-  //   roles: ['admin', 'partner'] // Or specific roles like manager/producer if added
-  // },
   { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'] },
 ];
 
@@ -58,7 +39,7 @@ export default function SidebarNav() {
     // Optionally, show a skeleton or loading state for the nav
     return (
        <SidebarMenu>
-        {[...Array(4)].map((_, i) => (
+        {[...Array(3)].map((_, i) => (
           <SidebarMenuItem key={i} >
             <SidebarMenuButton disabled className="h-8 w-full opacity-50">
               <span className="w-4 h-4 bg-muted rounded-sm animate-pulse"></span>
@@ -89,7 +70,3 @@ export default function SidebarNav() {
     </SidebarMenu>
   );
 }
-
-    
-
-    
