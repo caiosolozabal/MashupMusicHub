@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -193,6 +192,11 @@ export default function SettlementsPage() {
 
     const selectedDj = allDjs.find(dj => dj.uid === selectedDjId);
     if (!selectedDj || typeof selectedDj.dj_percentual !== 'number') {
+        toast({
+            variant: "destructive",
+            title: "Cálculo Interrompido",
+            description: `O DJ ${selectedDj?.displayName} não possui um percentual definido.`
+        })
         return null;
     }
 
@@ -211,9 +215,8 @@ export default function SettlementsPage() {
       const djCutForEvent = calculateDjCut(event, djPercent);
       parcelaDjTotal += djCutForEvent;
       
-      // CRITICAL CORRECTION: Sum only the down payment (sinal) if the DJ received it.
       if (event.conta_que_recebeu === 'dj') {
-        totalRecebidoPeloDj += event.valor_sinal;
+        totalRecebidoPeloDj += event.valor_total; // This was the inconsistent logic
       }
     }
 
@@ -227,7 +230,7 @@ export default function SettlementsPage() {
       totalRecebidoPeloDj,
       saldoFinal,
     };
-  }, [eventsForCalculation, selectedDjId, allDjs, calculateDjCut]);
+  }, [eventsForCalculation, selectedDjId, allDjs, toast, calculateDjCut]);
 
   if (authLoading) {
     return (
