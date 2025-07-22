@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import type { Event, UserDetails } from '@/lib/types';
@@ -21,6 +21,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { VariantProps } from 'class-variance-authority';
 import { Separator } from '@/components/ui/separator';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
   switch (status) {
@@ -62,9 +65,11 @@ export default function SettlementsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters State
-  const [selectedDjId, setSelectedDjId] = useState<string>(''); // Changed to empty string to enforce selection
+  const [selectedDjId, setSelectedDjId] = useState<string>('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+
 
   const fetchAllData = useCallback(async () => {
     if (authLoading || !user || !userDetails || userDetails.role === 'dj') {
@@ -122,7 +127,10 @@ export default function SettlementsPage() {
   }, [authLoading, user, userDetails, fetchAllData]);
 
   const filteredEvents = useMemo(() => {
-    if (!selectedDjId) return []; // Don't show any events if no DJ is selected
+    if (!selectedDjId) {
+      setSelectedEventIds([]);
+      return [];
+    }
 
     let filtered = events.filter(event => event.dj_id === selectedDjId);
     
@@ -147,8 +155,34 @@ export default function SettlementsPage() {
       );
     }
     
+    // Auto-select all filtered events when filter changes
+    setSelectedEventIds(filtered.map(e => e.id));
+
     return filtered;
   }, [events, selectedDjId, dateRange, searchTerm]);
+
+  const eventsForCalculation = useMemo(() => {
+    // If specific events are selected, use them. Otherwise, use all filtered events.
+    if (selectedEventIds.length > 0) {
+      return filteredEvents.filter(event => selectedEventIds.includes(event.id));
+    }
+    return filteredEvents;
+  }, [selectedEventIds, filteredEvents]);
+
+
+  const handleSelectEvent = (eventId: string) => {
+    setSelectedEventIds(prev =>
+      prev.includes(eventId) ? prev.filter(id => id !== eventId) : [...prev, eventId]
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedEventIds(filteredEvents.map(e => e.id));
+    } else {
+      setSelectedEventIds([]);
+    }
+  };
 
 
   const calculateDjCut = useCallback((event: Event, djPercent: number): number => {
@@ -158,11 +192,11 @@ export default function SettlementsPage() {
   }, []);
 
   const financialSummary = useMemo<FinancialSummary | null>(() => {
-    if (!selectedDjId || filteredEvents.length === 0) return null;
+    if (!selectedDjId || eventsForCalculation.length === 0) return null;
 
     const selectedDj = allDjs.find(dj => dj.uid === selectedDjId);
     if (!selectedDj || typeof selectedDj.dj_percentual !== 'number') {
-        toast({ variant: 'destructive', title: 'Erro de Cálculo', description: `DJ selecionado não possui um percentual definido.` });
+        // Do not toast here as it can be annoying, just prevent calculation
         return null;
     }
 
@@ -172,7 +206,7 @@ export default function SettlementsPage() {
     let parcelaDjTotal = 0;
     let totalRecebidoPeloDj = 0;
 
-    for (const event of filteredEvents) {
+    for (const event of eventsForCalculation) {
       if (event.status_pagamento === 'cancelado') continue;
       
       totalBruto += event.valor_total;
@@ -182,8 +216,6 @@ export default function SettlementsPage() {
       parcelaDjTotal += djCutForEvent;
 
       if (event.conta_que_recebeu === 'dj') {
-        // Considera o valor total, não apenas o sinal, pois o DJ pode ter recebido o restante
-        // Assumimos que se o DJ recebeu, ele recebeu o valor total do evento para este cálculo
         if (event.status_pagamento === 'pago' || event.status_pagamento === 'parcial') {
            totalRecebidoPeloDj += event.valor_total;
         }
@@ -200,7 +232,7 @@ export default function SettlementsPage() {
       totalRecebidoPeloDj,
       saldoFinal,
     };
-  }, [filteredEvents, selectedDjId, allDjs, toast, calculateDjCut]);
+  }, [eventsForCalculation, selectedDjId, allDjs, toast, calculateDjCut]);
 
   if (authLoading) {
     return (
@@ -271,7 +303,7 @@ export default function SettlementsPage() {
                             `A partir de ${format(dateRange.from, "dd/MM/yy")}`
                             )
                         ) : (
-                            <span>Selecione o período</span>
+                            <span>Todo o período</span>
                         )}
                         </Button>
                     </PopoverTrigger>
@@ -300,23 +332,35 @@ export default function SettlementsPage() {
           {selectedDjId && financialSummary && (
             <Card className="mb-6 bg-secondary/50">
               <CardHeader>
-                <CardTitle className="text-xl">Resumo do Fechamento</CardTitle>
-                <CardDescription>
-                  Resumo financeiro para {allDjs.find(dj => dj.uid === selectedDjId)?.displayName} no período selecionado.
-                </CardDescription>
+                 <CardTitle className="text-xl">Resumo do Fechamento</CardTitle>
+                 <CardDescription>
+                    Resumo financeiro para {allDjs.find(dj => dj.uid === selectedDjId)?.displayName} com base nos {eventsForCalculation.length} eventos selecionados.
+                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
                   <div>
-                    <p className="text-sm text-muted-foreground">Eventos no Período</p>
-                    <p className="text-lg font-bold">{filteredEvents.length}</p>
+                    <p className="text-sm text-muted-foreground">Eventos Selecionados</p>
+                    <p className="text-lg font-bold">{eventsForCalculation.length}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Valor Bruto Total</p>
                     <p className="text-lg font-bold">{financialSummary.totalBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Parcela Líquida do DJ</p>
+                    <div className="flex items-center justify-center gap-1.5">
+                        <p className="text-sm text-muted-foreground">Parcela Líquida do DJ</p>
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger>
+                                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p className="text-xs">Cálculo: ((Valor Total - Custos) * % DJ) + Custos</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    </div>
                     <p className="text-lg font-bold">{financialSummary.parcelaDjTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                   <div>
@@ -331,7 +375,7 @@ export default function SettlementsPage() {
                   </div>
                 </div>
                  <div className="flex justify-end pt-4">
-                    <Button disabled={filteredEvents.length === 0}>
+                    <Button disabled={eventsForCalculation.length === 0}>
                         Gerar Fechamento
                     </Button>
                 </div>
@@ -355,6 +399,13 @@ export default function SettlementsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                     <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={selectedEventIds.length === filteredEvents.length && filteredEvents.length > 0}
+                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                        aria-label="Selecionar todos"
+                      />
+                    </TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Evento</TableHead>
                     <TableHead>Status Pag.</TableHead>
@@ -371,7 +422,14 @@ export default function SettlementsPage() {
                      const parcelaDj = calculateDjCut(event, djPercentual);
 
                     return(
-                      <TableRow key={event.id}>
+                      <TableRow key={event.id} data-state={selectedEventIds.includes(event.id) ? 'selected' : ''}>
+                         <TableCell>
+                          <Checkbox
+                            checked={selectedEventIds.includes(event.id)}
+                            onCheckedChange={() => handleSelectEvent(event.id)}
+                            aria-label={`Selecionar evento ${event.nome_evento}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
                         </TableCell>
@@ -403,6 +461,5 @@ export default function SettlementsPage() {
     </div>
   );
 }
-
 
     
