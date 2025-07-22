@@ -86,35 +86,34 @@ const PaymentsPage: NextPage = () => {
 
   const fetchAllData = useCallback(async () => {
     if (authLoading || !user || !userDetails) {
-        setIsLoading(false);
-        return;
+      setIsLoading(false);
+      return;
     }
     setIsLoading(true);
 
     try {
         if (!db) throw new Error("Firestore not initialized");
         
-        const dataPromises = [];
-
-        // Base queries for events and settlements
+        // Define promises
+        const promises = [];
+        
+        // Base queries
         const eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
         const settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
         
-        dataPromises.push(getDocs(eventsQuery));
-        dataPromises.push(getDocs(settlementsQuery));
-
-        // Add DJ query only if admin/partner
+        promises.push(getDocs(eventsQuery));
+        promises.push(getDocs(settlementsQuery));
+        
+        // DJ query only if admin/partner
         if (userDetails.role === 'admin' || userDetails.role === 'partner') {
             const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
-            dataPromises.push(getDocs(djsQuery));
-        } else if (userDetails.role === 'dj') {
-            // If user is a DJ, set them as the only option in 'allDjs'
-            setAllDjs([userDetails]);
+            promises.push(getDocs(djsQuery));
         }
+
+        // Await all promises
+        const [eventsSnapshot, settlementsSnapshot, djsSnapshot] = await Promise.all(promises);
         
-        const results = await Promise.all(dataPromises);
-        
-        const eventsSnapshot = results[0];
+        // Process Events
         let eventsList = eventsSnapshot.docs.map(docSnapshot => {
             const data = docSnapshot.data();
             return {
@@ -131,7 +130,7 @@ const PaymentsPage: NextPage = () => {
             } as Event;
         });
 
-        const settlementsSnapshot = results[1];
+        // Process Settlements
         let settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
             const data = docSnapshot.data();
             return {
@@ -143,20 +142,19 @@ const PaymentsPage: NextPage = () => {
             } as FinancialSettlement;
         });
 
+        // Process DJs and filter data for DJ role
         if (userDetails.role === 'dj') {
             eventsList = eventsList.filter(e => e.dj_id === user.uid);
             settlementsList = settlementsList.filter(s => s.djId === user.uid);
+            setAllDjs([userDetails]);
             setSelectedDjId(user.uid);
+        } else if (djsSnapshot) {
+             const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
+             setAllDjs(djsList);
         }
-
+        
         setEvents(eventsList);
         setSettlements(settlementsList);
-
-        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-            const djsSnapshot = results[2];
-            const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
-            setAllDjs(djsList);
-        }
 
     } catch (error: any) {
         console.error("Error fetching financial data:", error);
@@ -858,3 +856,5 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
+
+    
