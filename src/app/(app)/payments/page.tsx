@@ -96,7 +96,7 @@ const PaymentsPage: NextPage = () => {
 
         const dataPromises = [];
 
-        // Base queries
+        // Base queries for events and settlements
         const eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
         const settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
         dataPromises.push(getDocs(eventsQuery), getDocs(settlementsQuery));
