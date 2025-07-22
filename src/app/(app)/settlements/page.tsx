@@ -162,11 +162,7 @@ export default function SettlementsPage() {
   }, [events, selectedDjId, dateRange, searchTerm]);
 
   const eventsForCalculation = useMemo(() => {
-    // If specific events are selected, use them. Otherwise, use all filtered events.
-    if (selectedEventIds.length > 0) {
-      return filteredEvents.filter(event => selectedEventIds.includes(event.id));
-    }
-    return filteredEvents;
+    return filteredEvents.filter(event => selectedEventIds.includes(event.id));
   }, [selectedEventIds, filteredEvents]);
 
 
@@ -187,6 +183,7 @@ export default function SettlementsPage() {
 
   const calculateDjCut = useCallback((event: Event, djPercent: number): number => {
     if (event.status_pagamento === 'cancelado') return 0;
+    // Formula: ((Valor Total - Custos) * %DJ) + Custos
     const baseValue = event.valor_total - (event.dj_costs || 0);
     return (baseValue * djPercent) + (event.dj_costs || 0);
   }, []);
@@ -196,7 +193,6 @@ export default function SettlementsPage() {
 
     const selectedDj = allDjs.find(dj => dj.uid === selectedDjId);
     if (!selectedDj || typeof selectedDj.dj_percentual !== 'number') {
-        // Do not toast here as it can be annoying, just prevent calculation
         return null;
     }
 
@@ -214,11 +210,10 @@ export default function SettlementsPage() {
       
       const djCutForEvent = calculateDjCut(event, djPercent);
       parcelaDjTotal += djCutForEvent;
-
+      
+      // CRITICAL CORRECTION: Sum only the down payment (sinal) if the DJ received it.
       if (event.conta_que_recebeu === 'dj') {
-        if (event.status_pagamento === 'pago' || event.status_pagamento === 'parcial') {
-           totalRecebidoPeloDj += event.valor_total;
-        }
+        totalRecebidoPeloDj += event.valor_sinal;
       }
     }
 
@@ -232,7 +227,7 @@ export default function SettlementsPage() {
       totalRecebidoPeloDj,
       saldoFinal,
     };
-  }, [eventsForCalculation, selectedDjId, allDjs, toast, calculateDjCut]);
+  }, [eventsForCalculation, selectedDjId, allDjs, calculateDjCut]);
 
   if (authLoading) {
     return (
@@ -334,7 +329,7 @@ export default function SettlementsPage() {
               <CardHeader>
                  <CardTitle className="text-xl">Resumo do Fechamento</CardTitle>
                  <CardDescription>
-                    Resumo financeiro para {allDjs.find(dj => dj.uid === selectedDjId)?.displayName} com base nos {eventsForCalculation.length} eventos selecionados.
+                    Resumo para {allDjs.find(dj => dj.uid === selectedDjId)?.displayName} com base nos {eventsForCalculation.length} eventos selecionados.
                  </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -356,7 +351,7 @@ export default function SettlementsPage() {
                                     <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p className="text-xs">Cálculo: ((Valor Total - Custos) * % DJ) + Custos</p>
+                                    <p className="text-xs">Fórmula: ((Valor Total - Custos) * % DJ) + Custos</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -364,7 +359,7 @@ export default function SettlementsPage() {
                     <p className="text-lg font-bold">{financialSummary.parcelaDjTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Recebido pelo DJ</p>
+                    <p className="text-sm text-muted-foreground">Sinal Recebido pelo DJ</p>
                     <p className="text-lg font-bold">{financialSummary.totalRecebidoPeloDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                    <div className={`p-2 rounded-md ${financialSummary.saldoFinal >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
@@ -411,6 +406,7 @@ export default function SettlementsPage() {
                     <TableHead>Status Pag.</TableHead>
                     <TableHead>Recebido por</TableHead>
                     <TableHead>Valor Total</TableHead>
+                    <TableHead>Sinal</TableHead>
                     <TableHead>Custos DJ</TableHead>
                     <TableHead>Parcela DJ (Apurado)</TableHead>
                   </TableRow>
@@ -443,6 +439,9 @@ export default function SettlementsPage() {
                         <TableCell>
                           {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </TableCell>
+                         <TableCell>
+                          {Number(event.valor_sinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </TableCell>
                         <TableCell>
                           {Number(event.dj_costs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </TableCell>
@@ -461,5 +460,3 @@ export default function SettlementsPage() {
     </div>
   );
 }
-
-    
