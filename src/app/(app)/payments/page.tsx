@@ -85,84 +85,81 @@ const PaymentsPage: NextPage = () => {
   const [activeQuickFilter, setActiveQuickFilter] = useState<string>('month');
 
   const fetchAllData = useCallback(async () => {
-      if (!user || !userDetails || !db) {
-          setIsLoading(false);
-          return;
-      }
-      setIsLoading(true);
+    if (authLoading || !user || !userDetails) {
+        setIsLoading(false);
+        return;
+    }
+    setIsLoading(true);
 
-      try {
-          const dataPromises = [];
-          
-          let eventsQuery;
-          let settlementsQuery;
+    try {
+        if (!db) throw new Error("Firestore not initialized");
 
-          // Define queries based on user role
-          if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-              eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
-              settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
-              const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
-              dataPromises.push(getDocs(djsQuery));
-          } else if (userDetails.role === 'dj') {
-              eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
-              settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', user.uid), orderBy('generatedAt', 'desc'));
-              setSelectedDjId(user.uid);
-          } else {
-              setEvents([]);
-              setSettlements([]);
-              setDjs([]);
-              setIsLoading(false);
-              return;
-          }
+        const dataPromises = [];
 
-          dataPromises.unshift(getDocs(eventsQuery), getDocs(settlementsQuery));
-          
-          const results = await Promise.all(dataPromises);
-          
-          const eventsSnapshot = results[0];
-          const eventsList = eventsSnapshot.docs.map(docSnapshot => {
-              const data = docSnapshot.data();
-              return {
-                  id: docSnapshot.id,
-                  ...data,
-                  data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
-                  dj_costs: data.dj_costs ?? 0,
-                  created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(data.created_at),
-                  updated_at: data.updated_at && (data.updated_at instanceof Timestamp ? data.updated_at.toDate() : new Date(data.updated_at)),
-                  payment_proofs: Array.isArray(data.payment_proofs) ? data.payment_proofs.map(proof => ({
-                      ...proof,
-                      uploadedAt: proof.uploadedAt instanceof Timestamp ? proof.uploadedAt.toDate() : new Date(proof.uploadedAt)
-                  })) : [],
-              } as Event;
-          });
-          setEvents(eventsList);
+        // Base queries
+        const eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'desc'));
+        const settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
+        dataPromises.push(getDocs(eventsQuery), getDocs(settlementsQuery));
 
-          const settlementsSnapshot = results[1];
-          const settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
-              const data = docSnapshot.data();
-              return {
-                  id: docSnapshot.id,
-                  ...data,
-                  periodStart: (data.periodStart as Timestamp).toDate(),
-                  periodEnd: (data.periodEnd as Timestamp).toDate(),
-                  generatedAt: (data.generatedAt as Timestamp).toDate(),
-              } as FinancialSettlement;
-          });
-          setSettlements(settlementsList);
+        // Add DJ query only if admin/partner
+        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+            const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
+            dataPromises.push(getDocs(djsQuery));
+        }
+        
+        const results = await Promise.all(dataPromises);
+        
+        const eventsSnapshot = results[0];
+        let eventsList = eventsSnapshot.docs.map(docSnapshot => {
+            const data = docSnapshot.data();
+            return {
+                id: docSnapshot.id,
+                ...data,
+                data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
+                dj_costs: data.dj_costs ?? 0,
+                created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(data.created_at),
+                updated_at: data.updated_at && (data.updated_at instanceof Timestamp ? data.updated_at.toDate() : new Date(data.updated_at)),
+                payment_proofs: Array.isArray(data.payment_proofs) ? data.payment_proofs.map(proof => ({
+                    ...proof,
+                    uploadedAt: proof.uploadedAt instanceof Timestamp ? proof.uploadedAt.toDate() : new Date(proof.uploadedAt)
+                })) : [],
+            } as Event;
+        });
 
-          if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-              const djsSnapshot = results[2];
-              const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
-              setDjs(djsList);
-          }
+        const settlementsSnapshot = results[1];
+        let settlementsList = settlementsSnapshot.docs.map(docSnapshot => {
+            const data = docSnapshot.data();
+            return {
+                id: docSnapshot.id,
+                ...data,
+                periodStart: (data.periodStart as Timestamp).toDate(),
+                periodEnd: (data.periodEnd as Timestamp).toDate(),
+                generatedAt: (data.generatedAt as Timestamp).toDate(),
+            } as FinancialSettlement;
+        });
 
-      } catch (error: any) {
-          console.error("Error fetching financial data:", error);
-          toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
-      } finally {
-          setIsLoading(false);
-      }
-  }, [user, userDetails, toast]);
+        if (userDetails.role === 'dj') {
+            eventsList = eventsList.filter(e => e.dj_id === user.uid);
+            settlementsList = settlementsList.filter(s => s.djId === user.uid);
+            setSelectedDjId(user.uid);
+        }
+
+        setEvents(eventsList);
+        setSettlements(settlementsList);
+
+        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+            const djsSnapshot = results[2];
+            const djsList = djsSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
+            setDjs(djsList);
+        }
+
+    } catch (error: any) {
+        console.error("Error fetching financial data:", error);
+        toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: error.message });
+    } finally {
+        setIsLoading(false);
+    }
+  }, [user, userDetails, authLoading, toast]);
   
 
   useEffect(() => {
@@ -856,5 +853,5 @@ const PaymentsPage: NextPage = () => {
 };
 
 export default PaymentsPage;
-    
+
     
