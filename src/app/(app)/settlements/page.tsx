@@ -20,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { VariantProps } from 'class-variance-authority';
-
+import { Separator } from '@/components/ui/separator';
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
   switch (status) {
@@ -44,6 +44,14 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
   }
 };
 
+interface FinancialSummary {
+  totalBruto: number;
+  totalCustos: number;
+  totalLiquido: number;
+  parcelaDjTotal: number;
+  totalRecebidoPeloDj: number;
+  saldoFinal: number;
+}
 
 export default function SettlementsPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
@@ -54,12 +62,12 @@ export default function SettlementsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters State
-  const [selectedDjId, setSelectedDjId] = useState<string>('all');
+  const [selectedDjId, setSelectedDjId] = useState<string>(''); // Changed to empty string to enforce selection
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
 
   const fetchAllData = useCallback(async () => {
-    if (authLoading || !user || !userDetails) {
+    if (authLoading || !user || !userDetails || userDetails.role === 'dj') {
       setIsLoading(false);
       return;
     }
@@ -85,6 +93,7 @@ export default function SettlementsPage() {
           id: docSnapshot.id,
           ...data,
           data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
+          dj_costs: data.dj_costs ?? 0,
         } as Event;
       });
       setEvents(eventsList);
@@ -113,11 +122,9 @@ export default function SettlementsPage() {
   }, [authLoading, user, userDetails, fetchAllData]);
 
   const filteredEvents = useMemo(() => {
-    let filtered = [...events];
-    
-    if (selectedDjId !== 'all') {
-      filtered = filtered.filter(event => event.dj_id === selectedDjId);
-    }
+    if (!selectedDjId) return []; // Don't show any events if no DJ is selected
+
+    let filtered = events.filter(event => event.dj_id === selectedDjId);
     
     if (dateRange?.from) {
       const fromDate = startOfDay(dateRange.from); 
@@ -143,6 +150,58 @@ export default function SettlementsPage() {
     return filtered;
   }, [events, selectedDjId, dateRange, searchTerm]);
 
+
+  const calculateDjCut = useCallback((event: Event, djPercent: number): number => {
+    if (event.status_pagamento === 'cancelado') return 0;
+    const baseValue = event.valor_total - (event.dj_costs || 0);
+    return (baseValue * djPercent) + (event.dj_costs || 0);
+  }, []);
+
+  const financialSummary = useMemo<FinancialSummary | null>(() => {
+    if (!selectedDjId || filteredEvents.length === 0) return null;
+
+    const selectedDj = allDjs.find(dj => dj.uid === selectedDjId);
+    if (!selectedDj || typeof selectedDj.dj_percentual !== 'number') {
+        toast({ variant: 'destructive', title: 'Erro de Cálculo', description: `DJ selecionado não possui um percentual definido.` });
+        return null;
+    }
+
+    const djPercent = selectedDj.dj_percentual;
+    let totalBruto = 0;
+    let totalCustos = 0;
+    let parcelaDjTotal = 0;
+    let totalRecebidoPeloDj = 0;
+
+    for (const event of filteredEvents) {
+      if (event.status_pagamento === 'cancelado') continue;
+      
+      totalBruto += event.valor_total;
+      totalCustos += event.dj_costs || 0;
+      
+      const djCutForEvent = calculateDjCut(event, djPercent);
+      parcelaDjTotal += djCutForEvent;
+
+      if (event.conta_que_recebeu === 'dj') {
+        // Considera o valor total, não apenas o sinal, pois o DJ pode ter recebido o restante
+        // Assumimos que se o DJ recebeu, ele recebeu o valor total do evento para este cálculo
+        if (event.status_pagamento === 'pago' || event.status_pagamento === 'parcial') {
+           totalRecebidoPeloDj += event.valor_total;
+        }
+      }
+    }
+
+    const saldoFinal = parcelaDjTotal - totalRecebidoPeloDj;
+    
+    return {
+      totalBruto,
+      totalCustos,
+      totalLiquido: totalBruto - totalCustos,
+      parcelaDjTotal,
+      totalRecebidoPeloDj,
+      saldoFinal,
+    };
+  }, [filteredEvents, selectedDjId, allDjs, toast, calculateDjCut]);
+
   if (authLoading) {
     return (
         <div className="flex flex-col justify-center items-center h-64 space-y-3">
@@ -151,6 +210,19 @@ export default function SettlementsPage() {
         </div>
     );
   }
+  
+  if (userDetails?.role === 'dj') {
+     return (
+         <Card>
+            <CardHeader>
+                <CardTitle>Acesso Restrito</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p>Apenas Administradores e Sócios podem acessar esta página.</p>
+            </CardContent>
+        </Card>
+     )
+  }
 
   return (
     <div className="space-y-6">
@@ -158,7 +230,7 @@ export default function SettlementsPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <CardTitle className="font-headline text-2xl">Fechamentos</CardTitle>
+                <CardTitle className="font-headline text-2xl">Gerar Fechamentos</CardTitle>
                 <CardDescription>Selecione um DJ e o período para gerar um novo fechamento.</CardDescription>
             </div>
           </div>
@@ -166,13 +238,12 @@ export default function SettlementsPage() {
         <CardContent>
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
             <div className="space-y-2">
-                <label className="text-sm font-medium">DJ</label>
+                <label className="text-sm font-medium">DJ *</label>
                 <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
                     <SelectTrigger>
                     <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione o DJ"} />
                     </SelectTrigger>
                     <SelectContent>
-                    <SelectItem value="all">Todos os DJs</SelectItem>
                     {allDjs.map(dj => (
                         <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                     ))}
@@ -193,11 +264,11 @@ export default function SettlementsPage() {
                         {dateRange?.from ? (
                             dateRange.to ? (
                             <>
-                                {format(dateRange.from, "LLL dd, y")} -{" "}
-                                {format(dateRange.to, "LLL dd, y")}
+                                {format(dateRange.from, "dd/MM/yy")} -{" "}
+                                {format(dateRange.to, "dd/MM/yy")}
                             </>
                             ) : (
-                            `A partir de ${format(dateRange.from, "LLL dd, y")}`
+                            `A partir de ${format(dateRange.from, "dd/MM/yy")}`
                             )
                         ) : (
                             <span>Selecione o período</span>
@@ -219,18 +290,64 @@ export default function SettlementsPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Buscar Evento</label>
               <Input 
-                placeholder="Buscar por evento, contratante, local..."
+                placeholder="Buscar por evento, contratante..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
 
+          {selectedDjId && financialSummary && (
+            <Card className="mb-6 bg-secondary/50">
+              <CardHeader>
+                <CardTitle className="text-xl">Resumo do Fechamento</CardTitle>
+                <CardDescription>
+                  Resumo financeiro para {allDjs.find(dj => dj.uid === selectedDjId)?.displayName} no período selecionado.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Eventos no Período</p>
+                    <p className="text-lg font-bold">{filteredEvents.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Valor Bruto Total</p>
+                    <p className="text-lg font-bold">{financialSummary.totalBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Parcela Líquida do DJ</p>
+                    <p className="text-lg font-bold">{financialSummary.parcelaDjTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Recebido pelo DJ</p>
+                    <p className="text-lg font-bold">{financialSummary.totalRecebidoPeloDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  </div>
+                   <div className={`p-2 rounded-md ${financialSummary.saldoFinal >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
+                    <p className="text-sm font-semibold">{financialSummary.saldoFinal >= 0 ? 'A Agência PAGA ao DJ' : 'O DJ PAGA à Agência'}</p>
+                    <p className={`text-xl font-bold ${financialSummary.saldoFinal >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                      {Math.abs(financialSummary.saldoFinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </p>
+                  </div>
+                </div>
+                 <div className="flex justify-end pt-4">
+                    <Button disabled={filteredEvents.length === 0}>
+                        Gerar Fechamento
+                    </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Separator className="my-4" />
+
           {isLoading ? (
              <div className="flex justify-center items-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="ml-2">Carregando eventos...</p>
              </div>
+          ) : !selectedDjId ? (
+            <p className="text-muted-foreground text-center py-8">Por favor, selecione um DJ para visualizar os eventos.</p>
           ) : filteredEvents.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">Nenhum evento encontrado para os filtros selecionados.</p>
           ) : (
@@ -240,36 +357,43 @@ export default function SettlementsPage() {
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Evento</TableHead>
-                    <TableHead>Local</TableHead>
-                    <TableHead>Contratante</TableHead>
                     <TableHead>Status Pag.</TableHead>
+                    <TableHead>Recebido por</TableHead>
                     <TableHead>Valor Total</TableHead>
                     <TableHead>Custos DJ</TableHead>
+                    <TableHead>Parcela DJ (Apurado)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredEvents.map((event) => (
-                    <TableRow key={event.id}>
-                      <TableCell>
-                        <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
-                        <div className="text-xs text-muted-foreground">{event.dia_da_semana}</div>
-                      </TableCell>
-                      <TableCell className="font-medium">{event.nome_evento}</TableCell>
-                      <TableCell>{event.local}</TableCell>
-                      <TableCell>{event.contratante_nome}</TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
-                          {getStatusText(event.status_pagamento)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </TableCell>
-                      <TableCell>
-                        {Number(event.dj_costs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {filteredEvents.map((event) => {
+                     const djData = allDjs.find(dj => dj.uid === event.dj_id);
+                     const djPercentual = djData?.dj_percentual ?? 0;
+                     const parcelaDj = calculateDjCut(event, djPercentual);
+
+                    return(
+                      <TableRow key={event.id}>
+                        <TableCell>
+                          <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
+                        </TableCell>
+                        <TableCell className="font-medium">{event.nome_evento}</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
+                            {getStatusText(event.status_pagamento)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="capitalize">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</TableCell>
+                        <TableCell>
+                          {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </TableCell>
+                        <TableCell>
+                          {Number(event.dj_costs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </TableCell>
+                         <TableCell className="font-semibold">
+                          {parcelaDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -279,3 +403,6 @@ export default function SettlementsPage() {
     </div>
   );
 }
+
+
+    
