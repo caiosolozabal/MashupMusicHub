@@ -69,6 +69,17 @@ export interface Event {
   settlementId?: string | null; // ID do fechamento ao qual este evento pertence
 }
 
+export interface SettlementEvent {
+    id: string;
+    data_evento: Date;
+    nome_evento: string;
+    contratante_nome: string;
+    local: string;
+    valor_total: number;
+    conta_que_recebeu: 'agencia' | 'dj';
+    status_pagamento: 'pendente' | 'parcial' | 'pago' | 'vencido' | 'cancelado';
+}
+
 // Represents a periodic financial closing for a DJ
 export interface FinancialSettlement {
   id: string;
@@ -140,3 +151,5 @@ export interface Guest {
 }
 
 // Add other types as needed
+
+    

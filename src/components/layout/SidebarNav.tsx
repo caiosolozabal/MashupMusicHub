@@ -8,7 +8,7 @@ import {
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, CalendarDays, DollarSign, Settings } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, DollarSign, Settings, FileText } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -27,6 +27,12 @@ const navItems: NavItem[] = [
     label: 'Pagamentos', 
     icon: DollarSign,
     roles: ['admin', 'partner', 'dj'] 
+  },
+  { 
+    href: '/settlements', 
+    label: 'Fechamentos', 
+    icon: FileText,
+    roles: ['admin', 'partner'] 
   },
   // Documentos and Listas VIP are deferred for now based on core focus.
   // { 
@@ -89,3 +95,5 @@ export default function SidebarNav() {
     </SidebarMenu>
   );
 }
+
+    
