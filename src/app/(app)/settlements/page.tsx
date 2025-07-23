@@ -216,7 +216,8 @@ export default function SettlementsPage() {
       parcelaDjTotal += djCutForEvent;
       
       if (event.conta_que_recebeu === 'dj') {
-        totalRecebidoPeloDj += event.valor_total; // This was the inconsistent logic
+        // CORRECTION: When DJ receives, it's the full amount (`valor_total`) that counts as received by them.
+        totalRecebidoPeloDj += event.valor_total;
       }
     }
 
@@ -362,7 +363,7 @@ export default function SettlementsPage() {
                     <p className="text-lg font-bold">{financialSummary.parcelaDjTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Sinal Recebido pelo DJ</p>
+                    <p className="text-sm text-muted-foreground">Valor Recebido pelo DJ</p>
                     <p className="text-lg font-bold">{financialSummary.totalRecebidoPeloDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                    <div className={`p-2 rounded-md ${financialSummary.saldoFinal >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
