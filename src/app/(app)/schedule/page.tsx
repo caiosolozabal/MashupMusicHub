@@ -209,6 +209,12 @@ export default function SchedulePage() {
     return false;
   };
   const canDeleteEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+  const showServiceTypeColumn = useMemo(() => {
+    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
+    if (userDetails?.role === 'dj' && userDetails.pode_locar) return true;
+    return false;
+  }, [userDetails]);
+
 
   const handleOpenCreateForm = () => {
     setSelectedEvent(null);
@@ -452,6 +458,7 @@ export default function SchedulePage() {
               onDelete={handleOpenDeleteConfirm}
               canEdit={canEditEvent}
               canDelete={canDeleteEvents}
+              showServiceTypeColumn={showServiceTypeColumn}
             />
           )}
           

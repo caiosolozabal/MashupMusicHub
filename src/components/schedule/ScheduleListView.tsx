@@ -19,6 +19,7 @@ interface ScheduleListViewProps {
   onDelete: (event: Event) => void;
   canEdit: (event: Event) => boolean;
   canDelete: boolean;
+  showServiceTypeColumn: boolean;
 }
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
@@ -43,6 +44,14 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
   }
 };
 
+const getServiceTypeText = (type: Event['tipo_servico']): string => {
+  switch (type) {
+    case 'servico_dj': return 'Serviço DJ';
+    case 'locacao_equipamento': return 'Locação';
+    default: return 'N/D';
+  }
+}
+
 const getRowStyle = (color: string | null | undefined, isLinked: boolean): React.CSSProperties => {
     if (!color) return {};
     const baseOpacity = isLinked ? 0.25 : 0.15;
@@ -65,6 +74,7 @@ export default function ScheduleListView({
   onDelete,
   canEdit,
   canDelete,
+  showServiceTypeColumn,
 }: ScheduleListViewProps) {
   const calculateCache = (event: Event): number => {
     if (typeof djPercentual !== 'number' || djPercentual < 0 || djPercentual > 1) {
@@ -81,6 +91,7 @@ export default function ScheduleListView({
             <TableHead className="px-3 py-1.5">Data</TableHead>
             <TableHead className="px-3 py-1.5">Horário</TableHead>
             <TableHead className="px-3 py-1.5">Evento</TableHead>
+            {showServiceTypeColumn && <TableHead className="px-3 py-1.5">Tipo</TableHead>}
             <TableHead className="px-3 py-1.5">Local</TableHead>
             <TableHead className="px-3 py-1.5">Contratante</TableHead>
             <TableHead className="px-3 py-1.5">Status Pag.</TableHead>
@@ -117,6 +128,11 @@ export default function ScheduleListView({
                     {isLinked && <LinkIcon className="h-4 w-4 text-primary" title={`Vinculado a outro evento`} />}
                 </div>
               </TableCell>
+              {showServiceTypeColumn && (
+                <TableCell className="p-1.5">
+                   <Badge variant="secondary" className="text-xs whitespace-nowrap">{getServiceTypeText(event.tipo_servico)}</Badge>
+                </TableCell>
+              )}
               <TableCell className="p-1.5 text-sm">{event.local}</TableCell>
               <TableCell className="p-1.5 text-sm">{event.contratante_nome}</TableCell>
               <TableCell className="p-1.5">
