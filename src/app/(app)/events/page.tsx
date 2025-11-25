@@ -119,6 +119,7 @@ const EventsPage: NextPage = () => {
       setEvents([]);
       setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userDetails, authLoading]);
 
 
@@ -153,6 +154,19 @@ const EventsPage: NextPage = () => {
     setSelectedEvent(event);
     setIsDeleteConfirmOpen(true);
   };
+  
+  const handleDuplicateEvent = (originalEvent: Event) => {
+    const duplicatedEventData = {
+        ...originalEvent,
+        id: '', // Remove ID to indicate it's a new event
+        linkedEventId: null, // Don't carry over the link
+        linkedEventName: null,
+    };
+    setSelectedEvent(duplicatedEventData as Event); // Cast because we know what we are doing
+    setIsViewOpen(false); // Close the view dialog
+    setIsFormOpen(true); // Open the form dialog with duplicated data
+  }
+
 
   const handleFormSubmit = async (values: EventFormValues) => {
     if (!user || !userDetails || !db) {
@@ -160,7 +174,7 @@ const EventsPage: NextPage = () => {
       return;
     }
 
-    if (userDetails.role === 'dj' && selectedEvent) {
+    if (userDetails.role === 'dj' && selectedEvent && selectedEvent.id) { // Editing existing event
         if (values.dj_id !== user.uid || values.dj_nome !== userDetails.displayName){
             toast({ variant: 'destructive', title: 'Operação Inválida', description: 'Você não pode alterar o DJ atribuído.'});
             values.dj_id = user.uid;
@@ -180,7 +194,7 @@ const EventsPage: NextPage = () => {
     };
     
     try {
-      if (selectedEvent) { 
+      if (selectedEvent && selectedEvent.id) { // This is an edit
         if (!canEditSelectedEvent(selectedEvent)) {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode atualizar seus próprios eventos.'});
             setIsSubmitting(false);
@@ -192,7 +206,7 @@ const EventsPage: NextPage = () => {
           updated_at: serverTimestamp(),
         });
         toast({ title: 'Evento atualizado!', description: `"${values.nome_evento}" foi atualizado com sucesso.` });
-      } else { 
+      } else { // This is a create (either from new or from duplicate)
         await addDoc(collection(db, 'events'), {
           ...eventData,
           dj_id: userDetails.role === 'dj' ? user.uid : values.dj_id,
@@ -358,9 +372,9 @@ const EventsPage: NextPage = () => {
       <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setSelectedEvent(null); }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-headline">{selectedEvent ? 'Editar Evento' : 'Criar Novo Evento'}</DialogTitle>
+            <DialogTitle className="font-headline">{selectedEvent?.id ? 'Editar Evento' : 'Criar Novo Evento'}</DialogTitle>
             <DialogDescription>
-              {selectedEvent ? 'Atualize os detalhes do evento.' : 'Preencha as informações para criar um novo evento.'}
+              {selectedEvent?.id ? 'Atualize os detalhes do evento.' : 'Preencha as informações para criar um novo evento.'}
             </DialogDescription>
           </DialogHeader>
           <EventForm
@@ -378,7 +392,7 @@ const EventsPage: NextPage = () => {
           <DialogHeader>
             <DialogTitle>Detalhes do Evento: {selectedEvent?.nome_evento}</DialogTitle>
           </DialogHeader>
-          <EventView event={selectedEvent} onViewEvent={handleOpenView} />
+          <EventView event={selectedEvent} onViewEvent={handleOpenView} onDuplicateEvent={handleDuplicateEvent}/>
            <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>Fechar</Button>
           </DialogFooter>

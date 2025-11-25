@@ -13,13 +13,14 @@ import { cn } from '@/lib/utils';
 interface ScheduleListViewProps {
   events: Event[];
   allDjs: UserDetails[];
-  djPercentual: number | null;
   onView: (event: Event) => void;
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
   canEdit: (event: Event) => boolean;
   canDelete: (event: Event) => boolean;
   showServiceTypeColumn: boolean;
+  calculateDjCut: (event: Event, dj: UserDetails | undefined) => number;
+  isDjView: boolean;
 }
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
@@ -68,21 +69,16 @@ const getRowStyle = (color: string | null | undefined, isLinked: boolean): React
 export default function ScheduleListView({
   events,
   allDjs,
-  djPercentual,
   onView,
   onEdit,
   onDelete,
   canEdit,
   canDelete,
   showServiceTypeColumn,
+  calculateDjCut,
+  isDjView,
 }: ScheduleListViewProps) {
-  const calculateCache = (event: Event): number => {
-    if (typeof djPercentual !== 'number' || djPercentual < 0 || djPercentual > 1) {
-      return 0;
-    }
-    return event.valor_total * djPercentual;
-  };
-
+  
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -96,7 +92,7 @@ export default function ScheduleListView({
             <TableHead className="px-3 py-1.5">Contratante</TableHead>
             <TableHead className="px-3 py-1.5">Status Pag.</TableHead>
             <TableHead className="px-3 py-1.5">Valor Total</TableHead>
-            {djPercentual !== null && <TableHead className="px-3 py-1.5">Seu Cachê (Est.)</TableHead>}
+            {isDjView && <TableHead className="px-3 py-1.5">Seu Cachê (Est.)</TableHead>}
             <TableHead className="px-3 py-1.5">DJ</TableHead>
             <TableHead className="text-right px-3 py-1.5">Ações</TableHead>
           </TableRow>
@@ -107,6 +103,7 @@ export default function ScheduleListView({
              const djColor = djForEvent?.dj_color;
              const isLinked = !!event.linkedEventId;
              const nextEventIsLinked = index + 1 < events.length && events[index + 1].linkedEventId === event.id;
+             const estimatedCut = calculateDjCut(event, djForEvent);
 
             return(
             <TableRow 
@@ -143,9 +140,9 @@ export default function ScheduleListView({
               <TableCell className="p-1.5 text-sm">
                 {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </TableCell>
-              {djPercentual !== null && (
+              {isDjView && (
                 <TableCell className="p-1.5 text-sm">
-                  {calculateCache(event).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  {estimatedCut.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </TableCell>
               )}
               <TableCell className="p-1.5 text-sm">

@@ -7,7 +7,7 @@ import { Badge, badgeVariants } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import type { VariantProps } from 'class-variance-authority';
 import { Timestamp } from 'firebase/firestore';
-import { FileText, Link as LinkIcon, Truck, Disc, StickyNote } from 'lucide-react';
+import { FileText, Link as LinkIcon, Truck, Disc, StickyNote, Copy } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '../ui/button';
 
@@ -36,9 +36,10 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 interface EventViewProps {
   event: Event | null;
   onViewEvent?: (eventId: string) => void;
+  onDuplicateEvent?: (event: Event) => void;
 }
 
-export default function EventView({ event, onViewEvent }: EventViewProps) {
+export default function EventView({ event, onViewEvent, onDuplicateEvent }: EventViewProps) {
   if (!event) {
     return <p className="text-muted-foreground">Nenhum evento selecionado para visualização.</p>;
   }
@@ -53,13 +54,23 @@ export default function EventView({ event, onViewEvent }: EventViewProps) {
   return (
     <Card className="shadow-none border-0">
       <CardHeader>
-        <CardTitle className="font-headline text-2xl flex items-center gap-2">
-            {serviceType === 'locacao_equipamento' ? <Truck className="h-6 w-6 text-primary" /> : <Disc className="h-6 w-6 text-primary" />}
-            {event.nome_evento}
-        </CardTitle>
-        <CardDescription>
-          {format(eventDate, 'dd/MM/yyyy HH:mm')} ({event.dia_da_semana}) - {event.local}
-        </CardDescription>
+        <div className="flex justify-between items-start">
+          <div className="flex-grow">
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+                {serviceType === 'locacao_equipamento' ? <Truck className="h-6 w-6 text-primary" /> : <Disc className="h-6 w-6 text-primary" />}
+                {event.nome_evento}
+            </CardTitle>
+            <CardDescription>
+              {format(eventDate, 'dd/MM/yyyy HH:mm')} ({event.dia_da_semana}) - {event.local}
+            </CardDescription>
+          </div>
+          {onDuplicateEvent && (
+              <Button variant="outline" size="sm" onClick={() => onDuplicateEvent(event)}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  Duplicar Evento
+              </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {event.linkedEventId && (

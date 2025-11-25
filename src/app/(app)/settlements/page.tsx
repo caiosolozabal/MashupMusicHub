@@ -23,6 +23,7 @@ import type { VariantProps } from 'class-variance-authority';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { calculateDjCut } from '@/lib/utils';
 
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
@@ -238,23 +239,6 @@ export default function SettlementsPage() {
     }
   };
 
-  const calculateDjCut = useCallback((event: Event, dj: UserDetails | undefined): number => {
-    if (event.status_pagamento === 'cancelado' || !dj) return 0;
-    
-    let djPercent;
-    if (event.tipo_servico === 'locacao_equipamento') {
-      djPercent = dj.rental_percentual;
-    } else { // 'servico_dj' or default
-      djPercent = dj.dj_percentual;
-    }
-      
-    if (typeof djPercent !== 'number') return 0;
-
-    const baseValue = event.valor_total - (event.dj_costs || 0);
-    return (baseValue * djPercent) + (event.dj_costs || 0);
-  }, []);
-
-
   const financialSummary = useMemo<FinancialSummary | null>(() => {
     if (!selectedDjId || eventsForCalculation.length === 0) return null;
 
@@ -305,7 +289,7 @@ export default function SettlementsPage() {
       totalRecebidoPeloDj,
       saldoFinal,
     };
-  }, [eventsForCalculation, selectedDjId, allDjs, toast, calculateDjCut, userDetails]);
+  }, [eventsForCalculation, selectedDjId, allDjs, toast, userDetails]);
 
   if (authLoading) {
     return (

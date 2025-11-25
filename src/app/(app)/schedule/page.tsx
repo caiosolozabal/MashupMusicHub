@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CalendarDays, List, Loader2, PlusCircle, Eye, Edit, Trash2 } from 'lucide-react';
+import { CalendarDays, List, Loader2, PlusCircle, Eye, Edit, Trash2, Copy } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp, getDoc } from 'firebase/firestore';
 import type { Event, UserDetails } from '@/lib/types';
@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import EventForm, { type EventFormValues } from '@/components/events/EventForm';
 import EventView from '@/components/events/EventView';
+import { calculateDjCut } from '@/lib/utils';
 
 
 type ViewMode = 'month' | 'list';
@@ -112,6 +113,8 @@ export default function SchedulePage() {
          const djsSnapshot = results[1];
          const djsList = djsSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails));
          setAllDjs(djsList);
+      } else if (userDetails.role === 'dj') {
+        setAllDjs([userDetails]); // For a DJ, their own details are the only ones needed
       }
 
     } catch (error) {
@@ -257,18 +260,31 @@ export default function SchedulePage() {
   };
   const handleOpenDeleteConfirm = (event: Event) => {
     if (!canDeleteEvent(event)) {
-      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir eventos.'});
+      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir este evento.'});
       return;
     }
     setSelectedEvent(event);
     setIsDeleteConfirmOpen(true);
   };
 
+  const handleDuplicateEvent = (originalEvent: Event) => {
+    const duplicatedEventData = {
+        ...originalEvent,
+        id: '', // Remove ID to indicate it's a new event
+        linkedEventId: null, // Don't carry over the link
+        linkedEventName: null,
+    };
+    setSelectedEvent(duplicatedEventData as Event); // Cast because we know what we are doing
+    setIsViewOpen(false); // Close the view dialog
+    setIsFormOpen(true); // Open the form dialog with duplicated data
+  }
+
+
   const handleFormSubmit = async (values: EventFormValues) => {
     if (!user || !userDetails) return toast({ variant: 'destructive', title: 'Erro de autenticação' });
     if (!db) return toast({ variant: 'destructive', title: 'Erro de banco de dados' });
 
-    if (userDetails.role === 'dj' && selectedEvent) {
+    if (userDetails.role === 'dj' && selectedEvent && selectedEvent.id) { // Editing
         if (values.dj_id !== user.uid || values.dj_nome !== (userDetails.displayName || user.displayName)){
             toast({ variant: 'destructive', title: 'Operação Inválida', description: 'Você não pode alterar o DJ atribuído.'});
             values.dj_id = user.uid;
@@ -287,12 +303,12 @@ export default function SchedulePage() {
     };
     
     try {
-      if (selectedEvent) {
+      if (selectedEvent && selectedEvent.id) { // Editing existing event
         if (!canEditEvent(selectedEvent)) throw new Error('Permissão para editar negada.');
         const eventRef = doc(db, 'events', selectedEvent.id);
         await updateDoc(eventRef, { ...eventData, updated_at: serverTimestamp() });
         toast({ title: 'Evento atualizado!', description: `"${values.nome_evento}" foi atualizado.` });
-      } else {
+      } else { // Creating a new event (or a duplicated one)
         await addDoc(collection(db, 'events'), {
           ...eventData,
           dj_id: userDetails.role === 'dj' ? user.uid : values.dj_id,
@@ -459,13 +475,14 @@ export default function SchedulePage() {
             <ScheduleListView
               events={filteredAndGroupedEvents}
               allDjs={allDjs}
-              djPercentual={userDetails?.dj_percentual ?? null}
               onView={(e) => handleOpenView(e.id)}
               onEdit={handleOpenEditForm}
               onDelete={handleOpenDeleteConfirm}
               canEdit={canEditEvent}
               canDelete={canDeleteEvent}
               showServiceTypeColumn={showServiceTypeColumn}
+              calculateDjCut={calculateDjCut}
+              isDjView={userDetails?.role === 'dj'}
             />
           )}
           
@@ -479,9 +496,9 @@ export default function SchedulePage() {
       <Dialog open={isFormOpen} onOpenChange={(open) => { setIsFormOpen(open); if (!open) setSelectedEvent(null); }}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-headline">{selectedEvent ? 'Editar Evento' : 'Criar Novo Evento'}</DialogTitle>
+            <DialogTitle className="font-headline">{selectedEvent?.id ? 'Editar Evento' : 'Criar Novo Evento'}</DialogTitle>
             <FormDialogDescription>
-              {selectedEvent ? 'Atualize os detalhes do evento.' : 'Preencha as informações para criar um novo evento.'}
+              {selectedEvent?.id ? 'Atualize os detalhes do evento.' : 'Preencha as informações para criar um novo evento.'}
             </FormDialogDescription>
           </DialogHeader>
           <EventForm
@@ -499,7 +516,7 @@ export default function SchedulePage() {
           <DialogHeader>
             <DialogTitle>Detalhes do Evento: {selectedEvent?.nome_evento}</DialogTitle>
           </DialogHeader>
-          <EventView event={selectedEvent} onViewEvent={handleOpenView} />
+          <EventView event={selectedEvent} onViewEvent={handleOpenView} onDuplicateEvent={handleDuplicateEvent}/>
            <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>Fechar</Button>
           </DialogFooter>
