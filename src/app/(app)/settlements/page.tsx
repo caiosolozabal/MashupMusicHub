@@ -201,10 +201,12 @@ export default function SettlementsPage() {
   const calculateDjCut = useCallback((event: Event, dj: UserDetails | undefined): number => {
     if (event.status_pagamento === 'cancelado' || !dj) return 0;
     
-    // Correctly choose the percentage based on the service type
-    const djPercent = event.tipo_servico === 'locacao_equipamento'
-      ? (dj.rental_percentual ?? 0) // Use rental_percentual for rentals
-      : (dj.dj_percentual ?? 0);     // Use dj_percentual for DJ services
+    let djPercent = 0;
+    if (event.tipo_servico === 'locacao_equipamento') {
+      djPercent = dj.rental_percentual ?? 0;
+    } else {
+      djPercent = dj.dj_percentual ?? 0;
+    }
       
     if (typeof djPercent !== 'number') return 0;
 
