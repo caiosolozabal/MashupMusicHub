@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, X } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
 import type { Event, UserDetails } from '@/lib/types';
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, getYear, getMonth, startOfMonth, endOfMonth } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -48,14 +48,14 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 };
 
 const getServiceTypeText = (type: Event['tipo_servico']): string => {
-  switch (type) {
-    case 'locacao_equipamento':
-      return 'Locação';
-    case 'servico_dj':
-    default:
-      return 'Serviço DJ';
-  }
-}
+    switch (type) {
+        case 'locacao_equipamento':
+            return 'Locação';
+        case 'servico_dj':
+        default:
+            return 'Serviço DJ';
+    }
+};
 
 interface FinancialSummary {
   totalBruto: number;
@@ -65,6 +65,22 @@ interface FinancialSummary {
   totalRecebidoPeloDj: number;
   saldoFinal: number;
 }
+
+const months = [
+  { value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' }, { value: '2', label: 'Março' },
+  { value: '3', label: 'Abril' }, { value: '4', label: 'Maio' }, { value: '5', label: 'Junho' },
+  { value: '6', label: 'Julho' }, { value: '7', label: 'Agosto' }, { value: '8', label: 'Setembro' },
+  { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
+];
+
+const getYears = () => {
+    const currentYear = getYear(new Date());
+    const years = [];
+    for (let i = currentYear + 1; i >= currentYear - 5; i--) {
+        years.push(i.toString());
+    }
+    return years;
+};
 
 export default function SettlementsPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
@@ -79,6 +95,9 @@ export default function SettlementsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
+  const [selectedYear, setSelectedYear] = useState<string | undefined>();
+  const availableYears = useMemo(() => getYears(), []);
 
 
   const fetchAllData = useCallback(async () => {
@@ -101,11 +120,9 @@ export default function SettlementsPage() {
         );
       } else if (userDetails.role === 'dj') {
         eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
-        // For a DJ, `allDjs` will just be their own details, and `selectedDjId` will be their UID.
         djsPromise = Promise.resolve([userDetails]);
         setSelectedDjId(user.uid);
       } else {
-        // No permission
         setIsLoading(false);
         return;
       }
@@ -122,7 +139,7 @@ export default function SettlementsPage() {
           ...data,
           data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
           dj_costs: data.dj_costs ?? 0,
-          tipo_servico: data.tipo_servico || 'servico_dj', // Default to 'servico_dj'
+          tipo_servico: data.tipo_servico || 'servico_dj',
         } as Event;
       });
   
@@ -145,6 +162,29 @@ export default function SettlementsPage() {
         setIsLoading(false);
     }
   }, [authLoading, user, userDetails, fetchAllData]);
+  
+  useEffect(() => {
+    if (selectedYear && selectedMonth) {
+        const year = parseInt(selectedYear, 10);
+        const month = parseInt(selectedMonth, 10);
+        const start = startOfMonth(new Date(year, month));
+        const end = endOfMonth(new Date(year, month));
+        setDateRange({ from: start, to: end });
+    }
+  }, [selectedMonth, selectedYear]);
+
+  useEffect(() => {
+      // When dateRange is changed manually, reset month/year selectors
+      if (dateRange) {
+        const from = dateRange.from;
+        if(from) {
+          if (!selectedYear || !selectedMonth || getYear(from) !== parseInt(selectedYear, 10) || getMonth(from) !== parseInt(selectedMonth, 10)) {
+              setSelectedYear(undefined);
+              setSelectedMonth(undefined);
+          }
+        }
+      }
+  }, [dateRange, selectedMonth, selectedYear]);
 
   const filteredEvents = useMemo(() => {
     if (!selectedDjId) {
@@ -201,16 +241,15 @@ export default function SettlementsPage() {
   const calculateDjCut = useCallback((event: Event, dj: UserDetails | undefined): number => {
     if (event.status_pagamento === 'cancelado' || !dj) return 0;
     
-    let djPercent = 0;
+    let djPercent;
     if (event.tipo_servico === 'locacao_equipamento') {
-      djPercent = dj.rental_percentual ?? 0;
-    } else {
-      djPercent = dj.dj_percentual ?? 0;
+      djPercent = dj.rental_percentual;
+    } else { // 'servico_dj' or default
+      djPercent = dj.dj_percentual;
     }
       
     if (typeof djPercent !== 'number') return 0;
 
-    // The correct formula: ((Total Value - Costs) * Percentage) + Costs
     const baseValue = event.valor_total - (event.dj_costs || 0);
     return (baseValue * djPercent) + (event.dj_costs || 0);
   }, []);
@@ -226,7 +265,7 @@ export default function SettlementsPage() {
     const hasRentalPercent = typeof selectedDj.rental_percentual === 'number';
 
     if (!hasDjPercent && !hasRentalPercent) {
-        if (userDetails?.role !== 'dj') { // Only show toast if admin/partner is viewing
+        if (userDetails?.role !== 'dj') { 
             toast({
                 variant: "destructive",
                 title: "Cálculo Interrompido",
@@ -252,7 +291,6 @@ export default function SettlementsPage() {
       parcelaDjTotal += djCutForEvent;
       
       if (event.conta_que_recebeu === 'dj') {
-        // Corrected Logic: If DJ received, it's the full event value, not just the signal.
         totalRecebidoPeloDj += event.valor_total;
       }
     }
@@ -308,9 +346,9 @@ export default function SettlementsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
             {userDetails?.role !== 'dj' && (
-              <div className="space-y-2">
+              <div className="space-y-2 xl:col-span-1">
                   <label className="text-sm font-medium">DJ *</label>
                   <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
                       <SelectTrigger>
@@ -325,46 +363,71 @@ export default function SettlementsPage() {
                   </Select>
               </div>
             )}
-             <div className="space-y-2">
-                <label className="text-sm font-medium">Período</label>
+             <div className="space-y-2 xl:col-span-1">
+                <label className="text-sm font-medium">Mês</label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!selectedYear}>
+                    <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
+                    <SelectContent>
+                        {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+             </div>
+             <div className="space-y-2 xl:col-span-1">
+                <label className="text-sm font-medium">Ano</label>
+                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
+                    <SelectContent>
+                        {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-2 xl:col-span-1">
+              <label className="text-sm font-medium">ou Período Manual</label>
+              <div className="flex items-center gap-1">
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
-                        id="date"
-                        variant={"outline"}
-                        className="w-full justify-start text-left font-normal"
+                          id="date"
+                          variant={"outline"}
+                          className="w-full justify-start text-left font-normal"
                         >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateRange?.from ? (
-                            dateRange.to ? (
-                            <>
-                                {format(dateRange.from, "dd/MM/yy")} -{" "}
-                                {format(dateRange.to, "dd/MM/yy")}
-                            </>
-                            ) : (
-                            `A partir de ${format(dateRange.from, "dd/MM/yy")}`
-                            )
-                        ) : (
-                            <span>Todo o período</span>
-                        )}
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (
+                              dateRange.to ? (
+                              <>
+                                  {format(dateRange.from, "dd/MM/yy")} -{" "}
+                                  {format(dateRange.to, "dd/MM/yy")}
+                              </>
+                              ) : (
+                              `A partir de ${format(dateRange.from, "dd/MM/yy")}`
+                              )
+                          ) : (
+                              <span>Todo o período</span>
+                          )}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
                         <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={dateRange?.from}
-                        selected={dateRange}
-                        onSelect={setDateRange}
-                        numberOfMonths={2}
+                          initialFocus
+                          mode="range"
+                          defaultMonth={dateRange?.from}
+                          selected={dateRange}
+                          onSelect={setDateRange}
+                          numberOfMonths={2}
                         />
                     </PopoverContent>
                 </Popover>
-             </div>
-            <div className="space-y-2">
+                {dateRange && (
+                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDateRange(undefined)}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-2 xl:col-span-1">
               <label className="text-sm font-medium">Buscar Evento</label>
               <Input 
-                placeholder="Buscar por evento, contratante..."
+                placeholder="Nome, contratante..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
