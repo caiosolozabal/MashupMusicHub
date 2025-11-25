@@ -49,10 +49,9 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 const getServiceTypeText = (type: Event['tipo_servico']): string => {
   switch (type) {
-    case 'servico_dj':
-      return 'Serviço DJ';
     case 'locacao_equipamento':
       return 'Locação';
+    case 'servico_dj':
     default:
       return 'Serviço DJ';
   }
@@ -397,7 +396,7 @@ export default function SettlementsPage() {
                                     <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p className="text-xs max-w-xs">Fórmula: ((Valor Total - Custos) * % de Serviço) + Custos. O percentual varia com o tipo de serviço (DJ ou Locação).</p>
+                                    <p className="text-xs max-w-xs">Fórmula: ((Valor Total - Custos) * % do Serviço) + Custos. O percentual varia com o tipo de serviço (DJ ou Locação).</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -509,5 +508,3 @@ export default function SettlementsPage() {
     </div>
   );
 }
-
-    
