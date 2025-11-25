@@ -46,9 +46,9 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 const getServiceTypeText = (type: Event['tipo_servico']): string => {
   switch (type) {
-    case 'servico_dj': return 'Serviço DJ';
     case 'locacao_equipamento': return 'Locação';
-    default: return 'N/D';
+    case 'servico_dj': // Fallthrough
+    default: return 'Serviço DJ';
   }
 }
 
