@@ -50,6 +50,7 @@ const eventFormSchema = z.object({
   valor_sinal: z.coerce.number().min(0, { message: 'Valor do sinal não pode ser negativo.' }),
   conta_que_recebeu: z.enum(['agencia', 'dj'], { required_error: 'Selecione quem recebeu o sinal.' }),
   status_pagamento: z.enum(['pendente', 'parcial', 'pago', 'vencido', 'cancelado'], { required_error: 'Status do pagamento é obrigatório.' }),
+  tipo_servico: z.enum(['servico_dj', 'locacao_equipamento'], { required_error: 'O tipo de serviço é obrigatório.'}),
   dj_nome: z.string().min(2, { message: 'Nome do DJ é obrigatório.' }),
   dj_id: z.string().min(1, { message: 'ID do DJ é obrigatório.' }),
   dj_costs: z.coerce.number().min(0, { message: 'Custos do DJ não podem ser negativos.' }).default(0).optional(),
@@ -107,6 +108,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
     valor_sinal: 0,
     conta_que_recebeu: 'agencia',
     status_pagamento: 'pendente',
+    tipo_servico: 'servico_dj',
     dj_nome: (userDetails?.role === 'dj' ? userDetails.displayName || userDetails.email || '' : ''),
     dj_id: (userDetails?.role === 'dj' ? userDetails.uid : ''),
     dj_costs: 0,
@@ -135,6 +137,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
         valor_sinal: Number(event.valor_sinal),
         conta_que_recebeu: event.conta_que_recebeu || 'agencia',
         status_pagamento: event.status_pagamento || 'pendente',
+        tipo_servico: event.tipo_servico || 'servico_dj',
         dj_nome: event.dj_nome || '',
         dj_id: event.dj_id || '',
         dj_costs: event.dj_costs ? Number(event.dj_costs) : 0,
@@ -305,6 +308,29 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             )}
           />
         </div>
+        
+        <FormField
+            control={form.control}
+            name="tipo_servico"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipo de Serviço</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo de serviço" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="servico_dj">Serviço de DJ</SelectItem>
+                    <SelectItem value="locacao_equipamento">Locação de Equipamento</SelectItem>
+                  </SelectContent>
+                </Select>
+                 <FormDescription>Classifique o serviço principal deste evento.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormField

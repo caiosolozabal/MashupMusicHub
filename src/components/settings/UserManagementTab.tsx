@@ -77,7 +77,8 @@ export default function UserManagementTab() {
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Função</TableHead>
-              <TableHead>Percentual DJ</TableHead>
+              <TableHead>% Serviço DJ</TableHead>
+              <TableHead>% Locação</TableHead>
               <TableHead>Cor</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -90,6 +91,9 @@ export default function UserManagementTab() {
                 <TableCell className="capitalize">{user.role || 'N/A'}</TableCell>
                 <TableCell>
                   {user.role === 'dj' ? (user.dj_percentual ? `${(user.dj_percentual * 100).toFixed(0)}%` : 'Não definido') : 'N/A'}
+                </TableCell>
+                <TableCell>
+                  {user.role === 'dj' ? (user.rental_percentual ? `${(user.rental_percentual * 100).toFixed(0)}%` : 'N/D') : 'N/A'}
                 </TableCell>
                 <TableCell>
                   {user.role === 'dj' && user.dj_color ? (

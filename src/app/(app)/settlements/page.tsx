@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -45,6 +46,14 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
     default: return status || 'N/A';
   }
 };
+
+const getServiceTypeText = (type: Event['tipo_servico']): string => {
+  switch (type) {
+    case 'servico_dj': return 'Serviço DJ';
+    case 'locacao_equipamento': return 'Locação';
+    default: return 'N/D';
+  }
+}
 
 interface FinancialSummary {
   totalBruto: number;
@@ -98,6 +107,7 @@ export default function SettlementsPage() {
           ...data,
           data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
           dj_costs: data.dj_costs ?? 0,
+          tipo_servico: data.tipo_servico || 'servico_dj', // Default to 'servico_dj'
         } as Event;
       });
       setEvents(eventsList);
@@ -154,9 +164,7 @@ export default function SettlementsPage() {
       );
     }
     
-    // Auto-select all filtered events when filter changes
     setSelectedEventIds(filtered.map(e => e.id));
-
     return filtered;
   }, [events, selectedDjId, dateRange, searchTerm]);
 
@@ -179,28 +187,35 @@ export default function SettlementsPage() {
     }
   };
 
+  const calculateDjCut = useCallback((event: Event, dj: UserDetails | undefined): number => {
+    if (event.status_pagamento === 'cancelado' || !dj) return 0;
+    
+    const djPercent = event.tipo_servico === 'locacao_equipamento'
+      ? (dj.rental_percentual ?? dj.dj_percentual ?? 0)
+      : (dj.dj_percentual ?? 0);
+      
+    if (typeof djPercent !== 'number') return 0;
 
-  const calculateDjCut = useCallback((event: Event, djPercent: number): number => {
-    if (event.status_pagamento === 'cancelado') return 0;
-    // Formula: ((Valor Total - Custos) * %DJ) + Custos
     const baseValue = event.valor_total - (event.dj_costs || 0);
     return (baseValue * djPercent) + (event.dj_costs || 0);
   }, []);
+
 
   const financialSummary = useMemo<FinancialSummary | null>(() => {
     if (!selectedDjId || eventsForCalculation.length === 0) return null;
 
     const selectedDj = allDjs.find(dj => dj.uid === selectedDjId);
-    if (!selectedDj || typeof selectedDj.dj_percentual !== 'number') {
+    if (!selectedDj) return null;
+    
+    if (typeof selectedDj.dj_percentual !== 'number') {
         toast({
             variant: "destructive",
             title: "Cálculo Interrompido",
-            description: `O DJ ${selectedDj?.displayName} não possui um percentual definido.`
+            description: `O DJ ${selectedDj?.displayName} não possui um percentual de serviço definido.`
         })
         return null;
     }
 
-    const djPercent = selectedDj.dj_percentual;
     let totalBruto = 0;
     let totalCustos = 0;
     let parcelaDjTotal = 0;
@@ -212,11 +227,10 @@ export default function SettlementsPage() {
       totalBruto += event.valor_total;
       totalCustos += event.dj_costs || 0;
       
-      const djCutForEvent = calculateDjCut(event, djPercent);
+      const djCutForEvent = calculateDjCut(event, selectedDj);
       parcelaDjTotal += djCutForEvent;
       
       if (event.conta_que_recebeu === 'dj') {
-        // CORRECTION: When DJ receives, it's the full amount (`valor_total`) that counts as received by them.
         totalRecebidoPeloDj += event.valor_total;
       }
     }
@@ -355,7 +369,7 @@ export default function SettlementsPage() {
                                     <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p className="text-xs">Fórmula: ((Valor Total - Custos) * % DJ) + Custos</p>
+                                    <p className="text-xs max-w-xs">Fórmula: ((Valor Total - Custos) * % DJ) + Custos. O % DJ varia com o tipo de serviço (DJ ou Locação).</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -407,10 +421,10 @@ export default function SettlementsPage() {
                     </TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Evento</TableHead>
+                    <TableHead>Tipo</TableHead>
                     <TableHead>Status Pag.</TableHead>
                     <TableHead>Recebido por</TableHead>
                     <TableHead>Valor Total</TableHead>
-                    <TableHead>Sinal</TableHead>
                     <TableHead>Custos DJ</TableHead>
                     <TableHead>Parcela DJ (Apurado)</TableHead>
                   </TableRow>
@@ -418,8 +432,7 @@ export default function SettlementsPage() {
                 <TableBody>
                   {filteredEvents.map((event) => {
                      const djData = allDjs.find(dj => dj.uid === event.dj_id);
-                     const djPercentual = djData?.dj_percentual ?? 0;
-                     const parcelaDj = calculateDjCut(event, djPercentual);
+                     const parcelaDj = calculateDjCut(event, djData);
 
                     return(
                       <TableRow key={event.id} data-state={selectedEventIds.includes(event.id) ? 'selected' : ''}>
@@ -435,6 +448,9 @@ export default function SettlementsPage() {
                         </TableCell>
                         <TableCell className="font-medium">{event.nome_evento}</TableCell>
                         <TableCell>
+                          <Badge variant="secondary" className="text-xs whitespace-nowrap">{getServiceTypeText(event.tipo_servico)}</Badge>
+                        </TableCell>
+                        <TableCell>
                           <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
                             {getStatusText(event.status_pagamento)}
                           </Badge>
@@ -442,9 +458,6 @@ export default function SettlementsPage() {
                         <TableCell className="capitalize">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</TableCell>
                         <TableCell>
                           {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                         <TableCell>
-                          {Number(event.valor_sinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                         </TableCell>
                         <TableCell>
                           {Number(event.dj_costs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}

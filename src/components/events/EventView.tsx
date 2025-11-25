@@ -7,7 +7,7 @@ import { Badge, badgeVariants } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import type { VariantProps } from 'class-variance-authority';
 import { Timestamp } from 'firebase/firestore';
-import { FileText, Link as LinkIcon } from 'lucide-react';
+import { FileText, Link as LinkIcon, Truck, Disc } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
@@ -46,10 +46,15 @@ export default function EventView({ event }: EventViewProps) {
   const updatedAtDate = event.updated_at ? (event.updated_at instanceof Timestamp ? event.updated_at.toDate() : (typeof event.updated_at === 'string' ? new Date(event.updated_at) : event.updated_at)) : null;
 
 
+  const serviceType = event.tipo_servico || 'servico_dj';
+
   return (
     <Card className="shadow-none border-0">
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">{event.nome_evento}</CardTitle>
+        <CardTitle className="font-headline text-2xl flex items-center gap-2">
+            {serviceType === 'locacao_equipamento' ? <Truck className="h-6 w-6 text-primary" /> : <Disc className="h-6 w-6 text-primary" />}
+            {event.nome_evento}
+        </CardTitle>
         <CardDescription>
           {format(eventDate, 'dd/MM/yyyy HH:mm')} ({event.dia_da_semana}) - {event.local}
         </CardDescription>
@@ -61,7 +66,7 @@ export default function EventView({ event }: EventViewProps) {
           {event.contratante_contato && <p className="text-xs text-muted-foreground">{event.contratante_contato}</p>}
         </div>
         <div>
-          <h4 className="font-semibold text-sm mb-1">DJ:</h4>
+          <h4 className="font-semibold text-sm mb-1">DJ / Responsável:</h4>
           <p className="text-muted-foreground">{event.dj_nome} (ID: {event.dj_id})</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

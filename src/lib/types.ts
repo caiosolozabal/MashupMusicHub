@@ -9,6 +9,7 @@ export interface UserDetails {
   displayName: string | null;
   role: UserRole;
   dj_percentual?: number | null; // DJ's individual commission percentage (e.g., 0.7 for 70%)
+  rental_percentual?: number | null; // DJ's equipment rental commission percentage
   dj_color?: string | null; // Hex color code for the DJ (e.g., #ff0000)
   // Bank details for DJs
   bankName?: string | null;
@@ -58,6 +59,7 @@ export interface Event {
   valor_sinal: number;
   conta_que_recebeu: 'agencia' | 'dj'; // This might later reference an AgencyAccount.id
   status_pagamento: 'pendente' | 'parcial' | 'pago' | 'vencido' | 'cancelado';
+  tipo_servico: 'servico_dj' | 'locacao_equipamento'; // New field for service type
   dj_id: string;
   dj_nome: string;
   dj_costs?: number | null; // Custos adicionais do DJ para este evento

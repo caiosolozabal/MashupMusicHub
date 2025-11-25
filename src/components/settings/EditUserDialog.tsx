@@ -24,6 +24,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserDetails, UserRole } from '@/lib/types';
 import { Loader2 } from 'lucide-react';
 import { generateRandomPastelColor } from '@/lib/utils';
+import { Separator } from '../ui/separator';
 
 const editUserFormSchema = z.object({
   displayName: z.string().min(1, 'Nome é obrigatório.'),
@@ -31,6 +32,10 @@ const editUserFormSchema = z.object({
   dj_percentual: z.preprocess(
     (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
     z.number().min(0).max(1).nullable().optional() // Percentage between 0 and 1
+  ),
+  rental_percentual: z.preprocess(
+    (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
+    z.number().min(0).max(1).nullable().optional()
   ),
   dj_color: z.string().optional().nullable(),
   bankName: z.string().optional().nullable(),
@@ -66,6 +71,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       displayName: user.displayName || '',
       role: user.role || 'dj', // Default to 'dj' if no role
       dj_percentual: user.dj_percentual ?? null,
+      rental_percentual: user.rental_percentual ?? null,
       dj_color: user.dj_color || null,
       bankName: user.bankName || '',
       bankAgency: user.bankAgency || '',
@@ -83,6 +89,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         displayName: user.displayName || '',
         role: user.role || 'dj',
         dj_percentual: user.dj_percentual ?? null,
+        rental_percentual: user.rental_percentual ?? null,
         dj_color: user.dj_color || null,
         bankName: user.bankName || '',
         bankAgency: user.bankAgency || '',
@@ -110,6 +117,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
 
       if (data.role === 'dj') {
         updateData.dj_percentual = data.dj_percentual;
+        updateData.rental_percentual = data.rental_percentual;
         updateData.dj_color = (data.dj_color && data.dj_color.startsWith('hsl')) ? data.dj_color : generateRandomPastelColor();
         updateData.bankName = data.bankName || null;
         updateData.bankAgency = data.bankAgency || null;
@@ -120,6 +128,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       } else {
         // Clear DJ specific fields if role is not DJ
         updateData.dj_percentual = null;
+        updateData.rental_percentual = null;
         updateData.dj_color = null;
         updateData.bankName = null;
         updateData.bankAgency = null;
@@ -178,11 +187,12 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
 
           {selectedRole === 'dj' && (
             <>
-              <div className="pt-2 border-t mt-4">
-                <h3 className="text-md font-semibold mb-2 text-primary">Detalhes do DJ</h3>
-                <div className="grid grid-cols-2 gap-4">
+              <Separator className="my-4" />
+              <div>
+                <h3 className="text-md font-semibold mb-2 text-primary">Detalhes Financeiros e de Agenda do DJ</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <Label htmlFor="dj_percentual">Percentual (Ex: 0.7 para 70%)</Label>
+                        <Label htmlFor="dj_percentual">Percentual Serviço DJ (Ex: 0.7)</Label>
                         <Input
                             id="dj_percentual"
                             type="number"
@@ -193,18 +203,31 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                         />
                         {errors.dj_percentual && <p className="text-sm text-destructive mt-1">{errors.dj_percentual.message}</p>}
                     </div>
-                    <div>
-                        <Label>Cor do DJ na Agenda</Label>
-                        <div className="flex items-center gap-2 mt-1 p-2 border rounded-md bg-muted/50 h-10">
-                            <div className="h-6 w-6 rounded-full border" style={{ backgroundColor: watch('dj_color') || 'transparent' }}></div>
-                            <span className="text-sm text-muted-foreground font-mono">{watch('dj_color') || 'Cor será gerada ao salvar'}</span>
-                        </div>
+                     <div>
+                        <Label htmlFor="rental_percentual">Percentual Locação (Ex: 0.2)</Label>
+                        <Input
+                            id="rental_percentual"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="1"
+                            {...register('rental_percentual')}
+                        />
+                        {errors.rental_percentual && <p className="text-sm text-destructive mt-1">{errors.rental_percentual.message}</p>}
+                    </div>
+                </div>
+                 <div className="mt-4">
+                    <Label>Cor do DJ na Agenda</Label>
+                    <div className="flex items-center gap-2 mt-1 p-2 border rounded-md bg-muted/50 h-10">
+                        <div className="h-6 w-6 rounded-full border" style={{ backgroundColor: watch('dj_color') || 'transparent' }}></div>
+                        <span className="text-sm text-muted-foreground font-mono">{watch('dj_color') || 'Cor será gerada ao salvar'}</span>
                     </div>
                 </div>
               </div>
 
-              <div className="space-y-4 mt-2">
-                <h4 className="text-sm font-semibold text-muted-foreground">Dados Bancários do DJ</h4>
+              <Separator className="my-4" />
+              <div className="space-y-4">
+                <h4 className="text-md font-semibold text-primary">Dados Bancários do DJ</h4>
                 <div>
                   <Label htmlFor="bankName">Nome do Banco</Label>
                   <Input id="bankName" {...register('bankName')} />
