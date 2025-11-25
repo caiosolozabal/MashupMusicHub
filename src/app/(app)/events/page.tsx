@@ -128,10 +128,6 @@ const EventsPage: NextPage = () => {
   };
 
   const handleOpenEditForm = (event: Event) => {
-    if (userDetails?.role === 'dj' && event.dj_id !== user?.uid) {
-      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode editar seus próprios eventos.'});
-      return;
-    }
     setSelectedEvent(event);
     setIsFormOpen(true);
   };
@@ -139,11 +135,6 @@ const EventsPage: NextPage = () => {
   const handleOpenView = async (eventId: string) => {
     const eventToView = events.find(e => e.id === eventId);
     if (!eventToView) return;
-
-    if (userDetails?.role === 'dj' && eventToView.dj_id !== user?.uid) {
-        toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode visualizar seus próprios eventos.'});
-        return;
-    }
 
     // If the event is linked, fetch the linked event's name for display
     if (eventToView.linkedEventId && !eventToView.linkedEventName) {
@@ -159,10 +150,6 @@ const EventsPage: NextPage = () => {
   };
   
   const handleOpenDeleteConfirm = (event: Event) => {
-    if (!(userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
-      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir eventos.'});
-      return;
-    }
     setSelectedEvent(event);
     setIsDeleteConfirmOpen(true);
   };
@@ -194,7 +181,7 @@ const EventsPage: NextPage = () => {
     
     try {
       if (selectedEvent) { 
-        if (userDetails?.role === 'dj' && selectedEvent.dj_id !== user?.uid) {
+        if (!canEditSelectedEvent(selectedEvent)) {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode atualizar seus próprios eventos.'});
             setIsSubmitting(false);
             return;
@@ -230,7 +217,7 @@ const EventsPage: NextPage = () => {
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent || !db) return;
-    if (!(userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
+     if (!canDeleteSelectedEvent(selectedEvent)) {
       toast({ variant: 'destructive', title: 'Acesso Negado' });
       return;
     }
@@ -260,13 +247,20 @@ const EventsPage: NextPage = () => {
   };
 
   const canCreateEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner' || userDetails?.role === 'dj';
+  
   const canEditSelectedEvent = (event: Event | null) => {
     if (!event) return false;
     if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
     if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
     return false;
   };
-  const canDeleteEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+  
+  const canDeleteSelectedEvent = (event: Event | null) => {
+    if (!event) return false;
+    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
+    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
+    return false;
+  };
 
 
   return (
@@ -346,7 +340,7 @@ const EventsPage: NextPage = () => {
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
-                        {canDeleteEvents && (
+                        {canDeleteSelectedEvent(event) && (
                           <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => handleOpenDeleteConfirm(event)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
