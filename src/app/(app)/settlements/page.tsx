@@ -202,12 +202,14 @@ export default function SettlementsPage() {
   const calculateDjCut = useCallback((event: Event, dj: UserDetails | undefined): number => {
     if (event.status_pagamento === 'cancelado' || !dj) return 0;
     
+    // Correctly choose the percentage based on the service type
     const djPercent = event.tipo_servico === 'locacao_equipamento'
-      ? (dj.rental_percentual ?? dj.dj_percentual ?? 0)
-      : (dj.dj_percentual ?? 0);
+      ? (dj.rental_percentual ?? 0) // Use rental_percentual for rentals
+      : (dj.dj_percentual ?? 0);     // Use dj_percentual for DJ services
       
     if (typeof djPercent !== 'number') return 0;
 
+    // The correct formula: ((Total Value - Costs) * Percentage) + Costs
     const baseValue = event.valor_total - (event.dj_costs || 0);
     return (baseValue * djPercent) + (event.dj_costs || 0);
   }, []);
@@ -219,16 +221,20 @@ export default function SettlementsPage() {
     const selectedDj = allDjs.find(dj => dj.uid === selectedDjId);
     if (!selectedDj) return null;
     
-    if (typeof selectedDj.dj_percentual !== 'number') {
+    const hasDjPercent = typeof selectedDj.dj_percentual === 'number';
+    const hasRentalPercent = typeof selectedDj.rental_percentual === 'number';
+
+    if (!hasDjPercent && !hasRentalPercent) {
         if (userDetails?.role !== 'dj') { // Only show toast if admin/partner is viewing
             toast({
                 variant: "destructive",
                 title: "Cálculo Interrompido",
-                description: `O DJ ${selectedDj?.displayName} não possui um percentual de serviço definido.`
+                description: `O DJ ${selectedDj?.displayName} não possui percentuais de serviço ou locação definidos.`
             });
         }
         return null;
     }
+
 
     let totalBruto = 0;
     let totalCustos = 0;
@@ -503,3 +509,5 @@ export default function SettlementsPage() {
     </div>
   );
 }
+
+    
