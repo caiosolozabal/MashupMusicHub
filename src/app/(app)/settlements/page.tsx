@@ -49,9 +49,12 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 const getServiceTypeText = (type: Event['tipo_servico']): string => {
   switch (type) {
-    case 'servico_dj': return 'Serviço DJ';
-    case 'locacao_equipamento': return 'Locação';
-    default: return 'Serviço DJ';
+    case 'servico_dj':
+      return 'Serviço DJ';
+    case 'locacao_equipamento':
+      return 'Locação';
+    default:
+      return 'Serviço DJ';
   }
 }
 
@@ -80,26 +83,39 @@ export default function SettlementsPage() {
 
 
   const fetchAllData = useCallback(async () => {
-    if (authLoading || !user || !userDetails || userDetails.role === 'dj') {
+    if (authLoading || !user || !userDetails) {
       setIsLoading(false);
       return;
     }
     setIsLoading(true);
     try {
       if (!db) throw new Error("Firestore not initialized");
-
-      const dataPromises = [];
-      const eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
-      dataPromises.push(getDocs(eventsQuery));
+  
+      let eventsQuery;
+      let djsPromise;
 
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+        eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
         const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
-        dataPromises.push(getDocs(djsQuery));
+        djsPromise = getDocs(djsQuery).then(snapshot => 
+          snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails))
+        );
+      } else if (userDetails.role === 'dj') {
+        eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
+        // For a DJ, `allDjs` will just be their own details, and `selectedDjId` will be their UID.
+        djsPromise = Promise.resolve([userDetails]);
+        setSelectedDjId(user.uid);
+      } else {
+        // No permission
+        setIsLoading(false);
+        return;
       }
       
-      const results = await Promise.all(dataPromises);
-
-      const eventsSnapshot = results[0];
+      const [eventsSnapshot, djsList] = await Promise.all([
+        getDocs(eventsQuery),
+        djsPromise
+      ]);
+  
       const eventsList = eventsSnapshot.docs.map(docSnapshot => {
         const data = docSnapshot.data();
         return {
@@ -110,14 +126,10 @@ export default function SettlementsPage() {
           tipo_servico: data.tipo_servico || 'servico_dj', // Default to 'servico_dj'
         } as Event;
       });
+  
       setEvents(eventsList);
-
-      if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-         const djsSnapshot = results[1];
-         const djsList = djsSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails));
-         setAllDjs(djsList);
-      }
-
+      setAllDjs(djsList);
+  
     } catch (error) {
       console.error("Error fetching data: ", error);
       toast({ variant: 'destructive', title: 'Erro ao carregar dados', description: (error as Error).message });
@@ -208,11 +220,13 @@ export default function SettlementsPage() {
     if (!selectedDj) return null;
     
     if (typeof selectedDj.dj_percentual !== 'number') {
-        toast({
-            variant: "destructive",
-            title: "Cálculo Interrompido",
-            description: `O DJ ${selectedDj?.displayName} não possui um percentual de serviço definido.`
-        })
+        if (userDetails?.role !== 'dj') { // Only show toast if admin/partner is viewing
+            toast({
+                variant: "destructive",
+                title: "Cálculo Interrompido",
+                description: `O DJ ${selectedDj?.displayName} não possui um percentual de serviço definido.`
+            });
+        }
         return null;
     }
 
@@ -246,7 +260,7 @@ export default function SettlementsPage() {
       totalRecebidoPeloDj,
       saldoFinal,
     };
-  }, [eventsForCalculation, selectedDjId, allDjs, toast, calculateDjCut]);
+  }, [eventsForCalculation, selectedDjId, allDjs, toast, calculateDjCut, userDetails]);
 
   if (authLoading) {
     return (
@@ -257,14 +271,14 @@ export default function SettlementsPage() {
     );
   }
   
-  if (userDetails?.role === 'dj') {
+  if (!userDetails || !['admin', 'partner', 'dj'].includes(userDetails.role!)) {
      return (
          <Card>
             <CardHeader>
                 <CardTitle>Acesso Restrito</CardTitle>
             </CardHeader>
             <CardContent>
-                <p>Apenas Administradores e Sócios podem acessar esta página.</p>
+                <p>Você não tem permissão para acessar esta página.</p>
             </CardContent>
         </Card>
      )
@@ -277,26 +291,33 @@ export default function SettlementsPage() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <CardTitle className="font-headline text-2xl">Gerar Fechamentos</CardTitle>
-                <CardDescription>Selecione um DJ e o período para gerar um novo fechamento.</CardDescription>
+                <CardDescription>
+                  {userDetails?.role === 'dj' 
+                    ? 'Visualize seus eventos e o resumo financeiro para o período.'
+                    : 'Selecione um DJ e o período para gerar um novo fechamento.'
+                  }
+                </CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-            <div className="space-y-2">
-                <label className="text-sm font-medium">DJ *</label>
-                <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
-                    <SelectTrigger>
-                    <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione o DJ"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                    {allDjs.map(dj => (
-                        <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
-                    ))}
-                    {!isLoading && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
-                    </SelectContent>
-                </Select>
-            </div>
+            {userDetails?.role !== 'dj' && (
+              <div className="space-y-2">
+                  <label className="text-sm font-medium">DJ *</label>
+                  <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
+                      <SelectTrigger>
+                      <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione o DJ"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                      {allDjs.map(dj => (
+                          <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
+                      ))}
+                      {!isLoading && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                      </SelectContent>
+                  </Select>
+              </div>
+            )}
              <div className="space-y-2">
                 <label className="text-sm font-medium">Período</label>
                 <Popover>
@@ -363,14 +384,14 @@ export default function SettlementsPage() {
                   </div>
                   <div>
                     <div className="flex items-center justify-center gap-1.5">
-                        <p className="text-sm text-muted-foreground">Parcela Líquida do DJ</p>
+                        <p className="text-sm text-muted-foreground">Sua Parcela Líquida</p>
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger>
                                     <Info className="h-3 w-3 text-muted-foreground cursor-help" />
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                    <p className="text-xs max-w-xs">Fórmula: ((Valor Total - Custos) * % DJ) + Custos. O % DJ varia com o tipo de serviço (DJ ou Locação).</p>
+                                    <p className="text-xs max-w-xs">Fórmula: ((Valor Total - Custos) * % de Serviço) + Custos. O percentual varia com o tipo de serviço (DJ ou Locação).</p>
                                 </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
@@ -378,21 +399,23 @@ export default function SettlementsPage() {
                     <p className="text-lg font-bold">{financialSummary.parcelaDjTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Valor Recebido pelo DJ</p>
+                    <p className="text-sm text-muted-foreground">Valor que Você Recebeu</p>
                     <p className="text-lg font-bold">{financialSummary.totalRecebidoPeloDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                    <div className={`p-2 rounded-md ${financialSummary.saldoFinal >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
-                    <p className="text-sm font-semibold">{financialSummary.saldoFinal >= 0 ? 'A Agência PAGA ao DJ' : 'O DJ PAGA à Agência'}</p>
+                    <p className="text-sm font-semibold">{financialSummary.saldoFinal >= 0 ? (userDetails?.role === 'dj' ? 'Você RECEBE' : 'A Agência PAGA') : (userDetails?.role === 'dj' ? 'Você PAGA' : 'O DJ PAGA')}</p>
                     <p className={`text-xl font-bold ${financialSummary.saldoFinal >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
                       {Math.abs(financialSummary.saldoFinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
                   </div>
                 </div>
-                 <div className="flex justify-end pt-4">
-                    <Button disabled={eventsForCalculation.length === 0}>
-                        Gerar Fechamento
-                    </Button>
-                </div>
+                 {userDetails?.role !== 'dj' && (
+                    <div className="flex justify-end pt-4">
+                        <Button disabled={eventsForCalculation.length === 0}>
+                            Gerar Fechamento
+                        </Button>
+                    </div>
+                 )}
               </CardContent>
             </Card>
           )}
@@ -405,7 +428,9 @@ export default function SettlementsPage() {
                 <p className="ml-2">Carregando eventos...</p>
              </div>
           ) : !selectedDjId ? (
-            <p className="text-muted-foreground text-center py-8">Por favor, selecione um DJ para visualizar os eventos.</p>
+            <p className="text-muted-foreground text-center py-8">
+              {userDetails?.role === 'dj' ? 'Carregando seus dados...' : 'Por favor, selecione um DJ para visualizar os eventos.'}
+            </p>
           ) : filteredEvents.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">Nenhum evento encontrado para os filtros selecionados.</p>
           ) : (
@@ -478,5 +503,3 @@ export default function SettlementsPage() {
     </div>
   );
 }
-
-    
