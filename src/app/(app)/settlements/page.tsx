@@ -231,6 +231,7 @@ export default function SettlementsPage() {
       parcelaDjTotal += djCutForEvent;
       
       if (event.conta_que_recebeu === 'dj') {
+        // Corrected Logic: If DJ received, it's the full event value, not just the signal.
         totalRecebidoPeloDj += event.valor_total;
       }
     }
@@ -477,3 +478,5 @@ export default function SettlementsPage() {
     </div>
   );
 }
+
+    

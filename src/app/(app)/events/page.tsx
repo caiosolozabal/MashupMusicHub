@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon } from 'lucide-react';
+import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -316,9 +316,12 @@ const EventsPage: NextPage = () => {
                         <div className="text-xs text-muted-foreground">{event.dia_da_semana}</div>
                         <div className="text-xs text-muted-foreground">{event.horario_inicio ? format(parseISO(`2000-01-01T${event.horario_inicio}`), 'HH:mm') : ''}</div>
                       </TableCell>
-                      <TableCell className="font-medium flex items-center gap-2">
-                        {event.linkedEventId && <LinkIcon className="h-4 w-4 text-muted-foreground" title={`Vinculado a outro evento`} />}
-                        {event.nome_evento}
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                            {event.tipo_servico === 'locacao_equipamento' ? <Truck className="h-4 w-4 text-muted-foreground" /> : <Disc className="h-4 w-4 text-muted-foreground" />}
+                            <span>{event.nome_evento}</span>
+                            {event.linkedEventId && <LinkIcon className="h-4 w-4 text-muted-foreground" title={`Vinculado a outro evento`} />}
+                        </div>
                       </TableCell>
                       <TableCell>{event.local}</TableCell>
                       <TableCell>{event.contratante_nome}</TableCell>
@@ -415,3 +418,5 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
+
+    
