@@ -67,7 +67,7 @@ export default function EventView({ event }: EventViewProps) {
         </div>
         <div>
           <h4 className="font-semibold text-sm mb-1">DJ / Responsável:</h4>
-          <p className="text-muted-foreground">{event.dj_nome} (ID: {event.dj_id})</p>
+          <p className="text-muted-foreground">{event.dj_nome}</p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>

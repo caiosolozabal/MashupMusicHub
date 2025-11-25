@@ -581,7 +581,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                 <div>
                     <FormLabel>DJ Atribuído</FormLabel>
                     <p className="text-sm text-muted-foreground p-2 border rounded-md bg-muted">
-                        {form.getValues('dj_nome')} (ID: {form.getValues('dj_id')})
+                        {form.getValues('dj_nome')}
                     </p>
                 </div>
                 <FormField control={form.control} name="dj_nome" render={({ field }) => <Input {...field} type="hidden" />} />
