@@ -7,9 +7,10 @@ import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Loader2, Edit } from 'lucide-react';
+import { Loader2, Edit, CheckCircle2, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import EditUserDialog from './EditUserDialog'; // We will create this next
+import { Badge } from '../ui/badge';
 
 export default function UserManagementTab() {
   const { toast } = useToast();
@@ -79,6 +80,7 @@ export default function UserManagementTab() {
               <TableHead>Função</TableHead>
               <TableHead>% Serviço DJ</TableHead>
               <TableHead>% Locação</TableHead>
+              <TableHead>Pode Locar?</TableHead>
               <TableHead>Cor</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -94,6 +96,14 @@ export default function UserManagementTab() {
                 </TableCell>
                 <TableCell>
                   {user.role === 'dj' ? (user.rental_percentual ? `${(user.rental_percentual * 100).toFixed(0)}%` : 'N/D') : 'N/A'}
+                </TableCell>
+                <TableCell>
+                  {user.role === 'dj' ? (
+                     <Badge variant={user.pode_locar ? 'default' : 'outline'}>
+                      {user.pode_locar ? <CheckCircle2 className="h-4 w-4 mr-1"/> : <XCircle className="h-4 w-4 mr-1"/>}
+                      {user.pode_locar ? 'Sim' : 'Não'}
+                    </Badge>
+                  ) : 'N/A'}
                 </TableCell>
                 <TableCell>
                   {user.role === 'dj' && user.dj_color ? (

@@ -22,13 +22,15 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserDetails, UserRole } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PackageCheck } from 'lucide-react';
 import { generateRandomPastelColor } from '@/lib/utils';
 import { Separator } from '../ui/separator';
+import { Switch } from '../ui/switch';
 
 const editUserFormSchema = z.object({
   displayName: z.string().min(1, 'Nome é obrigatório.'),
   role: z.enum(['admin', 'partner', 'dj', 'financeiro']), // Adjust as per your roles
+  pode_locar: z.boolean().default(false),
   dj_percentual: z.preprocess(
     (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
     z.number().min(0).max(1).nullable().optional() // Percentage between 0 and 1
@@ -70,6 +72,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
     defaultValues: {
       displayName: user.displayName || '',
       role: user.role || 'dj', // Default to 'dj' if no role
+      pode_locar: user.pode_locar || false,
       dj_percentual: user.dj_percentual ?? null,
       rental_percentual: user.rental_percentual ?? null,
       dj_color: user.dj_color || null,
@@ -88,6 +91,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       reset({
         displayName: user.displayName || '',
         role: user.role || 'dj',
+        pode_locar: user.pode_locar || false,
         dj_percentual: user.dj_percentual ?? null,
         rental_percentual: user.rental_percentual ?? null,
         dj_color: user.dj_color || null,
@@ -116,6 +120,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       };
 
       if (data.role === 'dj') {
+        updateData.pode_locar = data.pode_locar;
         updateData.dj_percentual = data.dj_percentual;
         updateData.rental_percentual = data.rental_percentual;
         updateData.dj_color = (data.dj_color && data.dj_color.startsWith('hsl')) ? data.dj_color : generateRandomPastelColor();
@@ -127,6 +132,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         updateData.pixKey = data.pixKey || null;
       } else {
         // Clear DJ specific fields if role is not DJ
+        updateData.pode_locar = false;
         updateData.dj_percentual = null;
         updateData.rental_percentual = null;
         updateData.dj_color = null;
@@ -188,7 +194,26 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
           {selectedRole === 'dj' && (
             <>
               <Separator className="my-4" />
-              <div>
+                <Controller
+                  control={control}
+                  name="pode_locar"
+                  render={({ field }) => (
+                     <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="pode-locar-switch" className="text-base">Permissão de Locação</Label>
+                         <DialogDescription>
+                          Ative se este DJ pode criar eventos de locação de equipamentos.
+                        </DialogDescription>
+                      </div>
+                      <Switch
+                        id="pode-locar-switch"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </div>
+                  )}
+                />
+              <div className="mt-4">
                 <h3 className="text-md font-semibold mb-2 text-primary">Detalhes Financeiros e de Agenda do DJ</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>

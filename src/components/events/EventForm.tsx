@@ -68,13 +68,14 @@ interface EventFormProps {
 
 export default function EventForm({ event, onSubmit, onCancel, isLoading, onSuccessfulProofUpload }: EventFormProps) {
   const { toast } = useToast();
-  const { userDetails } = useAuth(); // Removed 'user' as it's part of userDetails or not directly needed here
+  const { userDetails } = useAuth();
   const [selectedProofFile, setSelectedProofFile] = useState<File | null>(null);
   const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [availableDjs, setAvailableDjs] = useState<UserDetails[]>([]);
   const [isLoadingDjs, setIsLoadingDjs] = useState(false);
 
   const isUserAdminOrPartner = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+  const canUserCreateRental = isUserAdminOrPartner || (userDetails?.role === 'dj' && userDetails?.pode_locar);
 
   useEffect(() => {
     const fetchDjs = async () => {
@@ -154,7 +155,11 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
 
   useEffect(() => {
     form.reset(defaultValues);
-  }, [defaultValues, form]);
+    // If the user can't create rental events, ensure the type is 'servico_dj'.
+    if (!canUserCreateRental) {
+      form.setValue('tipo_servico', 'servico_dj');
+    }
+  }, [defaultValues, form, canUserCreateRental]);
 
 
   const handleSubmit = async (values: EventFormValues) => {
@@ -309,7 +314,8 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
           />
         </div>
         
-        <FormField
+       {canUserCreateRental ? (
+          <FormField
             control={form.control}
             name="tipo_servico"
             render={({ field }) => (
@@ -331,6 +337,21 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
               </FormItem>
             )}
           />
+        ) : (
+             <FormField
+                control={form.control}
+                name="tipo_servico"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Serviço</FormLabel>
+                     <Input disabled value="Serviço de DJ" />
+                      <FormDescription>Você não tem permissão para criar eventos de locação.</FormDescription>
+                     <Input type="hidden" {...field} value="servico_dj" />
+                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FormField
@@ -636,5 +657,3 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
     </Form>
   );
 }
-
-    

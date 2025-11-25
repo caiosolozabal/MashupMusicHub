@@ -11,6 +11,7 @@ export interface UserDetails {
   dj_percentual?: number | null; // DJ's individual commission percentage (e.g., 0.7 for 70%)
   rental_percentual?: number | null; // DJ's equipment rental commission percentage
   dj_color?: string | null; // Hex color code for the DJ (e.g., #ff0000)
+  pode_locar?: boolean | null; // Can this user create rental events?
   // Bank details for DJs
   bankName?: string | null;
   bankAgency?: string | null;
@@ -153,5 +154,3 @@ export interface Guest {
 }
 
 // Add other types as needed
-
-    
