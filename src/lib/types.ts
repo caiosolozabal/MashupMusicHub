@@ -72,6 +72,7 @@ export interface Event {
   settlementId?: string | null; // ID do fechamento ao qual este evento pertence
   linkedEventId?: string | null; // ID of a linked event (e.g., linking a DJ service with a rental)
   linkedEventName?: string | null; // Name of the linked event, for display purposes
+  notes?: string | null; // General notes about the event
 }
 
 export interface SettlementEvent {

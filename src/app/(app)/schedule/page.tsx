@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CalendarDays, List, Loader2, PlusCircle, Eye, Edit, Trash2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp, getDoc } from 'firebase/firestore';
 import type { Event, UserDetails } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import ScheduleCalendarView from '@/components/schedule/ScheduleCalendarView';
@@ -131,7 +131,7 @@ export default function SchedulePage() {
     }
   }, [authLoading, user, userDetails, fetchAllData]);
 
-  const filteredEvents = useMemo(() => {
+  const filteredAndGroupedEvents = useMemo(() => {
     let filtered = [...events];
     
     // DJ Filter
@@ -142,11 +142,9 @@ export default function SchedulePage() {
     // Date Range Filter
     if (dateRange?.from) {
       const fromDate = startOfDay(dateRange.from); 
-      // If 'to' is not provided, it's an open-ended range from 'from' date.
       if (!dateRange.to) {
          filtered = filtered.filter(event => event.data_evento >= fromDate);
       } 
-      // If 'to' is provided, it's a closed range.
       else {
         const toDate = new Date(dateRange.to);
         toDate.setHours(23, 59, 59, 999);
@@ -163,8 +161,42 @@ export default function SchedulePage() {
         event.local.toLowerCase().includes(lowerSearchTerm)
       );
     }
+
+    // Grouping Logic for Linked Events
+    const processedIds = new Set<string>();
+    const grouped: Event[] = [];
+
+    for (const event of filtered) {
+        if (processedIds.has(event.id)) {
+            continue;
+        }
+
+        if (event.linkedEventId) {
+            const linkedEvent = filtered.find(e => e.id === event.linkedEventId);
+            
+            // Found a pair, add them together
+            if (linkedEvent && !processedIds.has(linkedEvent.id)) {
+                // Determine order for consistent grouping (e.g., by creation date or type)
+                if (event.created_at.getTime() < linkedEvent.created_at.getTime()) {
+                     grouped.push(event, linkedEvent);
+                } else {
+                     grouped.push(linkedEvent, event);
+                }
+                processedIds.add(event.id);
+                processedIds.add(linkedEvent.id);
+            } else {
+                // Linked event not in filtered list, or already processed, add current event alone
+                grouped.push(event);
+                processedIds.add(event.id);
+            }
+        } else {
+            // Event is not linked, add it alone
+            grouped.push(event);
+            processedIds.add(event.id);
+        }
+    }
     
-    return filtered;
+    return grouped;
   }, [events, selectedDjId, dateRange, searchTerm, userDetails?.role]);
 
 
@@ -190,8 +222,24 @@ export default function SchedulePage() {
     setSelectedEvent(event);
     setIsFormOpen(true);
   };
-  const handleOpenView = (event: Event) => {
-    setSelectedEvent(event);
+  const handleOpenView = async (eventId: string) => {
+    const eventToView = events.find(e => e.id === eventId);
+    if (!eventToView) return;
+
+     // If the event is linked, fetch the linked event's name for display
+    if (eventToView.linkedEventId && !eventToView.linkedEventName) {
+        try {
+            const linkedEventRef = doc(db, 'events', eventToView.linkedEventId);
+            const linkedEventSnap = await getDoc(linkedEventRef);
+            if(linkedEventSnap.exists()) {
+                eventToView.linkedEventName = linkedEventSnap.data().nome_evento;
+            }
+        } catch (e) {
+            console.error("Could not fetch linked event name", e);
+        }
+    }
+
+    setSelectedEvent(eventToView);
     setIsViewOpen(true);
   };
   const handleOpenDeleteConfirm = (event: Event) => {
@@ -261,6 +309,15 @@ export default function SchedulePage() {
     }
     setIsSubmitting(true);
     try {
+      // If the event is linked, unlink the other event
+        if (selectedEvent.linkedEventId) {
+            try {
+                const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
+                await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+            } catch(e) {
+                console.warn("Could not unlink the other event, it might have been deleted already.", e);
+            }
+        }
       await deleteDoc(doc(db, 'events', selectedEvent.id));
       toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
       fetchAllData(); 
@@ -384,13 +441,13 @@ export default function SchedulePage() {
              </div>
           )}
 
-          {viewMode === 'month' && <ScheduleCalendarView events={filteredEvents} allDjs={allDjs} />}
+          {viewMode === 'month' && <ScheduleCalendarView events={filteredAndGroupedEvents} allDjs={allDjs} />}
           {viewMode === 'list' && (
             <ScheduleListView
-              events={filteredEvents}
+              events={filteredAndGroupedEvents}
               allDjs={allDjs}
               djPercentual={userDetails?.dj_percentual ?? null}
-              onView={handleOpenView}
+              onView={(e) => handleOpenView(e.id)}
               onEdit={handleOpenEditForm}
               onDelete={handleOpenDeleteConfirm}
               canEdit={canEditEvent}
@@ -398,7 +455,7 @@ export default function SchedulePage() {
             />
           )}
           
-          {filteredEvents.length === 0 && !isLoading && (
+          {filteredAndGroupedEvents.length === 0 && !isLoading && (
              <p className="text-center text-muted-foreground py-8">Nenhum evento encontrado para os filtros selecionados.</p>
           )}
         </CardContent>
@@ -428,7 +485,7 @@ export default function SchedulePage() {
           <DialogHeader>
             <DialogTitle>Detalhes do Evento: {selectedEvent?.nome_evento}</DialogTitle>
           </DialogHeader>
-          <EventView event={selectedEvent} />
+          <EventView event={selectedEvent} onViewEvent={handleOpenView} />
            <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>Fechar</Button>
           </DialogFooter>

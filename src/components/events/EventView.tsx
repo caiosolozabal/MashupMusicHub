@@ -7,7 +7,7 @@ import { Badge, badgeVariants } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import type { VariantProps } from 'class-variance-authority';
 import { Timestamp } from 'firebase/firestore';
-import { FileText, Link as LinkIcon, Truck, Disc } from 'lucide-react';
+import { FileText, Link as LinkIcon, Truck, Disc, StickyNote } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '../ui/button';
 
@@ -118,6 +118,19 @@ export default function EventView({ event, onViewEvent }: EventViewProps) {
           </div>
         </div>
         
+        {event.notes && (
+          <>
+            <Separator />
+            <div>
+              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                <StickyNote className="h-4 w-4 text-primary" />
+                Anotações do Evento
+              </h4>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/30 p-3 rounded-md">{event.notes}</p>
+            </div>
+          </>
+        )}
+
         <Separator />
 
         <div>

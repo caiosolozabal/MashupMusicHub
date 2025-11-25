@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/hooks/useAuth';
 import { Command, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Textarea } from '../ui/textarea';
 
 
 const getDayOfWeek = (date: Date | undefined): string => {
@@ -57,6 +58,7 @@ const eventFormSchema = z.object({
   dj_costs: z.coerce.number().min(0, { message: 'Custos do DJ não podem ser negativos.' }).default(0).optional(),
   linkedEventId: z.string().optional().nullable(),
   linkedEventName: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 });
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -124,6 +126,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
     dj_costs: 0,
     linkedEventId: null,
     linkedEventName: null,
+    notes: '',
   }), [userDetails]);
 
 
@@ -155,6 +158,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
         dj_costs: event.dj_costs ? Number(event.dj_costs) : 0,
         linkedEventId: event.linkedEventId ?? null,
         linkedEventName: event.linkedEventName ?? null,
+        notes: event.notes ?? '',
       };
     }
     return defaultValuesForCreate;
@@ -475,6 +479,25 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             )}
           />
         </div>
+
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Anotações do Evento</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Detalhes acordados com o contratante, observações sobre o evento, etc."
+                  className="resize-y"
+                  {...field}
+                  value={field.value ?? ''}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         
         <Separator />
 

@@ -6,8 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import type { VariantProps } from 'class-variance-authority';
-import { Eye, Edit, Trash2 } from 'lucide-react';
+import { Eye, Edit, Trash2, Link as LinkIcon, Disc, Truck } from 'lucide-react';
 import { Button } from '../ui/button';
+import { cn } from '@/lib/utils';
 
 interface ScheduleListViewProps {
   events: Event[];
@@ -42,11 +43,16 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
   }
 };
 
-const getRowStyle = (color: string | null | undefined): React.CSSProperties => {
+const getRowStyle = (color: string | null | undefined, isLinked: boolean): React.CSSProperties => {
     if (!color) return {};
-    // convert hsl(h, s%, l%) to hsla(h, s%, l%, a) to make it more subtle
-    const bgColor = color.replace('hsl(', 'hsla(').replace(')', ', 0.15)');
-    return { backgroundColor: bgColor };
+    const baseOpacity = isLinked ? 0.25 : 0.15;
+    const bgColor = color.replace('hsl(', 'hsla(').replace(')', `, ${baseOpacity})`);
+    const borderStyle = isLinked ? `2px solid ${color.replace('hsl(', 'hsla(').replace(')', ', 0.5)')}` : '';
+    return { 
+        backgroundColor: bgColor,
+        borderLeft: borderStyle,
+        borderRight: borderStyle,
+    };
 };
 
 
@@ -85,11 +91,18 @@ export default function ScheduleListView({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {events.map((event) => {
+          {events.map((event, index) => {
              const djForEvent = allDjs.find(dj => dj.uid === event.dj_id);
              const djColor = djForEvent?.dj_color;
+             const isLinked = !!event.linkedEventId;
+             const nextEventIsLinked = index + 1 < events.length && events[index + 1].linkedEventId === event.id;
+
             return(
-            <TableRow key={event.id} style={getRowStyle(djColor)}>
+            <TableRow 
+                key={event.id} 
+                style={getRowStyle(djColor, isLinked)} 
+                className={cn(isLinked && !nextEventIsLinked && "border-b-2 border-b-primary/50")}
+            >
               <TableCell className="p-1.5">
                 <div className="font-medium text-sm">{format(event.data_evento, 'dd/MM/yyyy')}</div>
                 <div className="text-xs text-muted-foreground">{event.dia_da_semana}</div>
@@ -97,7 +110,13 @@ export default function ScheduleListView({
               <TableCell className="p-1.5 text-sm">
                   {event.horario_inicio ? `${event.horario_inicio}${event.horario_fim ? ` - ${event.horario_fim}` : ''}` : 'N/A'}
               </TableCell>
-              <TableCell className="font-medium p-1.5 text-sm">{event.nome_evento}</TableCell>
+              <TableCell className="font-medium p-1.5 text-sm">
+                <div className='flex items-center gap-2'>
+                    {event.tipo_servico === 'locacao_equipamento' ? <Truck className="h-4 w-4 text-muted-foreground" /> : <Disc className="h-4 w-4 text-muted-foreground" />}
+                    {event.nome_evento}
+                    {isLinked && <LinkIcon className="h-4 w-4 text-primary" title={`Vinculado a outro evento`} />}
+                </div>
+              </TableCell>
               <TableCell className="p-1.5 text-sm">{event.local}</TableCell>
               <TableCell className="p-1.5 text-sm">{event.contratante_nome}</TableCell>
               <TableCell className="p-1.5">
