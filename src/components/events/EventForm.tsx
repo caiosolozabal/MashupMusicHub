@@ -182,17 +182,17 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
           setIsSearching(true);
           try {
               const eventsRef = collection(db, "events");
-              const q = query(eventsRef, 
-                  orderBy('nome_evento'),
-                  startAt(searchQuery),
-                  endAt(searchQuery + '\uf8ff')
-              );
+              const q = query(eventsRef, orderBy('data_evento', 'desc')); // Fetch recent events first
 
               const querySnapshot = await getDocs(q);
-              let results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event))
-                  .filter(e => e.id !== event?.id); // Exclude the current event
+              const allEvents = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), data_evento: doc.data().data_evento.toDate() } as Event));
 
-              // Also exclude already linked events
+              const lowerCaseQuery = searchQuery.toLowerCase();
+              let results = allEvents.filter(e => 
+                e.nome_evento.toLowerCase().includes(lowerCaseQuery) && // Filter client-side
+                e.id !== event?.id // Exclude the current event
+              );
+
               if(form.getValues('linkedEventId')) {
                 results = results.filter(e => e.id !== form.getValues('linkedEventId'))
               }
