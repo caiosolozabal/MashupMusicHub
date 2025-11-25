@@ -18,7 +18,7 @@ interface ScheduleListViewProps {
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
   canEdit: (event: Event) => boolean;
-  canDelete: boolean;
+  canDelete: (event: Event) => boolean;
   showServiceTypeColumn: boolean;
 }
 
@@ -163,7 +163,7 @@ export default function ScheduleListView({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete && (
+                {canDelete(event) && (
                   <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => onDelete(event)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>

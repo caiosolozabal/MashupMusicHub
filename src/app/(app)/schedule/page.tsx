@@ -208,7 +208,14 @@ export default function SchedulePage() {
     if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
     return false;
   };
-  const canDeleteEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+  
+  const canDeleteEvent = (event: Event) => {
+    if (!event) return false;
+    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
+    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true; // DJ can delete their own events
+    return false;
+  };
+
   const showServiceTypeColumn = useMemo(() => {
     if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
     if (userDetails?.role === 'dj' && userDetails.pode_locar) return true;
@@ -249,7 +256,7 @@ export default function SchedulePage() {
     setIsViewOpen(true);
   };
   const handleOpenDeleteConfirm = (event: Event) => {
-    if (!canDeleteEvents) {
+    if (!canDeleteEvent(event)) {
       toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir eventos.'});
       return;
     }
@@ -309,7 +316,7 @@ export default function SchedulePage() {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db || !canDeleteEvents) {
+    if (!selectedEvent || !db || !canDeleteEvent(selectedEvent)) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Ação de exclusão não permitida ou evento não selecionado.' });
       return;
     }
@@ -457,7 +464,7 @@ export default function SchedulePage() {
               onEdit={handleOpenEditForm}
               onDelete={handleOpenDeleteConfirm}
               canEdit={canEditEvent}
-              canDelete={canDeleteEvents}
+              canDelete={canDeleteEvent}
               showServiceTypeColumn={showServiceTypeColumn}
             />
           )}
