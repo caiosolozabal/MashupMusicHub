@@ -70,6 +70,8 @@ export interface Event {
   updated_at?: Date; // Stored as Firestore Timestamp
   files?: EventFile[] | null; // Outros arquivos gerais do evento
   settlementId?: string | null; // ID do fechamento ao qual este evento pertence
+  linkedEventId?: string | null; // ID of a linked event (e.g., linking a DJ service with a rental)
+  linkedEventName?: string | null; // Name of the linked event, for display purposes
 }
 
 export interface SettlementEvent {

@@ -9,6 +9,7 @@ import type { VariantProps } from 'class-variance-authority';
 import { Timestamp } from 'firebase/firestore';
 import { FileText, Link as LinkIcon, Truck, Disc } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '../ui/button';
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
   switch (status) {
@@ -34,9 +35,10 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 interface EventViewProps {
   event: Event | null;
+  onViewEvent?: (eventId: string) => void;
 }
 
-export default function EventView({ event }: EventViewProps) {
+export default function EventView({ event, onViewEvent }: EventViewProps) {
   if (!event) {
     return <p className="text-muted-foreground">Nenhum evento selecionado para visualização.</p>;
   }
@@ -60,6 +62,18 @@ export default function EventView({ event }: EventViewProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {event.linkedEventId && (
+            <div className="p-3 border rounded-md bg-muted/30">
+                <h4 className="font-semibold text-sm mb-2 flex items-center gap-2"><LinkIcon className="h-4 w-4 text-primary" /> Evento Vinculado</h4>
+                <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">Este evento está vinculado a: <span className="font-medium text-foreground">{event.linkedEventName || 'Evento sem nome'}</span></p>
+                    {onViewEvent && (
+                        <Button variant="outline" size="sm" onClick={() => onViewEvent(event.linkedEventId!)}>Ver Vinculado</Button>
+                    )}
+                </div>
+            </div>
+        )}
+
         <div>
           <h4 className="font-semibold text-sm mb-1">Contratante:</h4>
           <p className="text-muted-foreground">{event.contratante_nome}</p>
@@ -132,8 +146,6 @@ export default function EventView({ event }: EventViewProps) {
             <p className="text-xs text-muted-foreground">Nenhum comprovante de pagamento enviado pelo DJ.</p>
           )}
         </div>
-
-        {/* TODO: Display general event files (event.files) similarly if needed */}
         
         <Separator />
 

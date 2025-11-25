@@ -8,11 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-import { PlusCircle, Eye, Edit, Trash2, Loader2 } from 'lucide-react';
+import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp, query, orderBy, where, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -77,7 +77,6 @@ const EventsPage: NextPage = () => {
       } else if (userDetails.role === 'dj') {
         eventsQuery = query(eventsCollectionRef, where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
       } else {
-        // Should not happen if roles are properly set, but as a fallback:
         setEvents([]);
         setIsLoading(false);
         toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver eventos.' });
@@ -114,16 +113,12 @@ const EventsPage: NextPage = () => {
   };
 
   useEffect(() => {
-    // Fetch events only when auth is done and user/userDetails are available
     if (!authLoading && user && userDetails) {
       fetchEvents();
     } else if (!authLoading && !user) {
-      // User is not logged in, clear events and stop loading
       setEvents([]);
       setIsLoading(false);
     }
-    // Intentionally not including fetchEvents in dependency array to avoid re-fetching on every render of fetchEvents itself.
-    // It should re-fetch when user, userDetails, or authLoading changes that affect its conditions.
   }, [user, userDetails, authLoading]);
 
 
@@ -133,7 +128,6 @@ const EventsPage: NextPage = () => {
   };
 
   const handleOpenEditForm = (event: Event) => {
-    // DJs should only be able to edit their own events
     if (userDetails?.role === 'dj' && event.dj_id !== user?.uid) {
       toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode editar seus próprios eventos.'});
       return;
@@ -142,18 +136,29 @@ const EventsPage: NextPage = () => {
     setIsFormOpen(true);
   };
 
-  const handleOpenView = (event: Event) => {
-    // DJs should only be able to view their own events (already enforced by fetch, but good for direct access attempts)
-    if (userDetails?.role === 'dj' && event.dj_id !== user?.uid) {
+  const handleOpenView = async (eventId: string) => {
+    const eventToView = events.find(e => e.id === eventId);
+    if (!eventToView) return;
+
+    if (userDetails?.role === 'dj' && eventToView.dj_id !== user?.uid) {
         toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode visualizar seus próprios eventos.'});
         return;
     }
-    setSelectedEvent(event);
+
+    // If the event is linked, fetch the linked event's name for display
+    if (eventToView.linkedEventId && !eventToView.linkedEventName) {
+        const linkedEventRef = doc(db, 'events', eventToView.linkedEventId);
+        const linkedEventSnap = await getDoc(linkedEventRef);
+        if(linkedEventSnap.exists()) {
+            eventToView.linkedEventName = linkedEventSnap.data().nome_evento;
+        }
+    }
+
+    setSelectedEvent(eventToView);
     setIsViewOpen(true);
   };
   
   const handleOpenDeleteConfirm = (event: Event) => {
-     // Only admin/partner can delete
     if (!(userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
       toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir eventos.'});
       return;
@@ -163,22 +168,16 @@ const EventsPage: NextPage = () => {
   };
 
   const handleFormSubmit = async (values: EventFormValues) => {
-    if (!user || !userDetails) {
-      toast({ variant: 'destructive', title: 'Erro de autenticação', description: 'Você precisa estar logado.' });
-      return;
-    }
-    if (!db) {
-      toast({ variant: 'destructive', title: 'Erro de banco de dados', description: 'Firestore não inicializado.' });
+    if (!user || !userDetails || !db) {
+      toast({ variant: 'destructive', title: 'Erro de autenticação ou banco de dados.' });
       return;
     }
 
-    // Ensure DJ cannot change dj_id or dj_name if they are editing
     if (userDetails.role === 'dj' && selectedEvent) {
-        if (values.dj_id !== user.uid || values.dj_nome !== (userDetails.displayName || user.displayName)){
+        if (values.dj_id !== user.uid || values.dj_nome !== userDetails.displayName){
             toast({ variant: 'destructive', title: 'Operação Inválida', description: 'Você não pode alterar o DJ atribuído.'});
-            // Reset to original values if an attempt was made
             values.dj_id = user.uid;
-            values.dj_nome = userDetails.displayName || user.displayName || user.email || '';
+            values.dj_nome = userDetails.displayName || '';
         }
     }
 
@@ -193,11 +192,8 @@ const EventsPage: NextPage = () => {
       dj_costs: values.dj_costs ? Number(values.dj_costs) : 0,
     };
     
-    if (eventData.contratante_contato === undefined) delete (eventData as any).contratante_contato;
-
     try {
       if (selectedEvent) { 
-        // DJs should only be able to edit their own events
         if (userDetails?.role === 'dj' && selectedEvent.dj_id !== user?.uid) {
             toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode atualizar seus próprios eventos.'});
             setIsSubmitting(false);
@@ -210,11 +206,10 @@ const EventsPage: NextPage = () => {
         });
         toast({ title: 'Evento atualizado!', description: `"${values.nome_evento}" foi atualizado com sucesso.` });
       } else { 
-        // Creating new event
         await addDoc(collection(db, 'events'), {
           ...eventData,
-          dj_id: userDetails.role === 'dj' ? user.uid : values.dj_id, // Ensure DJ is self if DJ creates
-          dj_nome: userDetails.role === 'dj' ? (userDetails.displayName || user.displayName) : values.dj_nome, // Ensure DJ name is self if DJ creates
+          dj_id: userDetails.role === 'dj' ? user.uid : values.dj_id,
+          dj_nome: userDetails.role === 'dj' ? userDetails.displayName : values.dj_nome,
           created_by: user.uid,
           created_at: serverTimestamp(),
           updated_at: serverTimestamp(),
@@ -234,20 +229,20 @@ const EventsPage: NextPage = () => {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Evento não selecionado ou Firestore não disponível.' });
-      return;
-    }
-     // Only admin/partner can delete
+    if (!selectedEvent || !db) return;
     if (!(userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
-      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir eventos.'});
+      toast({ variant: 'destructive', title: 'Acesso Negado' });
       return;
     }
     setIsSubmitting(true);
     try {
+        // If the event is linked, unlink the other event
+        if (selectedEvent.linkedEventId) {
+            const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
+            await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+        }
       await deleteDoc(doc(db, 'events', selectedEvent.id));
-      // TODO: Delete associated files from Firebase Storage if needed
-      toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído com sucesso.` });
+      toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
       fetchEvents(); 
       setIsDeleteConfirmOpen(false);
       setSelectedEvent(null);
@@ -315,13 +310,16 @@ const EventsPage: NextPage = () => {
                 </TableHeader>
                 <TableBody>
                   {events.map((event) => (
-                    <TableRow key={event.id} onClick={() => handleOpenView(event)} className="cursor-pointer">
+                    <TableRow key={event.id} onClick={() => handleOpenView(event.id)} className="cursor-pointer">
                       <TableCell>
                         <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
                         <div className="text-xs text-muted-foreground">{event.dia_da_semana}</div>
                         <div className="text-xs text-muted-foreground">{event.horario_inicio ? format(parseISO(`2000-01-01T${event.horario_inicio}`), 'HH:mm') : ''}</div>
                       </TableCell>
-                      <TableCell className="font-medium">{event.nome_evento}</TableCell>
+                      <TableCell className="font-medium flex items-center gap-2">
+                        {event.linkedEventId && <LinkIcon className="h-4 w-4 text-muted-foreground" title={`Vinculado a outro evento`} />}
+                        {event.nome_evento}
+                      </TableCell>
                       <TableCell>{event.local}</TableCell>
                       <TableCell>{event.contratante_nome}</TableCell>
                       <TableCell>
@@ -337,7 +335,7 @@ const EventsPage: NextPage = () => {
                       </TableCell>
                       <TableCell>{event.dj_nome}</TableCell>
                       <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => handleOpenView(event)}>
+                        <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => handleOpenView(event.id)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         {canEditSelectedEvent(event) && (
@@ -383,7 +381,7 @@ const EventsPage: NextPage = () => {
           <DialogHeader>
             <DialogTitle>Detalhes do Evento: {selectedEvent?.nome_evento}</DialogTitle>
           </DialogHeader>
-          <EventView event={selectedEvent} />
+          <EventView event={selectedEvent} onViewEvent={handleOpenView} />
            <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>Fechar</Button>
           </DialogFooter>
@@ -417,4 +415,3 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
-    

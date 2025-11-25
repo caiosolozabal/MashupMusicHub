@@ -2,7 +2,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import {
@@ -16,20 +16,21 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Loader2, FileText, UploadCloud } from 'lucide-react';
+import { CalendarIcon, Loader2, FileText, UploadCloud, Link as LinkIcon, X, Search } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import type { Event, EventFile, UserDetails } from '@/lib/types';
-import { Timestamp, doc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, getDocs, orderBy, startAt, endAt, documentId, getDoc } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { db, storage } from '@/lib/firebase';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/hooks/useAuth';
+import { Command, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 
 const getDayOfWeek = (date: Date | undefined): string => {
@@ -54,6 +55,8 @@ const eventFormSchema = z.object({
   dj_nome: z.string().min(2, { message: 'Nome do DJ é obrigatório.' }),
   dj_id: z.string().min(1, { message: 'ID do DJ é obrigatório.' }),
   dj_costs: z.coerce.number().min(0, { message: 'Custos do DJ não podem ser negativos.' }).default(0).optional(),
+  linkedEventId: z.string().optional().nullable(),
+  linkedEventName: z.string().optional().nullable(),
 });
 
 export type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -68,11 +71,17 @@ interface EventFormProps {
 
 export default function EventForm({ event, onSubmit, onCancel, isLoading, onSuccessfulProofUpload }: EventFormProps) {
   const { toast } = useToast();
-  const { userDetails } = useAuth();
+  const { user, userDetails } = useAuth();
   const [selectedProofFile, setSelectedProofFile] = useState<File | null>(null);
   const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [availableDjs, setAvailableDjs] = useState<UserDetails[]>([]);
   const [isLoadingDjs, setIsLoadingDjs] = useState(false);
+
+  // For event linking
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Event[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
 
   const isUserAdminOrPartner = userDetails?.role === 'admin' || userDetails?.role === 'partner';
   const canUserCreateRental = isUserAdminOrPartner || (userDetails?.role === 'dj' && userDetails?.pode_locar);
@@ -110,9 +119,11 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
     conta_que_recebeu: 'agencia',
     status_pagamento: 'pendente',
     tipo_servico: 'servico_dj',
-    dj_nome: (userDetails?.role === 'dj' ? userDetails.displayName || userDetails.email || '' : ''),
+    dj_nome: (userDetails?.role === 'dj' ? userDetails.displayName || '' : ''),
     dj_id: (userDetails?.role === 'dj' ? userDetails.uid : ''),
     dj_costs: 0,
+    linkedEventId: null,
+    linkedEventName: null,
   }), [userDetails]);
 
 
@@ -142,6 +153,8 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
         dj_nome: event.dj_nome || '',
         dj_id: event.dj_id || '',
         dj_costs: event.dj_costs ? Number(event.dj_costs) : 0,
+        linkedEventId: event.linkedEventId ?? null,
+        linkedEventName: event.linkedEventName ?? null,
       };
     }
     return defaultValuesForCreate;
@@ -155,15 +168,72 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
 
   useEffect(() => {
     form.reset(defaultValues);
-    // If the user can't create rental events, ensure the type is 'servico_dj'.
     if (!canUserCreateRental) {
       form.setValue('tipo_servico', 'servico_dj');
     }
   }, [defaultValues, form, canUserCreateRental]);
 
+  useEffect(() => {
+      const handleSearch = async () => {
+          if (searchQuery.length < 3 || !db) {
+              setSearchResults([]);
+              return;
+          }
+          setIsSearching(true);
+          try {
+              const eventsRef = collection(db, "events");
+              const q = query(eventsRef, 
+                  orderBy('nome_evento'),
+                  startAt(searchQuery),
+                  endAt(searchQuery + '\uf8ff')
+              );
+
+              const querySnapshot = await getDocs(q);
+              let results = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event))
+                  .filter(e => e.id !== event?.id); // Exclude the current event
+
+              // Also exclude already linked events
+              if(form.getValues('linkedEventId')) {
+                results = results.filter(e => e.id !== form.getValues('linkedEventId'))
+              }
+
+              setSearchResults(results);
+          } catch (error) {
+              console.error("Error searching events:", error);
+              toast({ variant: 'destructive', title: 'Erro na busca', description: (error as Error).message });
+          } finally {
+              setIsSearching(false);
+          }
+      };
+
+      const debounceSearch = setTimeout(() => {
+          handleSearch();
+      }, 300);
+
+      return () => clearTimeout(debounceSearch);
+  }, [searchQuery, event?.id, toast, form]);
+
 
   const handleSubmit = async (values: EventFormValues) => {
-    console.log("Submitting values:", values);
+    // If an event is linked, we may need to update the other event too
+    if (values.linkedEventId && event?.id) {
+        const otherEventRef = doc(db, 'events', values.linkedEventId);
+        await updateDoc(otherEventRef, {
+            linkedEventId: event.id,
+            linkedEventName: values.nome_evento
+        });
+    } else if (!values.linkedEventId && event?.linkedEventId) {
+        // If link was removed, update the other event
+        const otherEventRef = doc(db, 'events', event.linkedEventId);
+        const otherEventSnap = await getDoc(otherEventRef);
+        if(otherEventSnap.exists() && otherEventSnap.data().linkedEventId === event.id) {
+            await updateDoc(otherEventRef, {
+                linkedEventId: null,
+                linkedEventName: null
+            });
+        }
+    }
+
     const submissionValues = {
       ...values,
       horario_inicio: values.horario_inicio === '' ? null : values.horario_inicio,
@@ -183,53 +253,29 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
   };
 
  const handleProofUpload = async () => {
-    console.log("handleProofUpload initiated");
-    if (!selectedProofFile) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum arquivo selecionado.' });
-      console.error("No proof file selected");
-      return;
-    }
-    if (!event || !event.id) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Evento não definido ou não salvo. Salve o evento primeiro.' });
-      console.error("Event not defined or not saved. Event:", event);
-      return;
-    }
-    if (!storage || !db) {
-      toast({ variant: 'destructive', title: 'Erro de Configuração', description: 'Firebase Storage ou Firestore não inicializado.' });
-      console.error("Firebase Storage or Firestore not initialized. Storage:", !!storage, "DB:", !!db);
+    if (!selectedProofFile || !event?.id || !storage || !db) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não é possível enviar o comprovante. Verifique se o evento está salvo e o arquivo selecionado.' });
       return;
     }
 
     setIsUploadingProof(true);
-    console.log("isUploadingProof set to true");
-
     const proofId = uuidv4();
     const fileName = `${proofId}-${selectedProofFile.name}`;
     const filePath = `events/${event.id}/payment_proofs/${fileName}`;
-    console.log("Generated filePath for upload:", filePath);
     const fileSRef = storageRef(storage, filePath);
 
     try {
-      console.log("Attempting to upload file:", selectedProofFile.name, "to", filePath);
       const uploadTask = uploadBytesResumable(fileSRef, selectedProofFile);
-
       uploadTask.on('state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log('Upload is ' + progress + '% done');
-        },
+        (snapshot) => { /* Progress */ },
         (error) => { 
-          console.error("Firebase Storage Upload Error in on('state_changed'):", error);
-          toast({ variant: 'destructive', title: 'Falha no Upload (Storage)', description: `Erro: ${error.message} (Code: ${error.code})` });
+          console.error("Firebase Storage Upload Error:", error);
+          toast({ variant: 'destructive', title: 'Falha no Upload', description: error.message });
           setIsUploadingProof(false);
-          console.log("isUploadingProof set to false due to storage upload error");
         },
         async () => { 
           try {
-            console.log("Upload completed successfully for", fileName);
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            console.log("Download URL obtained:", downloadURL);
-
             const newProofData: EventFile = {
               id: proofId,
               name: selectedProofFile.name,
@@ -237,21 +283,17 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
               type: 'dj_receipt', 
               uploadedAt: new Date(), 
             };
-            console.log("New proof data created:", newProofData);
 
             const eventRef = doc(db, 'events', event.id!);
-            console.log("Attempting to update event document:", event.id);
             await updateDoc(eventRef, {
               payment_proofs: arrayUnion(newProofData),
               updated_at: serverTimestamp(),
             });
-            console.log("Event document updated successfully.");
             
             toast({ title: 'Comprovante Enviado!', description: `${selectedProofFile.name} foi enviado com sucesso.` });
             setSelectedProofFile(null); 
             
             if (onSuccessfulProofUpload) {
-              console.log("Calling onSuccessfulProofUpload callback");
               const updatedEventWithNewProof: Event = {
                 ...event, 
                 payment_proofs: [...(event.payment_proofs || []), newProofData],
@@ -262,22 +304,18 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             
            const fileInput = document.getElementById('payment-proof-upload') as HTMLInputElement;
            if (fileInput) fileInput.value = '';
-           console.log("File input reset.");
-
           } catch (firestoreError: any) {
             console.error("Firestore Update Error (after upload):", firestoreError);
-            toast({ variant: 'destructive', title: 'Erro ao Salvar Comprovante', description: `Erro: ${firestoreError.message} (Code: ${firestoreError.code})` });
+            toast({ variant: 'destructive', title: 'Erro ao Salvar Comprovante', description: firestoreError.message });
           } finally {
             setIsUploadingProof(false);
-            console.log("isUploadingProof set to false in upload completion block");
           }
         }
       );
     } catch (initialError: any) { 
-      console.error("Error initiating proof upload (outer try-catch):", initialError);
-      toast({ variant: 'destructive', title: 'Erro Crítico no Upload', description: `Erro: ${initialError.message} (Code: ${initialError.code})` });
+      console.error("Error initiating proof upload:", initialError);
+      toast({ variant: 'destructive', title: 'Erro Crítico no Upload', description: initialError.message });
       setIsUploadingProof(false);
-      console.log("isUploadingProof set to false due to initial upload error");
     }
   };
 
@@ -437,6 +475,72 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             )}
           />
         </div>
+        
+        <Separator />
+
+         <div>
+          <h3 className="text-lg font-medium mb-4">Vincular Evento</h3>
+           <Controller
+              name="linkedEventId"
+              control={form.control}
+              render={({ field }) => (
+                <FormItem>
+                  {field.value && form.getValues('linkedEventName') ? (
+                     <div className="flex items-center justify-between p-3 border rounded-md bg-muted/50">
+                        <div className="flex items-center gap-2">
+                           <LinkIcon className="h-5 w-5 text-primary"/>
+                           <div className="text-sm">
+                              <span className="text-muted-foreground">Vinculado a: </span>
+                              <span className="font-semibold">{form.getValues('linkedEventName')}</span>
+                           </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                          field.onChange(null);
+                          form.setValue('linkedEventName', null);
+                        }}>
+                           <X className="h-4 w-4"/>
+                        </Button>
+                     </div>
+                  ) : (
+                    <Command shouldFilter={false} className="overflow-visible">
+                        <div className="flex items-center border rounded-md px-2 focus-within:ring-2 focus-within:ring-ring">
+                           <Search className="h-4 w-4 shrink-0 opacity-50 mr-1"/>
+                            <CommandInput 
+                              value={searchQuery}
+                              onValueChange={setSearchQuery}
+                              placeholder="Buscar evento para vincular..."
+                              className="border-0 h-9 px-1 focus:ring-0"
+                            />
+                        </div>
+                      <CommandList>
+                         {isSearching && <CommandItem disabled>Buscando...</CommandItem>}
+                         {searchResults.length === 0 && searchQuery.length > 2 && !isSearching && <CommandItem disabled>Nenhum evento encontrado.</CommandItem>}
+                        {searchResults.map((result) => (
+                          <CommandItem
+                            key={result.id}
+                            value={result.id}
+                            onSelect={() => {
+                              field.onChange(result.id);
+                              form.setValue('linkedEventName', result.nome_evento);
+                              setSearchQuery('');
+                              setSearchResults([]);
+                            }}
+                          >
+                            <span>{result.nome_evento}</span>
+                             <span className="text-xs text-muted-foreground ml-2">({format(result.data_evento instanceof Timestamp ? result.data_evento.toDate() : new Date(result.data_evento), 'dd/MM/yy')})</span>
+                          </CommandItem>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  )}
+                  <FormDescription>Vincule este evento a outro (ex: Serviço de DJ com Locação).</FormDescription>
+                </FormItem>
+              )}
+            />
+        </div>
+
+
+        <Separator />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
@@ -537,14 +641,13 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
               <FormItem>
                 <FormLabel>Atribuir DJ</FormLabel>
                 <Select
-                  value={field.value || ''} // Ensure value is controlled, provide empty string if field.value is undefined
+                  value={field.value || ''} 
                   onValueChange={(value) => {
                     const selectedDj = availableDjs.find(dj => dj.uid === value);
                     if (selectedDj) {
                       form.setValue('dj_id', selectedDj.uid, { shouldValidate: true });
-                      form.setValue('dj_nome', selectedDj.displayName || selectedDj.email || 'DJ Sem Nome', { shouldValidate: true });
+                      form.setValue('dj_nome', selectedDj.displayName || '', { shouldValidate: true });
                     } else {
-                       // Handle case where "Selecione um DJ" might be re-selected or value is cleared
                        form.setValue('dj_id', '', { shouldValidate: true });
                        form.setValue('dj_nome', '', { shouldValidate: true });
                     }
@@ -562,7 +665,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                     ) : availableDjs.length > 0 ? (
                       availableDjs.map((dj) => (
                         <SelectItem key={dj.uid} value={dj.uid}>
-                          {dj.displayName || dj.email}
+                          {dj.displayName}
                         </SelectItem>
                       ))
                     ) : (
