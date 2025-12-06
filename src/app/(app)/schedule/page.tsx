@@ -215,7 +215,7 @@ export default function SchedulePage() {
   const canDeleteEvent = (event: Event) => {
     if (!event) return false;
     if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
-    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true; // DJ can delete their own events
+    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
     return false;
   };
 
@@ -547,3 +547,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    

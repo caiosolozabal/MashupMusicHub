@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck } from 'lucide-react';
+import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck, Copy } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -426,5 +426,7 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
+
+    
 
     

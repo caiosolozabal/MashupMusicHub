@@ -191,3 +191,5 @@ export default function EventView({ event, onViewEvent, onDuplicateEvent }: Even
     </Card>
   );
 }
+
+    

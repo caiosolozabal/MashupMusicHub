@@ -31,33 +31,35 @@ export function generateRandomPastelColor(): string {
 
 /**
  * Calculates the DJ's cut for a given event, considering the service type and costs.
+ * This is the central, authoritative function for this calculation.
  * @param event The event object.
  * @param dj The user details object for the DJ, containing their percentages.
  * @returns The calculated monetary value of the DJ's cut.
  */
 export const calculateDjCut = (event: Event, dj: UserDetails | undefined): number => {
-    if (event.status_pagamento === 'cancelado' || !dj) return 0;
-    
-    let djPercent: number | null | undefined;
-
-    // Determine which percentage to use based on the service type
-    if (event.tipo_servico === 'locacao_equipamento') {
-      djPercent = dj.rental_percentual;
-    } else { // 'servico_dj' or default
-      djPercent = dj.dj_percentual;
+    if (event.status_pagamento === 'cancelado' || !dj) {
+      return 0;
     }
-      
-    // If the relevant percentage is not a valid number, the cut is 0 (plus costs if any)
-    if (typeof djPercent !== 'number' || djPercent < 0 || djPercent > 1) {
-       // A DJ might still get paid for costs even if their percentage is zero.
+
+    let applicablePercent: number | null | undefined;
+
+    // 1. Determine which percentage to use based on the service type
+    if (event.tipo_servico === 'locacao_equipamento') {
+      applicablePercent = dj.rental_percentual;
+    } else { // 'servico_dj' or default
+      applicablePercent = dj.dj_percentual;
+    }
+
+    // 2. Validate the percentage. If not valid, only return costs.
+    if (typeof applicablePercent !== 'number' || applicablePercent < 0 || applicablePercent > 1) {
        return (event.dj_costs || 0);
     }
 
-    // Base value for calculation is total value minus costs
+    // 3. Apply the correct formula
     const baseValue = event.valor_total - (event.dj_costs || 0);
-
-    // The DJ's cut is their percentage of the base value, plus their costs back.
-    const finalCut = (baseValue * djPercent) + (event.dj_costs || 0);
+    const finalCut = (baseValue * applicablePercent) + (event.dj_costs || 0);
     
     return finalCut;
 };
+
+    
