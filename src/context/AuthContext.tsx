@@ -1,13 +1,11 @@
-
 'use client';
 import type { User } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase'; // Ensure firebase is initialized before auth is imported
+import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { ReactNode } from 'react';
 import { createContext, useEffect, useState, useMemo } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
-
 
 // Define user roles for Mashup Music
 export type UserRole = 'admin' | 'partner' | 'dj' | 'financeiro' | null;
@@ -32,34 +30,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth || !db) { 
-      console.error("Firebase auth or db not available");
-      setLoading(false); 
-      return;
-    }
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setLoading(true);
-      if (currentUser) {
-        setUser(currentUser);
-        // Fetch user details from Firestore
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
-
-        if (userDocSnap.exists()) {
-          setUserDetails({ uid: userDocSnap.id, ...userDocSnap.data() } as UserDetails);
-        } else {
-          console.warn(`User ${currentUser.uid} exists in Auth but not in Firestore. They will have no role.`);
-          setUserDetails(null); // Set to null to indicate no permissions
-        }
-      } else {
-        setUser(null);
+    // This listener handles Firebase Authentication state changes
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) {
+        // If user logs out, clear everything and stop loading
         setUserDetails(null);
+        setLoading(false);
       }
-      setLoading(false);
+      // The rest is handled by the second useEffect which depends on `user`
     });
 
-    return () => unsubscribe();
+    // Cleanup the auth subscription on component unmount
+    return () => unsubscribeAuth();
   }, []);
+
+
+  useEffect(() => {
+    // This listener handles Firestore user profile changes
+    if (user) {
+      setLoading(true);
+      const userDocRef = doc(db, 'users', user.uid);
+      
+      // onSnapshot listens for real-time updates to the user's profile
+      const unsubscribeFirestore = onSnapshot(userDocRef, (docSnap) => {
+        if (docSnap.exists()) {
+          // If the document exists, update userDetails state
+          setUserDetails({ uid: docSnap.id, ...docSnap.data() } as UserDetails);
+        } else {
+          // If the doc doesn't exist (e.g., deleted from backend), clear details
+          console.warn(`User profile for ${user.uid} not found in Firestore.`);
+          setUserDetails(null);
+        }
+        // Finished loading profile data
+        setLoading(false);
+      }, (error) => {
+        // Handle errors fetching the document
+        console.error("Error fetching user profile:", error);
+        setUserDetails(null);
+        setLoading(false);
+      });
+
+      // Cleanup the Firestore subscription when the user changes or component unmounts
+      return () => unsubscribeFirestore();
+    } else {
+      // No user, no need to listen to Firestore
+      setUserDetails(null);
+      setLoading(false);
+    }
+  }, [user]); // This effect runs whenever the `user` object changes
 
   const value = useMemo(() => ({
     user,
