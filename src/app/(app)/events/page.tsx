@@ -195,11 +195,6 @@ const EventsPage: NextPage = () => {
     
     try {
       if (selectedEvent && selectedEvent.id) { // This is an edit
-        if (!canEditSelectedEvent(selectedEvent)) {
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você só pode atualizar seus próprios eventos.'});
-            setIsSubmitting(false);
-            return;
-        }
         const eventRef = doc(db, 'events', selectedEvent.id);
         await updateDoc(eventRef, {
           ...eventData,
@@ -413,3 +408,5 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
+
+    
