@@ -38,9 +38,8 @@ service cloud.firestore {
       // UPDATE: Admins/partners can update any event. DJs can only update their own events.
       allow update: if request.auth.token.role in ['admin', 'partner'] || 
                        (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
-      // DELETE: Admins/partners can delete any event. DJs can only delete their own events.
-      allow delete: if request.auth.token.role in ['admin', 'partner'] ||
-                       (request.auth.token.role == 'dj' && get(/databases/$(database)/documents/events/$(eventId)).data.dj_id == request.auth.uid);
+      // DELETE: Any authenticated user can delete events.
+      allow delete: if request.auth != null;
     }
     
     // 🔐 SETTLEMENTS COLLECTION

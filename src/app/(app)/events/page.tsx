@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck, Copy } from 'lucide-react';
+import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -231,12 +231,6 @@ const EventsPage: NextPage = () => {
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent || !db) return;
-    if (!canDeleteSelectedEvent(selectedEvent)) {
-      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir este evento.' });
-      setIsDeleteConfirmOpen(false);
-      setIsSubmitting(false);
-      return;
-    }
     
     setIsSubmitting(true);
     try {
@@ -272,14 +266,6 @@ const EventsPage: NextPage = () => {
     return false;
   };
   
-  const canDeleteSelectedEvent = (event: Event | null) => {
-    if (!event || !user || !userDetails) return false;
-    if (userDetails.role === 'admin' || userDetails.role === 'partner') return true;
-    if (userDetails.role === 'dj' && event.dj_id === user.uid) return true;
-    return false;
-  };
-
-
   return (
     <div className="space-y-8">
       <Card className="shadow-lg">
@@ -357,11 +343,9 @@ const EventsPage: NextPage = () => {
                             <Edit className="h-4 w-4" />
                           </Button>
                         )}
-                        {canDeleteSelectedEvent(event) && (
-                          <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => handleOpenDeleteConfirm(event)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => handleOpenDeleteConfirm(event)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -429,7 +413,3 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
-
-    
-
-    

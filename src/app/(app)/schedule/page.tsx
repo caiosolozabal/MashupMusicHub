@@ -205,6 +205,7 @@ export default function SchedulePage() {
 
   // --- CRUD Handlers ---
   const canCreateEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner' || userDetails?.role === 'dj';
+  
   const canEditEvent = (event: Event) => {
     if (!event) return false;
     if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
@@ -212,13 +213,6 @@ export default function SchedulePage() {
     return false;
   };
   
-  const canDeleteEvent = (event: Event) => {
-    if (!event) return false;
-    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
-    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
-    return false;
-  };
-
   const showServiceTypeColumn = useMemo(() => {
     if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
     if (userDetails?.role === 'dj' && userDetails.pode_locar) return true;
@@ -259,10 +253,6 @@ export default function SchedulePage() {
     setIsViewOpen(true);
   };
   const handleOpenDeleteConfirm = (event: Event) => {
-    if (!canDeleteEvent(event)) {
-      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir este evento.'});
-      return;
-    }
     setSelectedEvent(event);
     setIsDeleteConfirmOpen(true);
   };
@@ -332,8 +322,8 @@ export default function SchedulePage() {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db || !canDeleteEvent(selectedEvent)) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Ação de exclusão não permitida ou evento não selecionado.' });
+    if (!selectedEvent || !db) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum evento selecionado.' });
       return;
     }
     setIsSubmitting(true);
@@ -479,7 +469,7 @@ export default function SchedulePage() {
               onEdit={handleOpenEditForm}
               onDelete={handleOpenDeleteConfirm}
               canEdit={canEditEvent}
-              canDelete={canDeleteEvent}
+              canDelete={() => true} // Allow everyone to attempt delete
               showServiceTypeColumn={showServiceTypeColumn}
               calculateDjCut={calculateDjCut}
               isDjView={userDetails?.role === 'dj'}
@@ -547,5 +537,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    
