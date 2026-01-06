@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { NextPage } from 'next';
@@ -229,20 +228,23 @@ const EventsPage: NextPage = () => {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db) return;
+    if (!selectedEvent || !db || !userDetails) return;
     
     setIsSubmitting(true);
     try {
-        // If the event is linked, unlink the other event
-        if (selectedEvent.linkedEventId && (userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
+        // Admin/Partners can unlink the other event. DJs cannot (and should not need to).
+        if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
             try {
                 const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
                 await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
             } catch (e) {
                 console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
+                 // Non-fatal, we still want to delete the main event.
             }
         }
+      
       await deleteDoc(doc(db, 'events', selectedEvent.id));
+
       toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
       fetchEvents(); 
       setIsDeleteConfirmOpen(false);

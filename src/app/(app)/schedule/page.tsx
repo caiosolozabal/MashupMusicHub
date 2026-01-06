@@ -354,39 +354,8 @@ export default function SchedulePage() {
   };
 
   const handleDeleteEvent = async () => {
-    // *** DEBUGGING STEP ***
-    // This function will now only log information to the console instead of deleting.
-    if (!selectedEvent || !db || !userDetails) {
-      console.log('DEBUG: Delete cancelled. No selected event, db, or userDetails.');
-      return;
-    }
-
-    console.log('--- DEBUGGING DELETE ---');
-    console.log('USER DETAILS:', { uid: userDetails.uid, role: userDetails.role });
-    console.log('EVENT TO DELETE:', { 
-        id: selectedEvent.id, 
-        dj_id: selectedEvent.dj_id, 
-        linkedEventId: selectedEvent.linkedEventId 
-    });
-
-    setIsSubmitting(true);
-    
-    // Temporarily disable database operations
-    console.log('Simulating delete action. No database call will be made.');
-    toast({
-        title: 'Modo de Debug Ativado',
-        description: 'A exclusão foi interceptada. Verifique o console do navegador para informações.',
-        duration: 10000,
-    });
-    
-    // Simulate a successful closure of the dialogs
-    setIsDeleteConfirmOpen(false);
-    setSelectedEvent(null);
-    setIsSubmitting(false);
-
-
-    // --- OLD LOGIC (Temporarily disabled for debugging) ---
-    /*
+    if (!selectedEvent || !db || !userDetails) return;
+  
     setIsSubmitting(true);
     try {
       // Admin/Partners can unlink the other event. DJs cannot (and should not need to).
@@ -413,7 +382,6 @@ export default function SchedulePage() {
     } finally {
       setIsSubmitting(false);
     }
-    */
   };
 
   const handleSuccessfulProofUpload = (updatedEvent: Event) => {
