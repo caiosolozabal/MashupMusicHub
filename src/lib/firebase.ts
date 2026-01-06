@@ -5,7 +5,7 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  apiKey: "AIzaSyDSCEY8ugpjMW-_UotWpwYp8ZWLziC0Vlk",
   authDomain: "listeiro-cf302.firebaseapp.com",
   projectId: "listeiro-cf302",
   storageBucket: "listeiro-cf302.appspot.com",
