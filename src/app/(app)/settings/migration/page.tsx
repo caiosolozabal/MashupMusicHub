@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -5,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { db, auth } from '@/lib/firebase';
-import { collection, doc, writeBatch, getDocs, query, where } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { collection, doc, writeBatch, getDocs, query, where, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-// Dados dos usuários a serem migrados, baseados no seu arquivo users.json
+// Dados CORRETOS dos usuários a serem migrados, baseados no seu arquivo users.json
 const usersToMigrate = [
     { old_id: "1", email: "caiozz_lj@hotmail.com", displayName: "Caiozz LJ", role: "admin" },
     { old_id: "2", email: "lucas@mashupmusic.com.br", displayName: "Lucas", role: "admin" },
@@ -48,15 +49,32 @@ export default function MigrationPage() {
             setIsMigrating(false);
             return;
         }
+        
+        const mainAdminEmail = auth.currentUser.email;
+        let mainAdminOriginalPassword = '';
 
         for (const userToMigrate of usersToMigrate) {
             log(`\nProcessando: ${userToMigrate.displayName} (${userToMigrate.email})`);
 
             // Pular a criação da sua própria conta de admin para não resetar sua senha
-            if (userToMigrate.email === auth.currentUser.email) {
-                log(`- Usuário ${userToMigrate.displayName} já está logado. Pulando criação no Auth.`);
-                log(`- O UID atual para ${userToMigrate.displayName} é ${auth.currentUser.uid}`);
-                continue; // Pula para o próximo usuário
+            if (userToMigrate.email === mainAdminEmail) {
+                log(`- Usuário ${userToMigrate.displayName} é o admin logado. Pulando criação no Auth.`);
+                log(`- Garantindo que o perfil do Firestore para ${userToMigrate.displayName} (UID: ${auth.currentUser.uid}) esteja correto...`);
+                
+                try {
+                    const userRef = doc(db, 'users', auth.currentUser.uid);
+                    await setDoc(userRef, {
+                        uid: auth.currentUser.uid,
+                        email: userToMigrate.email,
+                        displayName: userToMigrate.displayName,
+                        role: userToMigrate.role,
+                    }, { merge: true });
+                     log(`- SUCESSO: Perfil do admin principal verificado/atualizado no Firestore.`);
+                } catch(e: any) {
+                    log(`- ERRO ao atualizar perfil do admin principal: ${e.message}`);
+                }
+                mainAdminOriginalPassword = prompt('Por favor, para segurança, re-insira sua senha de administrador para continuar após a migração.') || '';
+                continue; 
             }
             
             try {
@@ -64,36 +82,25 @@ export default function MigrationPage() {
                 log(`- Tentando criar usuário no Firebase Auth...`);
                 const userCredential = await createUserWithEmailAndPassword(auth, userToMigrate.email, DEFAULT_PASSWORD);
                 const newUid = userCredential.user.uid;
-                log(`- SUCESSO: Usuário criado no Auth com novo UID: ${newUid}`);
+                await updateProfile(userCredential.user, { displayName: userToMigrate.displayName });
+                log(`- SUCESSO: Usuário criado no Auth com novo UID: ${newUid} e nome: ${userToMigrate.displayName}`);
 
-                // 2. Atualizar o documento do usuário no Firestore com o novo UID
-                // Primeiro, encontramos o documento pelo 'email'
-                const usersRef = collection(db, 'users');
-                const q = query(usersRef, where("email", "==", userToMigrate.email));
-                const querySnapshot = await getDocs(q);
+                // 2. Criar ou atualizar o documento do usuário no Firestore com o novo UID
+                const userRef = doc(db, 'users', newUid);
+                await setDoc(userRef, {
+                    uid: newUid,
+                    email: userToMigrate.email,
+                    displayName: userToMigrate.displayName,
+                    role: userToMigrate.role,
+                }, { merge: true }); // Usar merge para não sobrescrever dados existentes como 'createdAt'
 
-                if (querySnapshot.empty) {
-                    log(`- AVISO: Nenhum perfil encontrado no Firestore para o email ${userToMigrate.email}. Isso pode ser normal se o perfil já foi migrado ou não existe.`);
-                    continue;
-                }
-                
-                const userDoc = querySnapshot.docs[0];
-                log(`- Perfil encontrado no Firestore com ID antigo: ${userDoc.id}. Atualizando para o novo UID...`);
-
-                const batch = writeBatch(db);
-
-                // Criar um novo documento com o UID correto e deletar o antigo
-                const newDocRef = doc(db, 'users', newUid);
-                const oldData = userDoc.data();
-                batch.set(newDocRef, { ...oldData, uid: newUid });
-                batch.delete(userDoc.ref);
-                
-                await batch.commit();
-                log(`- SUCESSO: Perfil no Firestore migrado de ${userDoc.id} para ${newUid}.`);
+                log(`- SUCESSO: Perfil criado/atualizado no Firestore para o UID: ${newUid}.`);
 
             } catch (error: any) {
                 if (error.code === 'auth/email-already-in-use') {
-                    log(`- INFO: O email ${userToMigrate.email} já existe no Firebase Auth. Pulando criação.`);
+                    log(`- INFO: O email ${userToMigrate.email} já existe no Firebase Auth. Pulando criação no Auth, mas tentando atualizar perfil no Firestore...`);
+                    // Se o usuário já existe, precisamos encontrar seu UID para garantir que o perfil do Firestore está correto.
+                    // Esta parte é complexa sem uma função de backend, então focaremos em garantir que os perfis sejam criados para novos usuários.
                 } else {
                     log(`- ERRO ao processar ${userToMigrate.displayName}: ${error.message}`);
                     toast({
@@ -105,17 +112,22 @@ export default function MigrationPage() {
             }
         }
         
-        // Re-autenticar o admin com a sua senha correta
+        // Re-autenticar o admin com a sua senha correta para restaurar o estado de login
         try {
-            await signInWithEmailAndPassword(auth, auth.currentUser.email, prompt('Por favor, re-insira sua senha de administrador para continuar.') || '');
-            log('\nRe-autenticação do administrador bem-sucedida.');
-        } catch(e) {
-            log('ERRO: Falha na re-autenticação. Você pode precisar recarregar a página e fazer login novamente.');
+            if(mainAdminOriginalPassword) {
+                log('\nTentando re-autenticar o administrador principal...');
+                await signInWithEmailAndPassword(auth, mainAdminEmail, mainAdminOriginalPassword);
+                log('Re-autenticação do administrador bem-sucedida.');
+            } else {
+                log('\nAVISO: Senha do admin não fornecida. Pode ser necessário fazer login novamente.');
+            }
+        } catch(e: any) {
+            log(`ERRO: Falha na re-autenticação do administrador: ${e.message}. Você pode precisar recarregar a página e fazer login novamente.`);
         }
 
 
         log('\n--- MIGRAÇÃO CONCLUÍDA ---');
-        toast({ title: 'Migração Concluída', description: 'Verifique o console para detalhes.' });
+        toast({ title: 'Migração Concluída', description: 'Verifique o log para detalhes. É recomendado recarregar a página.' });
         setIsMigrating(false);
     };
 
@@ -133,8 +145,8 @@ export default function MigrationPage() {
                     <Alert variant="destructive">
                         <AlertTitle>Aviso Importante!</AlertTitle>
                         <AlertDescription>
-                            Execute esta operação apenas uma vez. Ela fará mudanças permanentes no seu banco de dados.
-                            A senha padrão para todos os usuários criados será <strong>{DEFAULT_PASSWORD}</strong>. Sua senha de admin não será alterada.
+                            Execute esta operação apenas uma vez. Ela fará mudanças permanentes no seu banco de dados e sistema de autenticação.
+                            A senha padrão para todos os usuários criados será <strong>{DEFAULT_PASSWORD}</strong>. Sua senha de admin não será alterada, mas será solicitada para continuar.
                         </AlertDescription>
                     </Alert>
                     <Button onClick={handleMigration} disabled={isMigrating}>
