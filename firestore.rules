@@ -10,15 +10,64 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return getRole() == 'admin';
+    }
+
+    function isPartner() {
+        return getRole() == 'partner';
+    }
+
+    function isDJ() {
+        return getRole() == 'dj';
+    }
+
     // -------------------------------------------------------------------------
-    // Migration Rules - TEMPORARIAMENTE ABERTAS
+    // User Profiles
     // -------------------------------------------------------------------------
-    // Estas regras permitem que qualquer usuário autenticado leia e escreva
-    // em qualquer documento. Isto é necessário para a migração inicial de dados.
-    // DEVE SER REVERTIDO PARA REGRAS MAIS RÍGIDAS APÓS A MIGRAÇÃO.
+    match /users/{userId} {
+      allow read, update: if isOwner(userId) || isAdmin() || isPartner();
+      allow create: if isSignedIn(); // Allow any signed in user to create their own profile record.
+      // No delete for user profiles to prevent accidental data loss.
+    }
+
     // -------------------------------------------------------------------------
+    // Events
+    // -------------------------------------------------------------------------
+    match /events/{eventId} {
+      allow read: if isSignedIn(); // All signed in users can read events
+      allow create: if isDJ() || isAdmin() || isPartner(); // DJs, Admins, and Partners can create
+      allow update: if isAdmin() || isPartner() || (isDJ() && resource.data.dj_id == request.auth.uid); // Admins, partners, or the assigned DJ can update
+      allow delete: if isAdmin() || isPartner(); // Only Admins and Partners can delete
+    }
+
+    // -------------------------------------------------------------------------
+    // Agency Accounts
+    // -------------------------------------------------------------------------
+    match /agency_accounts/{accountId} {
+        allow read: if isAdmin() || isPartner();
+        allow write: if isAdmin() || isPartner();
+    }
+    
+    // -------------------------------------------------------------------------
+    // Settlements - Only Admins, Partners, and the specific DJ can access
+    // -------------------------------------------------------------------------
+     match /settlements/{settlementId} {
+      allow read, create, update: if isAdmin() || isPartner() || (isDJ() && resource.data.djId == request.auth.uid);
+      allow delete: if isAdmin() || isPartner();
+    }
+
+    // Fallback rule: Deny all other access
     match /{document=**} {
-      allow read, write: if isSignedIn();
+      allow read, write: if false;
     }
   }
 }

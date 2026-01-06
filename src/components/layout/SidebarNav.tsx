@@ -8,7 +8,7 @@ import {
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, CalendarDays, Settings, DollarSign, DatabaseZap } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, DollarSign } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -25,7 +25,6 @@ const navItems: NavItem[] = [
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
   { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'], exact: false },
-  { href: '/settings/backup', label: 'Backup (Migração)', icon: DatabaseZap, roles: ['admin', 'partner'] },
 ];
 
 export default function SidebarNav() {

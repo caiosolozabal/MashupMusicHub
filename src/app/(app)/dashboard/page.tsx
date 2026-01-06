@@ -206,48 +206,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {['admin', 'partner'].includes(userDetails?.role || '') && eventCount === 0 && (
-        <Card className="shadow-lg bg-secondary/50 border-accent/50 border-2">
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center">
-                    <UploadCloud className="mr-3 h-6 w-6 text-accent" />
-                    Importar Dados
-                </CardTitle>
-                <CardDescription>
-                    Seu banco de dados está vazio. Vá para a página de migração para importar os dados do seu projeto antigo.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button asChild size="lg" variant="secondary">
-                    <Link href="/settings/migration">
-                        Ir para a Página de Migração
-                    </Link>
-                </Button>
-            </CardContent>
-        </Card>
-      )}
-
-      {['admin', 'partner'].includes(userDetails?.role || '') && (
-        <Card className="shadow-lg bg-secondary/50 border-primary/50 border-2">
-            <CardHeader>
-                <CardTitle className="font-headline flex items-center">
-                    <DatabaseZap className="mr-3 h-6 w-6 text-primary" />
-                    Backup e Migração de Dados
-                </CardTitle>
-                <CardDescription>
-                    Acesse a ferramenta para extrair todos os dados do projeto 'listeiro-cf302' antes de migrarmos para o novo projeto.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button asChild size="lg">
-                    <Link href="/settings/backup">
-                        Ir para a Página de Backup
-                    </Link>
-                </Button>
-            </CardContent>
-        </Card>
-      )}
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title} className="shadow-lg hover:shadow-xl transition-shadow duration-300">
