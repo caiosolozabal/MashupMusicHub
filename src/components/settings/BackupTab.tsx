@@ -15,7 +15,7 @@ interface BackupData {
   agency_accounts: object[];
 }
 
-// Helper para converter Timestamps do Firestore para strings ISO
+// Helper to convert Firestore Timestamps to ISO strings
 const replacer = (key: string, value: any) => {
   if (value && typeof value === 'object' && value.hasOwnProperty('seconds') && value.hasOwnProperty('nanoseconds')) {
     const date = new Date(value.seconds * 1000 + value.nanoseconds / 1000000);
@@ -25,7 +25,7 @@ const replacer = (key: string, value: any) => {
 };
 
 
-export default function BackupPage() {
+export default function BackupTab() {
   const [backupData, setBackupData] = useState<BackupData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -47,7 +47,7 @@ export default function BackupPage() {
         const collRef = collection(db, collectionName);
         const snapshot = await getDocs(collRef);
         data[collectionName as keyof BackupData] = snapshot.docs.map(doc => ({
-          _id: doc.id, // Adiciona o ID do documento ao objeto
+          _id: doc.id, // Add the document ID to the object
           ...doc.data(),
         }));
       }
@@ -72,7 +72,7 @@ export default function BackupPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="space-y-6">
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline text-2xl">Ferramenta de Backup Manual do Firestore</CardTitle>
@@ -99,6 +99,7 @@ export default function BackupPage() {
       {backupData && (
         <div className="space-y-6">
           {Object.entries(backupData).map(([key, value]) => {
+            if (!Array.isArray(value)) return null; // Safety check
             const jsonString = JSON.stringify(value, replacer, 2);
             return (
               <Card key={key}>

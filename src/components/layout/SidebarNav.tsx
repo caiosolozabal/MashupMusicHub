@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -8,7 +7,7 @@ import {
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, CalendarDays, Settings, DollarSign, DownloadCloud } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, DollarSign } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -24,7 +23,7 @@ const navItems: NavItem[] = [
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
   { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'] },
-  { href: '/backup', label: 'Backup (Migração)', icon: DownloadCloud, roles: ['admin', 'partner'] },
+  // The backup route is removed from here as it's now part of settings
 ];
 
 export default function SidebarNav() {

@@ -1,12 +1,12 @@
-
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import UserManagementTab from '@/components/settings/UserManagementTab';
 import AgencyAccountsTab from '@/components/settings/AgencyAccountsTab';
+import BackupTab from '@/components/settings/BackupTab'; // Import the new component
 import { useAuth } from '@/hooks/useAuth';
-import { Building, Cog, Users } from 'lucide-react';
+import { Building, Cog, Users, DatabaseZap } from 'lucide-react';
 
 export default function SettingsPage() {
   const { userDetails } = useAuth();
@@ -56,7 +56,7 @@ export default function SettingsPage() {
         </p>
       </div>
       <Tabs defaultValue="user-management" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:max-w-xl">
+        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:max-w-2xl">
           <TabsTrigger value="user-management">
             <Users className="mr-2 h-4 w-4" />
             Usuários e DJs
@@ -65,9 +65,13 @@ export default function SettingsPage() {
             <Building className="mr-2 h-4 w-4" />
             Contas da Agência
           </TabsTrigger>
-          <TabsTrigger value="general-settings"> {/* Enabled this tab */}
+          <TabsTrigger value="general-settings">
             <Cog className="mr-2 h-4 w-4" />
             Geral
+          </TabsTrigger>
+           <TabsTrigger value="backup-migration">
+            <DatabaseZap className="mr-2 h-4 w-4" />
+            Backup e Migração
           </TabsTrigger>
         </TabsList>
 
@@ -111,6 +115,10 @@ export default function SettingsPage() {
               <p className="text-muted-foreground">Em breve: opções como percentual padrão de DJ, modo padrão da agenda, etc.</p>
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="backup-migration">
+            <BackupTab />
         </TabsContent>
       </Tabs>
     </div>
