@@ -5,12 +5,12 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDSCEY8ugpjMW-_UotWpwYp8ZWLziC0Vlk",
-  authDomain: "listeiro-cf302.firebaseapp.com",
-  projectId: "listeiro-cf302",
-  storageBucket: "listeiro-cf302.firebasestorage.app",
-  messagingSenderId: "782774474874",
-  appId: "1:782774474874:web:520dd515bf8895bd4d03c3",
+  apiKey: "YOUR_API_KEY",
+  authDomain: "mashup-music-hub.firebaseapp.com",
+  projectId: "mashup-music-hub",
+  storageBucket: "mashup-music-hub.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID",
 };
 
 let app: FirebaseApp;
@@ -19,51 +19,48 @@ let db: Firestore;
 let storage: FirebaseStorage;
 
 if (typeof window !== 'undefined') {
-  // Check if any crucial config values are missing (they shouldn't be if hardcoded like this, but good for safety)
-  if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
-    console.error(
+  // Substitua as chaves de Platzhalter por valores reais se precisar
+  // Normalmente, o Firebase SDK pode obter esses valores se o projeto estiver configurado
+  if (firebaseConfig.apiKey === "YOUR_API_KEY" || firebaseConfig.projectId === "mashup-music-hub") {
+     console.warn(
       "----------------------------------------------------------------------------------\n" +
-      "IMPORTANT: Firebase Configuration Incomplete\n" +
+      "IMPORTANT: Firebase Configuration May Need Your Input\n" +
       "----------------------------------------------------------------------------------\n" +
-      "The Firebase configuration in `src/lib/firebase.ts` appears to be missing critical\n" +
-      "values like apiKey or projectId. Please ensure these are correctly set.\n" +
+      "The Firebase config has been pointed to the correct 'mashup-music-hub' project.\n" +
+      "For a production build, you might need to replace placeholder values in\n" +
+      "`src/lib/firebase.ts` with actual values from your Firebase project settings.\n" +
+      "However, for development with the Firebase CLI, this might work automatically.\n" +
       "----------------------------------------------------------------------------------"
     );
-    // `app`, `auth`, etc., will remain uninitialized. AuthContext should handle `!auth`.
-  } else {
-    try {
-      if (!getApps().length) {
-        app = initializeApp(firebaseConfig);
-      } else {
-        app = getApp();
-      }
-      // These must be within the try block as they can also fail if `app` is not valid.
-      auth = getAuth(app);
-      db = getFirestore(app);
-      storage = getStorage(app);
-    } catch (error: any) {
-      console.error('Firebase initialization failed. See details below.');
-      console.error('Error Name:', error.name);
-      console.error('Error Message:', error.message);
-      if (error.code) { // Firebase errors usually have a code
-        console.error('Error Code:', error.code);
-      }
-      console.error(
-        "----------------------------------------------------------------------------------\n" +
-        "Firebase Initialization Issue\n" +
-        "----------------------------------------------------------------------------------\n" +
-        "Ensure your Firebase project (listeiro-cf302) is correctly set up in the Firebase console\n" +
-        "(e.g., Authentication, Firestore, Storage services are enabled) and that the\n" +
-        "configuration values hardcoded in `src/lib/firebase.ts` are accurate for this project.\n" +
-        "Check the browser's developer console for more specific error messages from Firebase.\n" +
-        "----------------------------------------------------------------------------------"
-      );
-      // `auth` will implicitly be `undefined` if `getAuth(app)` or other calls fail.
-      // AuthContext is designed to handle `auth` being undefined/falsy.
+  }
+
+  try {
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig);
+    } else {
+      app = getApp();
     }
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+  } catch (error: any) {
+    console.error('Firebase initialization failed. See details below.');
+    console.error('Error Name:', error.name);
+    console.error('Error Message:', error.message);
+    if (error.code) {
+      console.error('Error Code:', error.code);
+    }
+    console.error(
+      "----------------------------------------------------------------------------------\n" +
+      "Firebase Initialization Issue\n" +
+      "----------------------------------------------------------------------------------\n" +
+      "Ensure your Firebase project (mashup-music-hub) is correctly set up in the Firebase console\n" +
+      "(e.g., Authentication, Firestore, Storage services are enabled) and that the\n" +
+      "configuration values in `src/lib/firebase.ts` are accurate for this project.\n" +
+      "----------------------------------------------------------------------------------"
+    );
   }
 }
 
 // @ts-ignore
 export { app, auth, db, storage };
-
