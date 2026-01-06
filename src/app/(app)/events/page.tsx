@@ -231,10 +231,13 @@ const EventsPage: NextPage = () => {
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent || !db) return;
-     if (!canDeleteSelectedEvent(selectedEvent)) {
-      toast({ variant: 'destructive', title: 'Acesso Negado' });
+    if (!canDeleteSelectedEvent(selectedEvent)) {
+      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para excluir este evento.' });
+      setIsDeleteConfirmOpen(false);
+      setIsSubmitting(false);
       return;
     }
+    
     setIsSubmitting(true);
     try {
         // If the event is linked, unlink the other event
@@ -263,16 +266,16 @@ const EventsPage: NextPage = () => {
   const canCreateEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner' || userDetails?.role === 'dj';
   
   const canEditSelectedEvent = (event: Event | null) => {
-    if (!event) return false;
-    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
-    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
+    if (!event || !user || !userDetails) return false;
+    if (userDetails.role === 'admin' || userDetails.role === 'partner') return true;
+    if (userDetails.role === 'dj' && event.dj_id === user.uid) return true;
     return false;
   };
   
   const canDeleteSelectedEvent = (event: Event | null) => {
-    if (!event) return false;
-    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
-    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
+    if (!event || !user || !userDetails) return false;
+    if (userDetails.role === 'admin' || userDetails.role === 'partner') return true;
+    if (userDetails.role === 'dj' && event.dj_id === user.uid) return true;
     return false;
   };
 
