@@ -15,7 +15,7 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  roles: UserRole[]; // Make roles non-optional for clarity
+  roles: UserRole[];
   exact?: boolean; 
 }
 
@@ -30,7 +30,6 @@ export default function SidebarNav() {
   const pathname = usePathname();
   const { userDetails, loading } = useAuth(); 
 
-  // Function to determine if a user has permission to see a nav item
   const canView = (itemRoles: UserRole[]): boolean => {
     // If auth is loading or userDetails are not yet available, don't show any role-specific links
     if (loading || !userDetails?.role) {
@@ -46,8 +45,7 @@ export default function SidebarNav() {
        <SidebarMenu>
         {[...Array(4)].map((_, i) => (
           <SidebarMenuItem key={i} >
-            <SidebarMenuButton disabled className="h-8 w-full bg-muted/50 animate-pulse">
-            </SidebarMenuButton>
+            <div className="h-8 w-full bg-muted/50 animate-pulse rounded-md" />
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
@@ -57,12 +55,10 @@ export default function SidebarNav() {
   return (
     <SidebarMenu>
       {navItems.map((item) => {
-        // Determine if the current link should be considered active
         const isActive = item.exact === false 
           ? pathname.startsWith(item.href) 
           : pathname === item.href;
 
-        // Render the item only if the user has the required role
         if (canView(item.roles)) {
           return (
             <SidebarMenuItem key={item.href}>
@@ -82,7 +78,7 @@ export default function SidebarNav() {
             </SidebarMenuItem>
           )
         }
-        return null; // Return null if user does not have permission, to render nothing
+        return null;
       })}
     </SidebarMenu>
   );

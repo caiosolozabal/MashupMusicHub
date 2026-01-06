@@ -1,54 +1,50 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // HELPER FUNCTIONS
+    // --- Helper Functions ---
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    // Function to get the user's role from their profile document.
-    // This is the core of our role-based access control.
+    // Function to get the user's data from their profile document.
+    // This is safe because the rule on /users/{userId} allows a user to read their own document.
     function getUserData(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
-    function isRole(role) {
-        return isSignedIn() && getUserData(request.auth.uid).role == role;
-    }
-
     function isAdmin() {
-      return isRole('admin');
+      return isSignedIn() && getUserData(request.auth.uid).role == 'admin';
     }
 
     function isPartner() {
-        return isRole('partner');
-    }
-    
-    function isDj() {
-      return isRole('dj');
+      return isSignedIn() && getUserData(request.auth.uid).role == 'partner';
     }
 
-    // SECURITY RULES
+    function isDj() {
+      return isSignedIn() && getUserData(request.auth.uid).role == 'dj';
+    }
+
+    // --- Security Rules ---
 
     // USER PROFILES (/users/{userId})
-    // Crucial Rule: A user can always read their OWN profile. This breaks the Catch-22.
-    // Admins and Partners can read ANY profile and list all users.
-    // Users can update their own profile. Admins/Partners can update any.
+    // CRITICAL RULE: A user can ALWAYS read their OWN profile. This breaks the Catch-22.
+    // An admin or partner can read ANY profile.
+    // Users can write to their own profile. Admin/Partner can write to any.
     match /users/{userId} {
       allow read: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
+      allow list: if isAdmin() || isPartner(); // Allow admins/partners to list all users
       allow write: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
-      allow list: if isAdmin() || isPartner();
     }
 
     // EVENTS (/events/{eventId})
     // Admins/Partners can read/write all events.
-    // DJs can only read events where their ID is listed in the 'dj_id' field.
+    // DJs can only read/list events where their ID is in the 'dj_id' field.
     match /events/{eventId} {
       allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
       allow create, update, delete: if isAdmin() || isPartner() || (isDj() && request.auth.uid == request.resource.data.dj_id);
@@ -57,7 +53,7 @@ service cloud.firestore {
     // AGENCY ACCOUNTS (/agency_accounts/{accountId})
     // Only admins and partners can manage agency accounts.
     match /agency_accounts/{accountId} {
-        allow read, list, create, update, delete: if isAdmin() || isPartner();
+        allow read, write, list, create, update, delete: if isAdmin() || isPartner();
     }
   }
 }
