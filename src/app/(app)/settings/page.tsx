@@ -1,108 +1,64 @@
-
 'use client';
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import UserManagementTab from '@/components/settings/UserManagementTab';
-import AgencyAccountsTab from '@/components/settings/AgencyAccountsTab';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
-import { Building, Cog, Users } from 'lucide-react';
-import Link from 'next/link';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
-export default function SettingsPage() {
-  const { userDetails } = useAuth();
+export default function TempSettingsPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const canViewSettings = userDetails?.role === 'admin' || userDetails?.role === 'partner';
-
-  if (!canViewSettings && userDetails?.role === 'dj') {
-      return (
-         <div className="space-y-6">
-             <div>
-                <h1 className="text-3xl font-bold tracking-tight font-headline">Configurações</h1>
-                <p className="text-muted-foreground">
-                    Sua visão de configurações é limitada.
-                </p>
-            </div>
-             <Card>
-                <CardHeader>
-                    <CardTitle className="font-headline">Acesso Restrito</CardTitle>
-                </CardHeader>
-                <CardContent>
-                <p>Nesta seção, apenas administradores e sócios podem gerenciar as configurações da plataforma.</p>
-                </CardContent>
-            </Card>
-        </div>
-      )
-  }
-
+  const handleSetAdmin = async () => {
+    if (!user) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Você não está logado.' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        role: 'admin',
+      });
+      toast({
+        title: 'Sucesso!',
+        description: 'Sua função foi definida como admin. Por favor, recarregue a página.',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao definir função',
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight font-headline">Configurações da Plataforma</h1>
-        <p className="text-muted-foreground">
-          Gerencie usuários, dados da agência e outras configurações do sistema.
-        </p>
-      </div>
-
-      <Tabs defaultValue="user-management" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3">
-          <TabsTrigger value="user-management">
-            <Users className="mr-2 h-4 w-4" />
-            Usuários
-          </TabsTrigger>
-          <TabsTrigger value="agency-accounts">
-            <Building className="mr-2 h-4 w-4" />
-            Contas
-          </TabsTrigger>
-          <TabsTrigger value="general-settings">
-            <Cog className="mr-2 h-4 w-4" />
-            Geral
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="user-management">
-          <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="font-headline">Gerenciamento de Usuários e DJs</CardTitle>
-              <CardDescription>
-                Visualize e edite os perfis, funções e detalhes dos DJs cadastrados na plataforma.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserManagementTab />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="agency-accounts">
-          <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="font-headline">Contas Bancárias da Agência</CardTitle>
-              <CardDescription>
-                Gerencie as contas bancárias da Mashup Music.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AgencyAccountsTab />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="general-settings">
-          <Card className="shadow-md">
-            <CardHeader>
-              <CardTitle className="font-headline">Configurações Gerais</CardTitle>
-              <CardDescription>
-                Parâmetros e configurações globais do sistema. (Funcionalidade em desenvolvimento)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Em breve: opções como percentual padrão de DJ, modo padrão da agenda, etc.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuração de Função Temporária</CardTitle>
+          <CardDescription>
+            Este é um painel de correção. Se você for o administrador principal, clique no botão abaixo para definir sua função.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Logado como: {user ? user.email : 'Ninguém'}
+          </p>
+          <Button onClick={handleSetAdmin} disabled={isLoading || !user}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Tornar-se Administrador
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 }

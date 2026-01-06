@@ -24,6 +24,8 @@ const navItems: NavItem[] = [
   { href: '/events', label: 'Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
+  // Temporary link to fix role
+  { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj', null] },
 ];
 
 export default function SidebarNav() {
@@ -31,16 +33,21 @@ export default function SidebarNav() {
   const { userDetails, loading } = useAuth(); 
 
   const canView = (itemRoles: UserRole[]): boolean => {
-    // If auth is loading or userDetails are not yet available, don't show any role-specific links
-    if (loading || !userDetails?.role) {
-      return false;
+    // If auth is loading, don't show any role-specific links yet
+    if (loading) {
+        // But we MUST show the settings link to fix the role
+        if(itemRoles.includes(null)){
+            return true;
+        }
+        return false;
     }
-    // Check if the user's role is included in the roles allowed for the nav item
-    return itemRoles.includes(userDetails.role);
+    // If not loading, check roles
+    const userRole = userDetails?.role ?? null;
+    return itemRoles.includes(userRole);
   };
 
   // While authentication is in progress, display a loading skeleton
-  if (loading) {
+  if (loading && !userDetails) {
     return (
        <SidebarMenu>
         {[...Array(4)].map((_, i) => (
@@ -48,6 +55,21 @@ export default function SidebarNav() {
             <div className="h-8 w-full bg-muted/50 animate-pulse rounded-md" />
           </SidebarMenuItem>
         ))}
+         <SidebarMenuItem>
+            <Link href="/settings" legacyBehavior passHref>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === '/settings'}
+                  tooltip={{ children: 'Configurações', side: 'right', align: 'center' }}
+                  aria-label={'Configurações'}
+                >
+                  <a>
+                    <Settings />
+                    <span>Configurações</span>
+                  </a>
+                </SidebarMenuButton>
+              </Link>
+         </SidebarMenuItem>
       </SidebarMenu>
     );
   }
