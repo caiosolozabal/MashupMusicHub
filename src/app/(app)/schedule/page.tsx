@@ -356,25 +356,29 @@ export default function SchedulePage() {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum evento selecionado.' });
+    if (!selectedEvent || !db || !userDetails) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum evento selecionado ou usuário inválido.' });
       return;
     }
-    
+  
     setIsSubmitting(true);
     try {
-      // If the event is linked, unlink the other event
-        if (selectedEvent.linkedEventId) {
-            try {
-                const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
-                await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
-            } catch(e) {
-                console.warn("Could not unlink the other event, it might have been deleted already.", e);
-            }
+      // Admin/Partners can unlink the other event. DJs cannot, to avoid permission errors.
+      if ((userDetails.role === 'admin' || userDetails.role === 'partner') && selectedEvent.linkedEventId) {
+        try {
+          const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
+          await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+        } catch (e) {
+          console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
+          // Non-fatal, we still want to delete the main event.
         }
+      }
+  
+      // Now, delete the selected event.
       await deleteDoc(doc(db, 'events', selectedEvent.id));
+      
       toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
-      fetchAllData(); 
+      fetchAllData();
       setIsDeleteConfirmOpen(false);
       setSelectedEvent(null);
     } catch (error) {
