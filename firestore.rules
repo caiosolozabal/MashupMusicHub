@@ -5,14 +5,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isOwner(userId) {
-      // Check if the requesting user is the owner of the document.
       return request.auth.uid == userId;
     }
     
-    function isEventOwner(docId) {
-      return get(/databases/$(database)/documents/events/$(docId)).data.dj_id == request.auth.uid;
-    }
-
     // 🔐 USERS COLLECTION
     // Rules for accessing user profile data.
     match /users/{userId} {
@@ -32,19 +27,26 @@ service cloud.firestore {
     // Rules for accessing event data.
     match /events/{eventId} {
        // READ: Admins/partners can read any event. DJs can only read events they are assigned to.
+       // This rule is crucial for queries and get() calls within other rules.
       allow read: if request.auth.token.role in ['admin', 'partner'] || 
                      (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
+                     
       // LIST: Admins/partners can list all events. DJs can list events to find their own.
       // The client-side query for DJs MUST include `where('dj_id', '==', auth.uid)`.
       allow list: if request.auth.token.role in ['admin', 'partner', 'dj'];
+
       // CREATE: Admins, partners, and DJs can create new events.
       allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
+
       // UPDATE: Admins/partners can update any event. DJs can only update their own events.
+      // This now uses a direct ownership check on the existing document's data.
       allow update: if request.auth.token.role in ['admin', 'partner'] || 
-                       (request.auth.token.role == 'dj' && isEventOwner(eventId));
+                       (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
+
       // DELETE: Admins/partners can delete any event. DJs can only delete their own.
-      allow delete: if request.auth.token.role in ['admin', 'partner'] || 
-                       (request.auth.token.role == 'dj' && isEventOwner(eventId));
+      // This rule is now the single source of truth for delete permissions.
+      allow delete: if request.auth.token.role in ['admin', 'partner'] ||
+                       (request.auth.token.role == 'dj' && get(/databases/$(database)/documents/events/$(eventId)).data.dj_id == request.auth.uid);
     }
     
     // 🔐 SETTLEMENTS COLLECTION

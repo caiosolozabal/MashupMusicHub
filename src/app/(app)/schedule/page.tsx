@@ -355,44 +355,27 @@ export default function SchedulePage() {
 
   const handleDeleteEvent = async () => {
     if (!selectedEvent || !db || !userDetails) return;
-
-    toast({
-      title: 'MODO DEBUG: Exclusão interceptada.',
-      description: 'Verifique o console do navegador para informações.',
-      duration: 10000,
-    });
-    
-    console.log('--- DEBUGGING DELETE (schedule/page.tsx) ---');
-    console.log('USER DETAILS:', { uid: user?.uid, role: userDetails?.role });
-    console.log('EVENT TO DELETE:', { 
-        id: selectedEvent.id, 
-        dj_id: selectedEvent.dj_id, 
-        linkedEventId: selectedEvent.linkedEventId 
-    });
-
     setIsSubmitting(true);
     try {
-      // Unlink logic
-      if (selectedEvent.linkedEventId && (userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
-        console.log('Attempting to unlink event:', selectedEvent.linkedEventId);
-        const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
-        await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
-        console.log('Unlinking successful.');
-      } else if (selectedEvent.linkedEventId) {
-        console.log('Skipping unlink for DJ role.');
+      // Admin/Partners can unlink the other event. DJs cannot.
+      if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
+          try {
+              const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
+              await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+          } catch (e) {
+              console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
+               // Non-fatal, we still want to delete the main event.
+          }
       }
-
-      // Delete logic
-      console.log('Attempting to delete event:', selectedEvent.id);
+    
       await deleteDoc(doc(db, 'events', selectedEvent.id));
-      console.log('Delete successful.');
 
       toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
       fetchAllData();
       setIsDeleteConfirmOpen(false);
       setSelectedEvent(null);
     } catch (error) {
-      console.error('Error during delete operation:', error);
+      console.error("Error deleting event: ", error);
       toast({ variant: 'destructive', title: 'Erro ao excluir evento', description: (error as Error).message });
     } finally {
       setIsSubmitting(false);
@@ -606,5 +589,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    
