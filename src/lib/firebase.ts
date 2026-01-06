@@ -13,27 +13,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
+// Inicialização Singleton para garantir que o Firebase seja inicializado apenas uma vez.
+const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-if (typeof window !== 'undefined' && !getApps().length) {
-    try {
-        app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
-        db = getFirestore(app);
-        storage = getStorage(app);
-    } catch(e) {
-        console.error("Firebase initialization failed", e);
-    }
-} else if (typeof window !== 'undefined') {
-    app = getApp();
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-}
+const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
+const storage: FirebaseStorage = getStorage(app);
 
-
-// @ts-ignore
 export { app, auth, db, storage };
