@@ -17,7 +17,6 @@ interface ScheduleListViewProps {
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
   canEdit: (event: Event) => boolean;
-  canDelete: (event: Event) => boolean;
   showServiceTypeColumn: boolean;
   calculateDjCut: (event: Event, dj: UserDetails | undefined) => number;
   isDjView: boolean;
@@ -73,7 +72,6 @@ export default function ScheduleListView({
   onEdit,
   onDelete,
   canEdit,
-  canDelete,
   showServiceTypeColumn,
   calculateDjCut,
   isDjView,
@@ -160,11 +158,11 @@ export default function ScheduleListView({
                     <Edit className="h-4 w-4" />
                   </Button>
                 )}
-                {canDelete(event) && (
-                  <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => onDelete(event)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
+                
+                <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => onDelete(event)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                
               </TableCell>
             </TableRow>
           )})}

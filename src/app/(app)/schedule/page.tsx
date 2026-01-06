@@ -309,10 +309,9 @@ export default function SchedulePage() {
     if (!db) return toast({ variant: 'destructive', title: 'Erro de banco de dados' });
 
     if (userDetails.role === 'dj' && selectedEvent && selectedEvent.id) { // Editing
-        if (values.dj_id !== user.uid || values.dj_nome !== (userDetails.displayName || user.displayName)){
+        if (values.dj_id !== user.uid){
             toast({ variant: 'destructive', title: 'Operação Inválida', description: 'Você não pode alterar o DJ atribuído.'});
-            values.dj_id = user.uid;
-            values.dj_nome = userDetails.displayName || user.displayName || user.email || '';
+            return;
         }
     }
 
@@ -328,7 +327,6 @@ export default function SchedulePage() {
     
     try {
       if (selectedEvent && selectedEvent.id) { // Editing existing event
-        if (!canEditEvent(selectedEvent)) throw new Error('Permissão para editar negada.');
         const eventRef = doc(db, 'events', selectedEvent.id);
         await updateDoc(eventRef, { ...eventData, updated_at: serverTimestamp() });
         toast({ title: 'Evento atualizado!', description: `"${values.nome_evento}" foi atualizado.` });
@@ -356,15 +354,15 @@ export default function SchedulePage() {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db || !userDetails) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum evento selecionado ou usuário inválido.' });
+    if (!selectedEvent || !db) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Nenhum evento selecionado.' });
       return;
     }
   
     setIsSubmitting(true);
     try {
-      // Admin/Partners can unlink the other event. DJs cannot, to avoid permission errors.
-      if ((userDetails.role === 'admin' || userDetails.role === 'partner') && selectedEvent.linkedEventId) {
+      // Admin/Partners can unlink the other event. DJs cannot (and should not need to).
+      if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
         try {
           const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
           await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
@@ -529,7 +527,6 @@ export default function SchedulePage() {
               onEdit={handleOpenEditForm}
               onDelete={handleOpenDeleteConfirm}
               canEdit={canEditEvent}
-              canDelete={() => true} // Allow everyone to attempt delete
               showServiceTypeColumn={showServiceTypeColumn}
               calculateDjCut={calculateDjCut}
               isDjView={userDetails?.role === 'dj'}
@@ -597,5 +594,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    

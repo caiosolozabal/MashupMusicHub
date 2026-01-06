@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event } from '@/lib/types';
 import { format, parseISO } from 'date-fns';
-import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck } from 'lucide-react';
+import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck, Copy } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
@@ -139,10 +139,14 @@ const EventsPage: NextPage = () => {
 
     // If the event is linked, fetch the linked event's name for display
     if (eventToView.linkedEventId && !eventToView.linkedEventName) {
-        const linkedEventRef = doc(db, 'events', eventToView.linkedEventId);
-        const linkedEventSnap = await getDoc(linkedEventRef);
-        if(linkedEventSnap.exists()) {
-            eventToView.linkedEventName = linkedEventSnap.data().nome_evento;
+        try {
+            const linkedEventRef = doc(db, 'events', eventToView.linkedEventId);
+            const linkedEventSnap = await getDoc(linkedEventRef);
+            if(linkedEventSnap.exists()) {
+                eventToView.linkedEventName = linkedEventSnap.data().nome_evento;
+            }
+        } catch(e) {
+            console.error("Could not fetch linked event name", e);
         }
     }
 
@@ -174,11 +178,11 @@ const EventsPage: NextPage = () => {
       return;
     }
 
-    if (userDetails.role === 'dj' && selectedEvent && selectedEvent.id) { // Editing existing event
-        if (values.dj_id !== user.uid || values.dj_nome !== userDetails.displayName){
+    // DJ can't change the assigned DJ
+    if (userDetails.role === 'dj' && selectedEvent && selectedEvent.id) { 
+        if (values.dj_id !== user.uid){
             toast({ variant: 'destructive', title: 'Operação Inválida', description: 'Você não pode alterar o DJ atribuído.'});
-            values.dj_id = user.uid;
-            values.dj_nome = userDetails.displayName || '';
+            return;
         }
     }
 
@@ -230,9 +234,13 @@ const EventsPage: NextPage = () => {
     setIsSubmitting(true);
     try {
         // If the event is linked, unlink the other event
-        if (selectedEvent.linkedEventId) {
-            const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
-            await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+        if (selectedEvent.linkedEventId && (userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
+            try {
+                const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
+                await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+            } catch (e) {
+                console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
+            }
         }
       await deleteDoc(doc(db, 'events', selectedEvent.id));
       toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
@@ -408,5 +416,3 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
-
-    

@@ -8,6 +8,10 @@ service cloud.firestore {
       // Check if the requesting user is the owner of the document.
       return request.auth.uid == userId;
     }
+    
+    function isEventOwner(docId) {
+      return get(/databases/$(database)/documents/events/$(docId)).data.dj_id == request.auth.uid;
+    }
 
     // 🔐 USERS COLLECTION
     // Rules for accessing user profile data.
@@ -37,9 +41,10 @@ service cloud.firestore {
       allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
       // UPDATE: Admins/partners can update any event. DJs can only update their own events.
       allow update: if request.auth.token.role in ['admin', 'partner'] || 
-                       (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
-      // DELETE: Any authenticated user can delete events.
-      allow delete: if request.auth != null;
+                       (request.auth.token.role == 'dj' && isEventOwner(eventId));
+      // DELETE: Admins/partners can delete any event. DJs can only delete their own.
+      allow delete: if request.auth.token.role in ['admin', 'partner'] || 
+                       (request.auth.token.role == 'dj' && isEventOwner(eventId));
     }
     
     // 🔐 SETTLEMENTS COLLECTION
@@ -69,5 +74,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
