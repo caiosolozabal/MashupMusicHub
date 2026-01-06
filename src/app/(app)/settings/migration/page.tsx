@@ -72,7 +72,7 @@ export default function MigrationPage() {
             }
 
             try {
-                // Tenta criar o usuário. Se já existir, vai dar um erro que pegaremos no catch.
+                // ETAPA 1: Tenta criar o usuário. Se já existir, vai dar um erro que pegaremos no catch.
                 const userCredential = await createUserWithEmailAndPassword(auth, userToMigrate.email, DEFAULT_PASSWORD);
                 const newUser = userCredential.user;
                 log(`- SUCESSO: Usuário criado no Auth com UID: ${newUser.uid}`);
@@ -85,7 +85,7 @@ export default function MigrationPage() {
                 log(`- SUCESSO: Perfil do Firestore criado/atualizado para UID: ${newUser.uid}.`);
 
             } catch (error: any) {
-                // Se o erro for "email-already-in-use", isso é o que queremos.
+                // ETAPA 2: Se o erro for "email-already-in-use", isso é o esperado para usuários existentes.
                 if (error.code === 'auth/email-already-in-use') {
                     log(`- INFO: O email ${userToMigrate.email} já existe no Auth. Sincronizando perfil...`);
                     try {
