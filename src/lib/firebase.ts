@@ -5,12 +5,12 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCDNFpKdz_S6xwrWSF9M5h-yp9ZqoO6Gtg",
-  authDomain: "mashup-music-hub.firebaseapp.com",
-  projectId: "mashup-music-hub",
-  storageBucket: "mashup-music-hub.appspot.com",
-  messagingSenderId: "700921932715",
-  appId: "1:700921932715:web:34178bd2fd9116a64dc0ee"
+  apiKey: "AIzaSyDSCEY8ugpjMW-_UotWpwYp8ZWLziC0Vlk",
+  authDomain: "listeiro-cf302.firebaseapp.com",
+  projectId: "listeiro-cf302",
+  storageBucket: "listeiro-cf302.appspot.com",
+  messagingSenderId: "782774474874",
+  appId: "1:782774474874:web:520dd515bf8895bd4d03c3"
 };
 
 // Inicialização Singleton para garantir que o Firebase seja inicializado apenas uma vez.
