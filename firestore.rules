@@ -40,7 +40,7 @@ service cloud.firestore {
                        (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
       // DELETE: Admins/partners can delete any event. DJs can only delete their own events.
       allow delete: if request.auth.token.role in ['admin', 'partner'] ||
-                       (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
+                       (request.auth.token.role == 'dj' && get(/databases/$(database)/documents/events/$(eventId)).data.dj_id == request.auth.uid);
     }
     
     // 🔐 SETTLEMENTS COLLECTION
