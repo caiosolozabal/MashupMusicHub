@@ -1,22 +1,26 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Loader2, Edit, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, Edit, CheckCircle2, XCircle, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import EditUserDialog from './EditUserDialog'; // We will create this next
+import EditUserDialog from './EditUserDialog';
 import { Badge } from '../ui/badge';
+import InviteUserDialog from './InviteUserDialog'; // Importa o novo componente
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 export default function UserManagementTab() {
   const { toast } = useToast();
   const [users, setUsers] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Estados para os diálogos
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null);
 
   const fetchUsers = async () => {
@@ -24,7 +28,7 @@ export default function UserManagementTab() {
     try {
       if (!db) throw new Error('Firestore not initialized');
       const usersCollection = collection(db, 'users');
-      const q = query(usersCollection, orderBy('displayName')); // Order by name or email
+      const q = query(usersCollection, orderBy('displayName'));
       const usersSnapshot = await getDocs(q);
       const usersList = usersSnapshot.docs.map(doc => ({
         uid: doc.id,
@@ -48,13 +52,21 @@ export default function UserManagementTab() {
     setIsEditDialogOpen(true);
   };
 
-  const handleDialogClose = (updated?: boolean) => {
+  const handleEditDialogClose = (updated?: boolean) => {
     setIsEditDialogOpen(false);
     setSelectedUser(null);
     if (updated) {
-      fetchUsers(); // Refetch users if an update occurred
+      fetchUsers();
     }
   };
+  
+  const handleInviteDialogClose = (created?: boolean) => {
+    setIsInviteDialogOpen(false);
+    if (created) {
+        fetchUsers();
+    }
+  }
+
 
   if (isLoading) {
     return (
@@ -65,12 +77,14 @@ export default function UserManagementTab() {
     );
   }
 
-  if (users.length === 0) {
-    return <p className="text-muted-foreground text-center py-8">Nenhum usuário encontrado.</p>;
-  }
-
   return (
     <>
+      <div className="mb-4 flex justify-end">
+        <Button onClick={() => setIsInviteDialogOpen(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+          <UserPlus className="mr-2 h-5 w-5" />
+          Convidar Novo Usuário
+        </Button>
+      </div>
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -128,9 +142,13 @@ export default function UserManagementTab() {
         <EditUserDialog
           user={selectedUser}
           isOpen={isEditDialogOpen}
-          onClose={handleDialogClose}
+          onClose={handleEditDialogClose}
         />
       )}
+      <InviteUserDialog 
+        isOpen={isInviteDialogOpen}
+        onClose={handleInviteDialogClose}
+      />
     </>
   );
 }
