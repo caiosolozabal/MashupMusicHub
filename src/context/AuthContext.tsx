@@ -5,14 +5,12 @@ import { auth, db } from '@/lib/firebase'; // Ensure firebase is initialized bef
 import { onAuthStateChanged } from 'firebase/auth';
 import type { ReactNode } from 'react';
 import { createContext, useEffect, useState, useMemo } from 'react';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
-import { generateRandomPastelColor } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
 
 
 // Define user roles for Mashup Music
-export type UserRole = 'admin' | 'partner' | 'dj' | null;
+export type UserRole = 'admin' | 'partner' | 'dj' | 'financeiro' | null;
 
 interface AuthContextType {
   user: User | null;
@@ -50,8 +48,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (userDocSnap.exists()) {
           setUserDetails({ uid: userDocSnap.id, ...userDocSnap.data() } as UserDetails);
         } else {
-          // This case should not happen after migration, but it's a safeguard.
-          // It means the user is authenticated but has no profile in the database.
           console.warn(`User ${currentUser.uid} exists in Auth but not in Firestore. They will have no role.`);
           setUserDetails(null); // Set to null to indicate no permissions
         }
