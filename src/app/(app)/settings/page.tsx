@@ -4,15 +4,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import UserManagementTab from '@/components/settings/UserManagementTab';
 import AgencyAccountsTab from '@/components/settings/AgencyAccountsTab';
-import BackupTab from '@/components/settings/BackupTab'; // Import the new component
+import BackupTab from '@/components/settings/BackupTab';
 import { useAuth } from '@/hooks/useAuth';
 import { Building, Cog, Users, DatabaseZap } from 'lucide-react';
 
 export default function SettingsPage() {
   const { userDetails } = useAuth();
 
-  // Allow DJ to see the page but with a custom message
-  if (userDetails?.role === 'dj') {
+  const canViewSettings = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+
+  if (!canViewSettings) {
       return (
          <div className="space-y-6">
              <div>
@@ -26,26 +27,13 @@ export default function SettingsPage() {
                     <CardTitle className="font-headline">Acesso Restrito</CardTitle>
                 </CardHeader>
                 <CardContent>
-                <p>Nesta seção, apenas administradores e sócios podem gerenciar usuários e contas da agência. Você pode editar suas informações pessoais no seu perfil.</p>
+                <p>Nesta seção, apenas administradores e sócios podem gerenciar as configurações da plataforma.</p>
                 </CardContent>
             </Card>
         </div>
       )
   }
 
-  if (userDetails?.role !== 'admin' && userDetails?.role !== 'partner') {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline">Configurações</CardTitle>
-          <CardDescription>Você não tem permissão para acessar todas as configurações.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Entre em contato com um administrador para mais informações.</p>
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -56,14 +44,14 @@ export default function SettingsPage() {
         </p>
       </div>
       <Tabs defaultValue="user-management" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:max-w-2xl">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 lg:max-w-2xl">
           <TabsTrigger value="user-management">
             <Users className="mr-2 h-4 w-4" />
-            Usuários e DJs
+            Usuários
           </TabsTrigger>
           <TabsTrigger value="agency-accounts">
             <Building className="mr-2 h-4 w-4" />
-            Contas da Agência
+            Contas
           </TabsTrigger>
           <TabsTrigger value="general-settings">
             <Cog className="mr-2 h-4 w-4" />
@@ -71,7 +59,7 @@ export default function SettingsPage() {
           </TabsTrigger>
            <TabsTrigger value="backup-migration">
             <DatabaseZap className="mr-2 h-4 w-4" />
-            Backup e Migração
+            Backup
           </TabsTrigger>
         </TabsList>
 
