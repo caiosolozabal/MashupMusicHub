@@ -240,13 +240,6 @@ export default function SchedulePage() {
   // --- CRUD Handlers ---
   const canCreateEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner' || userDetails?.role === 'dj';
   
-  const canEditEvent = (event: Event) => {
-    if (!event) return false;
-    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
-    if (userDetails?.role === 'dj' && event.dj_id === user?.uid) return true;
-    return false;
-  };
-  
   const showServiceTypeColumn = useMemo(() => {
     if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
     if (userDetails?.role === 'dj' && userDetails.pode_locar) return true;
@@ -259,10 +252,6 @@ export default function SchedulePage() {
     setIsFormOpen(true);
   };
   const handleOpenEditForm = (event: Event) => {
-    if (!canEditEvent(event)) {
-      toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para editar este evento.'});
-      return;
-    }
     setSelectedEvent(event);
     setIsFormOpen(true);
   };
@@ -350,8 +339,8 @@ export default function SchedulePage() {
     if (!selectedEvent || !db) return;
     setIsSubmitting(true);
     try {
-      // Unlink the other event if necessary
-      if (selectedEvent.linkedEventId) {
+      // Unlink the other event if necessary - ONLY if admin/partner
+      if (selectedEvent.linkedEventId && (userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
           try {
               const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
               await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
@@ -514,7 +503,6 @@ export default function SchedulePage() {
               onView={(e) => handleOpenView(e.id)}
               onEdit={handleOpenEditForm}
               onDelete={handleOpenDeleteConfirm}
-              canEdit={canEditEvent}
               showServiceTypeColumn={showServiceTypeColumn}
               calculateDjCut={calculateDjCut}
               isDjView={userDetails?.role === 'dj'}
@@ -582,5 +570,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    

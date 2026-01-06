@@ -11,24 +11,18 @@ service cloud.firestore {
     // 🔐 USERS COLLECTION
     // Rules for accessing user profile data.
     match /users/{userId} {
-      // GET: Allows a user to read their own profile, or an admin/partner to read any profile.
       allow get: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
-      // LIST: Only admins and partners can list multiple users (e.g., for the DJ dropdown).
       allow list: if request.auth.token.role in ['admin', 'partner'];
-      // CREATE: Any authenticated user can create their own user document upon first sign-up.
       allow create: if isOwner(userId);
-      // UPDATE: A user can update their own profile, or an admin/partner can update any profile.
       allow update: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
-       // DELETE: Deleting users is disallowed from the client for safety.
-      allow delete: if false;
+      allow delete: if false; // Deleting users is disallowed from the client for safety.
     }
 
     // 🔐 EVENTS COLLECTION
     // Rules for accessing event data.
     match /events/{eventId} {
        // READ: Admins/partners can read any event. DJs can only read events they are assigned to.
-       // This rule is crucial for queries and get() calls within other rules.
-      allow read: if request.auth.token.role in ['admin', 'partner'] || 
+       allow read: if request.auth.token.role in ['admin', 'partner'] || 
                      (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
                      
       // LIST: Admins/partners can list all events. DJs can list events to find their own.
@@ -39,7 +33,8 @@ service cloud.firestore {
       allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
 
       // UPDATE & DELETE: Allow any authenticated user to update or delete any event.
-      // The application's UI logic should be the primary guardrail for these actions.
+      // This is a simplified rule to prevent permission errors.
+      // The application's UI logic is the primary guardrail for these actions.
       allow update, delete: if request.auth != null;
     }
     
@@ -70,5 +65,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

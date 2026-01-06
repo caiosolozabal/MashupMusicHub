@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { NextPage } from 'next';
@@ -224,8 +223,8 @@ const EventsPage: NextPage = () => {
     
     setIsSubmitting(true);
     try {
-      // Unlink the other event if necessary
-      if (selectedEvent.linkedEventId) {
+      // Unlink the other event if necessary - ONLY if admin/partner
+      if (selectedEvent.linkedEventId && (userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
           try {
               const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
               await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
@@ -401,5 +400,3 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
-
-    

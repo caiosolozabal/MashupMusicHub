@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Event, UserDetails } from '@/lib/types';
@@ -9,6 +8,7 @@ import type { VariantProps } from 'class-variance-authority';
 import { Eye, Edit, Trash2, Link as LinkIcon, Disc, Truck } from 'lucide-react';
 import { Button } from '../ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ScheduleListViewProps {
   events: Event[];
@@ -16,7 +16,6 @@ interface ScheduleListViewProps {
   onView: (event: Event) => void;
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
-  canEdit: (event: Event) => boolean;
   showServiceTypeColumn: boolean;
   calculateDjCut: (event: Event, dj: UserDetails | undefined) => number;
   isDjView: boolean;
@@ -71,11 +70,19 @@ export default function ScheduleListView({
   onView,
   onEdit,
   onDelete,
-  canEdit,
   showServiceTypeColumn,
   calculateDjCut,
   isDjView,
 }: ScheduleListViewProps) {
+  
+  const { user, userDetails } = useAuth();
+  
+  const canEditEvent = (event: Event) => {
+    if (!event || !user || !userDetails) return false;
+    if (userDetails.role === 'admin' || userDetails.role === 'partner') return true;
+    if (userDetails.role === 'dj' && event.dj_id === user.uid) return true;
+    return false;
+  };
   
   return (
     <div className="overflow-x-auto">
@@ -153,7 +160,7 @@ export default function ScheduleListView({
                 <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => onView(event)}>
                   <Eye className="h-4 w-4" />
                 </Button>
-                {canEdit(event) && (
+                {canEditEvent(event) && (
                   <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => onEdit(event)}>
                     <Edit className="h-4 w-4" />
                   </Button>
