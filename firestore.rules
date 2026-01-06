@@ -11,30 +11,34 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
-
+    
     // Function to get the user's data from their profile document.
-    // This is safe because the rule on /users/{userId} allows a user to read their own document.
+    // This is now safe because the rule on /users/{userId} allows a user to read their own document.
     function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+      // Use exists() to avoid throwing an error if the document doesn't exist yet
+      return exists(/databases/$(database)/documents/users/$(userId)) ? get(/databases/$(database)/documents/users/$(userId)).data : null;
     }
     
     function isAdmin() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'admin';
+      let userData = getUserData(request.auth.uid);
+      return isSignedIn() && userData != null && userData.role == 'admin';
     }
 
     function isPartner() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'partner';
+      let userData = getUserData(request.auth.uid);
+      return isSignedIn() && userData != null && userData.role == 'partner';
     }
 
     function isDj() {
-      return isSignedIn() && getUserData(request.auth.uid).role == 'dj';
+      let userData = getUserData(request.auth.uid);
+      return isSignedIn() && userData != null && userData.role == 'dj';
     }
 
     // --- Security Rules ---
 
     // USER PROFILES (/users/{userId})
     // CRITICAL RULE: A user can ALWAYS read their OWN profile. This breaks the Catch-22.
-    // An admin or partner can read ANY profile.
+    // An admin or partner can also read ANY profile.
     // Users can write to their own profile. Admin/Partner can write to any.
     match /users/{userId} {
       allow read: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
@@ -47,13 +51,14 @@ service cloud.firestore {
     // DJs can only read/list events where their ID is in the 'dj_id' field.
     match /events/{eventId} {
       allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
-      allow create, update, delete: if isAdmin() || isPartner() || (isDj() && request.auth.uid == request.resource.data.dj_id);
+      allow create, update, delete: if isAdmin() || isPartner() || (isDj() && (request.resource.data.dj_id == request.auth.uid));
     }
     
     // AGENCY ACCOUNTS (/agency_accounts/{accountId})
     // Only admins and partners can manage agency accounts.
     match /agency_accounts/{accountId} {
-        allow read, write, list, create, update, delete: if isAdmin() || isPartner();
+        allow read, write, create, update, delete: if isAdmin() || isPartner();
+        allow list: if isAdmin() || isPartner();
     }
   }
 }
