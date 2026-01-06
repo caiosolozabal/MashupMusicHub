@@ -354,55 +354,34 @@ export default function SchedulePage() {
   };
 
   const handleDeleteEvent = async () => {
-    // --- DEBUGGING ---
-    console.log("--- DEBUGGING DELETE (schedule/page.tsx) ---");
-    console.log("USER DETAILS:", { uid: user?.uid, role: userDetails?.role });
-    console.log("EVENT TO DELETE:", { 
-        id: selectedEvent?.id, 
-        dj_id: selectedEvent?.dj_id,
-        linkedEventId: selectedEvent?.linkedEventId
-    });
-    toast({
-        variant: "default",
-        title: "MODO DEBUG: Exclusão interceptada",
-        description: "Verifique o console do navegador para informações.",
-        duration: 8000
-    });
-    console.log("Simulating delete action. No database call will be made.");
-    setIsDeleteConfirmOpen(false);
-    setSelectedEvent(null);
-    return;
-    // --- END DEBUGGING ---
-
-
-    // if (!selectedEvent || !db || !userDetails) return;
+    if (!selectedEvent || !db || !userDetails) return;
   
-    // setIsSubmitting(true);
-    // try {
-    //   // Admin/Partners can unlink the other event. DJs cannot and should not need to.
-    //   if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
-    //     try {
-    //       const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
-    //       await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
-    //     } catch (e) {
-    //       console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
-    //       // Non-fatal, we still want to delete the main event.
-    //     }
-    //   }
+    setIsSubmitting(true);
+    try {
+      // Admin/Partners can unlink the other event. DJs cannot and should not need to.
+      if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
+        try {
+          const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
+          await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+        } catch (e) {
+          console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
+          // Non-fatal, we still want to delete the main event.
+        }
+      }
   
-    //   // Now, delete the selected event.
-    //   await deleteDoc(doc(db, 'events', selectedEvent.id));
+      // Now, delete the selected event.
+      await deleteDoc(doc(db, 'events', selectedEvent.id));
       
-    //   toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
-    //   fetchAllData();
-    //   setIsDeleteConfirmOpen(false);
-    //   setSelectedEvent(null);
-    // } catch (error) {
-    //   console.error("Error deleting event: ", error);
-    //   toast({ variant: 'destructive', title: 'Erro ao excluir evento', description: (error as Error).message });
-    // } finally {
-    //   setIsSubmitting(false);
-    // }
+      toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
+      fetchAllData();
+      setIsDeleteConfirmOpen(false);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error("Error deleting event: ", error);
+      toast({ variant: 'destructive', title: 'Erro ao excluir evento', description: (error as Error).message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSuccessfulProofUpload = (updatedEvent: Event) => {
@@ -612,5 +591,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    
