@@ -1,58 +1,76 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ⚠️ DEBUG TEMPORÁRIO: libera DELETE em qualquer documento autenticado
-    match /{document=**} {
-      allow delete: if request.auth != null;
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
     }
-
     function isOwner(userId) {
       return request.auth.uid == userId;
+    }
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isAdmin() {
+      return isSignedIn() && getRole() == 'admin';
+    }
+    function isPartner() {
+      return isSignedIn() && getRole() == 'partner';
+    }
+    function isDJ() {
+        return isSignedIn() && getRole() == 'dj';
     }
     
     // 🔐 USERS COLLECTION
     // Rules for accessing user profile data.
     match /users/{userId} {
-      allow get: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
-      allow list: if request.auth.token.role in ['admin', 'partner'];
+      allow get: if isSignedIn() && (isAdmin() || isPartner() || isOwner(userId));
+      allow list: if isSignedIn() && (isAdmin() || isPartner());
       allow create: if isOwner(userId);
-      allow update: if request.auth.token.role in ['admin', 'partner'] || isOwner(userId);
+      allow update: if isSignedIn() && (isAdmin() || isPartner() || isOwner(userId));
       allow delete: if false; // Deleting users is disallowed from the client for safety.
     }
 
     // 🔐 EVENTS COLLECTION
     // Rules for accessing event data.
     match /events/{eventId} {
-      allow read, write: if request.auth != null;
+      // READ: Admin/Partner can read any event. DJ can only read their own.
+      allow read: if isSignedIn() 
+        && (isAdmin() || isPartner() || (isDJ() && resource.data.dj_id == request.auth.uid));
+
+      // LIST: Any signed-in user can list events, client-side queries must filter for their own events if they are a DJ.
+      allow list: if isSignedIn() && (isAdmin() || isPartner() || isDJ());
+
+      // CREATE: Any signed-in Admin, Partner, or DJ can create an event.
+      allow create: if isSignedIn() && (isAdmin() || isPartner() || isDJ());
+
+      // UPDATE: Admin/Partner can update any event. DJ can only update their own.
+      allow update: if isSignedIn() 
+        && (isAdmin() || isPartner() || (isDJ() && resource.data.dj_id == request.auth.uid));
+
+      // DELETE: Admin/Partner can delete any event. DJ can only delete their own.
+      allow delete: if isSignedIn() 
+        && (isAdmin() || isPartner() || (isDJ() && resource.data.dj_id == request.auth.uid));
     }
     
     // 🔐 SETTLEMENTS COLLECTION
     // Rules for financial settlement documents.
     match /settlements/{settlementId} {
         // READ: Admins/partners can read any settlement. DJs can only read their own.
-       allow read: if request.auth.token.role in ['admin', 'partner'] || 
-                   (request.auth.token.role == 'dj' && resource.data.djId == request.auth.uid);
-       // LIST: Admins/partners can list all settlements. DJs can list to find their own.
-       // The client-side query for DJs MUST include `where('djId', '==', auth.uid)`.
-       allow list: if request.auth.token.role in ['admin', 'partner', 'dj'];
+       allow read: if isSignedIn() && (isAdmin() || isPartner() || (isDJ() && resource.data.djId == request.auth.uid));
+       // LIST: Admins/partners can list all. DJs can list to find their own.
+       allow list: if isSignedIn() && (isAdmin() || isPartner() || isDJ());
        // WRITE (Create, Update, Delete): Only admins and partners can manage settlements.
-      allow write: if request.auth.token.role in ['admin', 'partner'];
+      allow write: if isSignedIn() && (isAdmin() || isPartner());
     }
 
     // 🔐 AGENCY ACCOUNTS COLLECTION
     // Rules for the agency's bank account information.
     match /agency_accounts/{accountId} {
       // Only admins and partners can read or write agency account details.
-      allow read, write: if request.auth.token.role in ['admin', 'partner'];
-    }
-
-    // 🔒 FALLBACK RULE
-    // Explicitly deny all other access to prevent accidental exposure of data.
-    match /{path=**} {
-      allow read, write: if false;
+      allow read, write: if isSignedIn() && (isAdmin() || isPartner());
     }
   }
 }
