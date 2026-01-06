@@ -2,12 +2,54 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ATENÇÃO: Regras de segurança temporariamente relaxadas para migração de dados.
-    // Qualquer usuário autenticado pode ler e escrever em qualquer documento.
-    // RESTAURE AS REGRAS DE SEGURANÇA ORIGINAIS APÓS A MIGRAÇÃO!
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getRole(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getRole(request.auth.uid) == 'admin';
+    }
+
+    function isPartner() {
+      return isSignedIn() && getRole(request.auth.uid) == 'partner';
+    }
+
+    function isDj() {
+       return isSignedIn() && getRole(request.auth.uid) == 'dj';
+    }
+
+    // USER PROFILES
+    // Users can read/update their own profile. Admins/partners can read any profile and update any profile.
+    match /users/{userId} {
+      allow read, update: if (isSignedIn() && (isOwner(userId) || isAdmin() || isPartner()));
+      // Allow create for new users (though this is typically handled by trusted server code or first login)
+      allow create: if isSignedIn();
+    }
+
+    // AGENCY ACCOUNTS
+    // Only admins and partners can manage agency accounts.
+    match /agency_accounts/{accountId} {
+      allow read, create, update, delete: if isAdmin() || isPartner();
+    }
+
+    // EVENTS
+    // Admins/partners can do anything. DJs can create events and read/update events assigned to them.
+    match /events/{eventId} {
+      allow read: if (isAdmin() || isPartner()) || (isDj() && resource.data.dj_id == request.auth.uid);
+      allow create: if isAdmin() || isPartner() || isDj();
+      allow update: if (isAdmin() || isPartner()) || (isDj() && resource.data.dj_id == request.auth.uid);
+      // Deletion is admin/partner only for data integrity.
+      allow delete: if isAdmin() || isPartner();
     }
   }
 }

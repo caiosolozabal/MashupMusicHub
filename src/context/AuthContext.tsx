@@ -48,28 +48,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
-          setUserDetails(userDocSnap.data() as UserDetails);
+          setUserDetails({ uid: userDocSnap.id, ...userDocSnap.data() } as UserDetails);
         } else {
-          // If user exists in Auth but not Firestore, create a placeholder.
-          // This might happen on first login after migration if something went wrong.
-          console.warn(`User ${currentUser.uid} exists in Auth but not in Firestore. Creating a default profile.`);
-          const newUserDetails: UserDetails = {
-            uid: currentUser.uid,
-            email: currentUser.email,
-            displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Novo Usuário',
-            role: null, // Critical: role is null until assigned by an admin
-            dj_percentual: 0.7,
-            rental_percentual: 0.2,
-            dj_color: generateRandomPastelColor(),
-            pode_locar: false,
-          };
-          try {
-            await setDoc(userDocRef, { ...newUserDetails, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-            setUserDetails(newUserDetails);
-          } catch (error) {
-             console.error("Failed to create user profile in Firestore:", error);
-             setUserDetails(null); // Explicitly set to null on failure
-          }
+          // This case should not happen after migration, but it's a safeguard.
+          // It means the user is authenticated but has no profile in the database.
+          console.warn(`User ${currentUser.uid} exists in Auth but not in Firestore. They will have no role.`);
+          setUserDetails(null); // Set to null to indicate no permissions
         }
       } else {
         setUser(null);

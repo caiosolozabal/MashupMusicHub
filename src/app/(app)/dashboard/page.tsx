@@ -213,22 +213,6 @@ export default function DashboardPage() {
         </p>
       </div>
 
-       {eventCount === 0 && userDetails?.role !== 'dj' && (
-        <Card className="bg-primary/10 border-primary shadow-lg">
-          <CardHeader>
-            <CardTitle className="font-headline flex items-center gap-2"><UploadCloud className="h-6 w-6"/>Comece a Migração de Dados</CardTitle>
-            <CardDescription>
-              Seu novo projeto está pronto, mas o banco de dados está vazio. Use a ferramenta de migração para importar seus dados do projeto antigo.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild>
-              <Link href="/settings/migration">Ir para Ferramenta de Migração</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title} className="shadow-lg hover:shadow-xl transition-shadow duration-300">
