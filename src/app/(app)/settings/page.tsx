@@ -6,7 +6,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import UserManagementTab from '@/components/settings/UserManagementTab';
 import AgencyAccountsTab from '@/components/settings/AgencyAccountsTab';
 import { useAuth } from '@/hooks/useAuth';
-import { Building, Cog, Users } from 'lucide-react';
+import { Building, Cog, Users, UploadCloud } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { userDetails } = useAuth();
@@ -45,7 +46,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="user-management" className="w-full">
-        <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
           <TabsTrigger value="user-management">
             <Users className="mr-2 h-4 w-4" />
             Usuários
@@ -53,6 +54,12 @@ export default function SettingsPage() {
           <TabsTrigger value="agency-accounts">
             <Building className="mr-2 h-4 w-4" />
             Contas
+          </TabsTrigger>
+           <TabsTrigger value="migration" asChild>
+            <Link href="/settings/migration">
+                <UploadCloud className="mr-2 h-4 w-4" />
+                Migração
+            </Link>
           </TabsTrigger>
           <TabsTrigger value="general-settings">
             <Cog className="mr-2 h-4 w-4" />
@@ -87,6 +94,9 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        
+        {/* Migration content now lives on its own page, linked from the tab trigger */}
+        <TabsContent value="migration"></TabsContent>
 
         <TabsContent value="general-settings">
           <Card className="shadow-md">
@@ -105,5 +115,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    

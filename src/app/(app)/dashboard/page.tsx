@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap } from 'lucide-react';
+import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap, UploadCloud } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<StatCardData[]>([]);
   const [recentActivities, setRecentActivities] = useState<DashboardEvent[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<DashboardEvent[]>([]);
+  const [eventCount, setEventCount] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -72,6 +73,7 @@ export default function DashboardPage() {
         
         const eventsQuery = query(eventsCollectionRef, ...specificQueries);
         const eventsSnapshot = await getDocs(eventsQuery);
+        setEventCount(eventsSnapshot.size); // Set total count of events
         fetchedEvents = eventsSnapshot.docs.map(doc => {
           const data = doc.data();
           return {
@@ -204,6 +206,27 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {['admin', 'partner'].includes(userDetails?.role || '') && eventCount === 0 && (
+        <Card className="shadow-lg bg-secondary/50 border-accent/50 border-2">
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center">
+                    <UploadCloud className="mr-3 h-6 w-6 text-accent" />
+                    Importar Dados
+                </CardTitle>
+                <CardDescription>
+                    Seu banco de dados está vazio. Vá para a página de migração para importar os dados do seu projeto antigo.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild size="lg" variant="secondary">
+                    <Link href="/settings/migration">
+                        Ir para a Página de Migração
+                    </Link>
+                </Button>
+            </CardContent>
+        </Card>
+      )}
+
       {['admin', 'partner'].includes(userDetails?.role || '') && (
         <Card className="shadow-lg bg-secondary/50 border-primary/50 border-2">
             <CardHeader>
@@ -306,5 +329,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    

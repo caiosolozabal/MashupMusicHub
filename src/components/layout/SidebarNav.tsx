@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -7,7 +8,7 @@ import {
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, CalendarDays, Settings, DollarSign } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, DollarSign, DatabaseZap } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -15,15 +16,16 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  roles?: UserRole[]; 
+  roles?: UserRole[];
+  exact?: boolean; 
 }
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Painel', icon: LayoutDashboard, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
-  { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'] },
-  // The backup route is removed from here as it's now part of settings
+  { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'], exact: false },
+  { href: '/settings/backup', label: 'Backup (Migração)', icon: DatabaseZap, roles: ['admin', 'partner'] },
 ];
 
 export default function SidebarNav() {
@@ -54,20 +56,26 @@ export default function SidebarNav() {
 
   return (
     <SidebarMenu>
-      {navItems.filter(item => canView(item.roles)).map((item) => (
-        <SidebarMenuItem key={item.href}>
-          <Link href={item.href} >
-            <SidebarMenuButton
-              isActive={pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))}
-              tooltip={{ children: item.label, side: 'right', align: 'center' }}
-              aria-label={item.label}
-            >
-              <item.icon />
-              <span>{item.label}</span>
-            </SidebarMenuButton>
-          </Link>
-        </SidebarMenuItem>
-      ))}
+      {navItems.filter(item => canView(item.roles)).map((item) => {
+        const isActive = item.exact === false 
+          ? pathname.startsWith(item.href) 
+          : pathname === item.href;
+
+        return (
+          <SidebarMenuItem key={item.href}>
+            <Link href={item.href} >
+              <SidebarMenuButton
+                isActive={isActive}
+                tooltip={{ children: item.label, side: 'right', align: 'center' }}
+                aria-label={item.label}
+              >
+                <item.icon />
+                <span>{item.label}</span>
+              </SidebarMenuButton>
+            </Link>
+          </SidebarMenuItem>
+        )
+      })}
     </SidebarMenu>
   );
 }
