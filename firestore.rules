@@ -12,37 +12,30 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
     
-    // Function to get the user's data from their profile document.
-    // This is now safe because the rule on /users/{userId} allows a user to read their own document.
     function getUserData(userId) {
-      // Use exists() to avoid throwing an error if the document doesn't exist yet
-      return exists(/databases/$(database)/documents/users/$(userId)) ? get(/databases/$(database)/documents/users/$(userId)).data : null;
+      return get(/databases/$(database)/documents/users/$(userId)).data;
     }
     
     function isAdmin() {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && userData != null && userData.role == 'admin';
+      // Check for document existence before accessing data
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData(request.auth.uid).role == 'admin';
     }
 
     function isPartner() {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && userData != null && userData.role == 'partner';
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData(request.auth.uid).role == 'partner';
     }
 
     function isDj() {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && userData != null && userData.role == 'dj';
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData(request.auth.uid).role == 'dj';
     }
 
     // --- Security Rules ---
 
     // USER PROFILES (/users/{userId})
-    // CRITICAL RULE: A user can ALWAYS read their OWN profile. This breaks the Catch-22.
-    // An admin or partner can also read ANY profile.
-    // Users can write to their own profile. Admin/Partner can write to any.
     match /users/{userId} {
-      allow read: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
-      allow list: if isAdmin() || isPartner(); // Allow admins/partners to list all users
+      // ANY authenticated user can read ANY profile during this phase to verify roles.
+      // A user can always write to their own profile. Admins/Partners can write to any.
+      allow read, list: if isSignedIn(); 
       allow write: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
     }
 
