@@ -14,27 +14,31 @@ service cloud.firestore {
 
     // Function to get the user's role from their profile document.
     // This is the core of our role-based access control.
-    function getUserRole(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data.role;
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    
+    function isRole(role) {
+        return isSignedIn() && getUserData(request.auth.uid).role == role;
     }
 
     function isAdmin() {
-      return isSignedIn() && getUserRole(request.auth.uid) == 'admin';
+      return isRole('admin');
     }
 
     function isPartner() {
-        return isSignedIn() && getUserRole(request.auth.uid) == 'partner';
+        return isRole('partner');
     }
     
     function isDj() {
-      return isSignedIn() && getUserRole(request.auth.uid) == 'dj';
+      return isRole('dj');
     }
 
     // SECURITY RULES
 
     // USER PROFILES (/users/{userId})
-    // Users can read their own profile. This is CRUCIAL to break the Catch-22.
-    // Admins and Partners can read any profile and list all users.
+    // Crucial Rule: A user can always read their OWN profile. This breaks the Catch-22.
+    // Admins and Partners can read ANY profile and list all users.
     // Users can update their own profile. Admins/Partners can update any.
     match /users/{userId} {
       allow read: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
@@ -44,11 +48,10 @@ service cloud.firestore {
 
     // EVENTS (/events/{eventId})
     // Admins/Partners can read/write all events.
-    // DJs can only read events where their ID is listed.
+    // DJs can only read events where their ID is listed in the 'dj_id' field.
     match /events/{eventId} {
-      allow read: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
-      allow list: if isAdmin() || isPartner() || isDj();
-      allow create, update, delete: if isAdmin() || isPartner();
+      allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
+      allow create, update, delete: if isAdmin() || isPartner() || (isDj() && request.auth.uid == request.resource.data.dj_id);
     }
     
     // AGENCY ACCOUNTS (/agency_accounts/{accountId})

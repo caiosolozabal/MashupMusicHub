@@ -24,7 +24,6 @@ const navItems: NavItem[] = [
   { href: '/events', label: 'Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
-  { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'], exact: false },
 ];
 
 export default function SidebarNav() {
@@ -45,7 +44,7 @@ export default function SidebarNav() {
   if (loading) {
     return (
        <SidebarMenu>
-        {[...Array(5)].map((_, i) => (
+        {[...Array(4)].map((_, i) => (
           <SidebarMenuItem key={i} >
             <SidebarMenuButton disabled className="h-8 w-full bg-muted/50 animate-pulse">
             </SidebarMenuButton>

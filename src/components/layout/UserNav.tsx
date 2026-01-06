@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -78,21 +77,6 @@ export default function UserNav() {
             </p>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link href="/settings/profile"> {/* TODO: Create profile page */}
-              <User className="mr-2 h-4 w-4" />
-              <span>Perfil</span>
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/settings">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Configurações</span>
-            </Link>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />

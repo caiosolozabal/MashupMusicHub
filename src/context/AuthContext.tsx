@@ -81,7 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setLoading(false);
       }
     }
-  }, [user, loading]); // This effect runs whenever the `user` object changes
+  }, [user]); // This effect runs whenever the `user` object changes
 
   const value = useMemo(() => ({
     user,
