@@ -29,11 +29,12 @@ const DEFAULT_PASSWORD = 'Mashup';
 
 export default function MigrationPage() {
     const { toast } = useToast();
-    const [isMigrating, setIsMigrating] = useState(false);
+    const [isMigratingUsers, setIsMigratingUsers] = useState(false);
+    const [isSyncingEvents, setIsSyncingEvents] = useState(false);
     const [migrationLog, setMigrationLog] = useState<string[]>([]);
 
-    const handleMigration = async () => {
-        setIsMigrating(true);
+    const handleUserMigration = async () => {
+        setIsMigratingUsers(true);
         setMigrationLog([]);
 
         const log = (message: string) => {
@@ -43,10 +44,10 @@ export default function MigrationPage() {
 
         log('--- INICIANDO MIGRAÇÃO DE USUÁRIOS ---');
 
-        if (!auth.currentUser || (auth.currentUser.email !== 'caiozz_lj@hotmail.com' && auth.currentUser.email !== 'lucas@mashupmusic.com.br')) {
+        if (!auth.currentUser || (auth.currentUser.email !== 'caiozz_lj@hotmail.com' && auth.currentUser.email !== 'lucaspostigo@gmail.com')) {
             log('ERRO: Apenas os administradores principais podem rodar a migração.');
             toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você precisa estar logado como um administrador principal.' });
-            setIsMigrating(false);
+            setIsMigratingUsers(false);
             return;
         }
         
@@ -56,7 +57,6 @@ export default function MigrationPage() {
         for (const userToMigrate of usersToMigrate) {
             log(`\nProcessando: ${userToMigrate.displayName} (${userToMigrate.email})`);
 
-            // Pular a criação da sua própria conta de admin para não resetar sua senha
             if (userToMigrate.email === mainAdminEmail) {
                 log(`- Usuário ${userToMigrate.displayName} é o admin logado. Pulando criação no Auth.`);
                 log(`- Garantindo que o perfil do Firestore para ${userToMigrate.displayName} (UID: ${auth.currentUser.uid}) esteja correto...`);
@@ -64,43 +64,38 @@ export default function MigrationPage() {
                 try {
                     const userRef = doc(db, 'users', auth.currentUser.uid);
                     await setDoc(userRef, {
-                        ...userToMigrate, // Use all data from the provided JSON
-                        uid: auth.currentUser.uid, // Ensure the correct UID is set
+                        ...userToMigrate,
+                        uid: auth.currentUser.uid,
                     }, { merge: true });
                      log(`- SUCESSO: Perfil do admin principal verificado/atualizado no Firestore.`);
                 } catch(e: any) {
                     log(`- ERRO ao atualizar perfil do admin principal: ${e.message}`);
                 }
 
-                if(!mainAdminOriginalPassword) { // Prompt only once
+                if(!mainAdminOriginalPassword) {
                   mainAdminOriginalPassword = prompt('Para segurança, re-insira sua senha de administrador para continuar e re-autenticar após a migração.') || '';
                 }
                 continue; 
             }
             
             try {
-                // 1. Criar usuário no Firebase Auth
                 log(`- Tentando criar usuário no Firebase Auth...`);
                 const userCredential = await createUserWithEmailAndPassword(auth, userToMigrate.email, DEFAULT_PASSWORD);
                 const newUid = userCredential.user.uid;
                 await updateProfile(userCredential.user, { displayName: userToMigrate.displayName });
-                log(`- SUCESSO: Usuário criado no Auth com novo UID: ${newUid} e nome: ${userToMigrate.displayName}`);
-                log(`- Associação: ID Antigo: ${userToMigrate._id} -> NOVO UID: ${newUid}`);
+                log(`- SUCESSO: Usuário criado no Auth com novo UID: ${newUid}`);
 
-                // 2. Criar ou atualizar o documento do usuário no Firestore com o novo UID
                 const userRef = doc(db, 'users', newUid);
                 await setDoc(userRef, {
-                    ...userToMigrate, // Use all data from the provided JSON
-                    uid: newUid, // Overwrite with the new UID
+                    ...userToMigrate,
+                    uid: newUid,
                 }, { merge: true });
 
-                log(`- SUCESSO: Perfil criado/atualizado no Firestore para o UID: ${newUid}.`);
+                log(`- SUCESSO: Perfil criado/atualizado no Firestore para o UID: ${newUid}. ID Antigo: ${userToMigrate._id}`);
 
             } catch (error: any) {
                 if (error.code === 'auth/email-already-in-use') {
-                    log(`- INFO: O email ${userToMigrate.email} já existe no Firebase Auth. Pulando criação no Auth, mas tentando atualizar/verificar perfil no Firestore...`);
-                    // This is complex without a backend function to get user by email. 
-                    // For now, we log it. A manual check might be needed if profiles are out of sync for these users.
+                    log(`- INFO: O email ${userToMigrate.email} já existe. Pulando criação no Auth, mas tentando atualizar/verificar perfil no Firestore...`);
                 } else {
                     log(`- ERRO ao processar ${userToMigrate.displayName}: ${error.message}`);
                     toast({
@@ -112,7 +107,6 @@ export default function MigrationPage() {
             }
         }
         
-        // Re-autenticar o admin com a sua senha correta para restaurar o estado de login
         try {
             if(mainAdminOriginalPassword) {
                 log('\nTentando re-autenticar o administrador principal...');
@@ -126,36 +120,134 @@ export default function MigrationPage() {
         }
 
 
-        log('\n--- MIGRAÇÃO CONCLUÍDA ---');
-        toast({ title: 'Migração Concluída', description: 'Verifique o log para detalhes. É recomendado recarregar a página.' });
-        setIsMigrating(false);
+        log('\n--- MIGRAÇÃO DE USUÁRIOS CONCLUÍDA ---');
+        toast({ title: 'Migração de Usuários Concluída', description: 'Verifique o log para detalhes. O próximo passo é sincronizar os eventos.' });
+        setIsMigratingUsers(false);
     };
+
+    const handleEventSync = async () => {
+        setIsSyncingEvents(true);
+        const log = (message: string) => {
+            console.log(message);
+            setMigrationLog(prev => [...prev, message]);
+        };
+
+        log("\n--- INICIANDO SINCRONIZAÇÃO DE IDs DE EVENTOS ---");
+
+        try {
+            // 1. Criar mapa de ID antigo para novo UID
+            log("1. Buscando todos os usuários para criar o mapa de IDs...");
+            const usersQuery = query(collection(db, 'users'));
+            const usersSnapshot = await getDocs(usersQuery);
+            const idMap = new Map<string, string>();
+            usersSnapshot.forEach(doc => {
+                const userData = doc.data();
+                if (userData._id && userData.uid) {
+                    idMap.set(userData._id, userData.uid);
+                }
+            });
+            log(`- Mapa criado com ${idMap.size} usuários.`);
+            idMap.forEach((v, k) => log(`  - ${k} -> ${v}`));
+
+            // 2. Buscar todos os eventos
+            log("2. Buscando todos os eventos para atualização...");
+            const eventsRef = collection(db, 'events');
+            const eventsSnapshot = await getDocs(eventsRef);
+            log(`- ${eventsSnapshot.size} eventos encontrados.`);
+
+            // 3. Atualizar eventos em lotes (batches)
+            let batch = writeBatch(db);
+            let writeCount = 0;
+            let eventsUpdatedCount = 0;
+            const commitPromises = [];
+
+            for (const eventDoc of eventsSnapshot.docs) {
+                const eventData = eventDoc.data();
+                const oldDjId = eventData.dj_id;
+
+                if (oldDjId && idMap.has(oldDjId)) {
+                    const newUid = idMap.get(oldDjId)!;
+                    if (newUid !== oldDjId) {
+                        log(`- Evento "${eventData.nome_evento}" (${eventDoc.id}) precisa de atualização. DJ ID: ${oldDjId} -> ${newUid}`);
+                        const eventRef = doc(db, 'events', eventDoc.id);
+                        batch.update(eventRef, { dj_id: newUid });
+                        writeCount++;
+                        eventsUpdatedCount++;
+                    }
+                }
+
+                if (writeCount === 499) {
+                    log(`- Submetendo lote de ${writeCount} atualizações...`);
+                    commitPromises.push(batch.commit());
+                    batch = writeBatch(db);
+                    writeCount = 0;
+                }
+            }
+
+            if (writeCount > 0) {
+                log(`- Submetendo lote final de ${writeCount} atualizações...`);
+                commitPromises.push(batch.commit());
+            }
+            
+            await Promise.all(commitPromises);
+
+            log(`\n--- SINCRONIZAÇÃO CONCLUÍDA ---`);
+            log(`${eventsUpdatedCount} eventos foram atualizados.`);
+            if (eventsUpdatedCount === 0) {
+              log("Nenhum evento precisou de atualização. Parece que já estavam sincronizados!");
+            }
+            toast({ title: 'Sincronização Concluída!', description: `${eventsUpdatedCount} eventos foram atualizados com os novos IDs de DJ.` });
+
+        } catch (error: any) {
+            log(`ERRO GRAVE DURANTE A SINCRONIZAÇÃO: ${error.message}`);
+            toast({ variant: 'destructive', title: 'Erro na Sincronização', description: error.message });
+        } finally {
+            setIsSyncingEvents(false);
+        }
+    };
+
 
     return (
         <div className="space-y-6">
              <Card>
                 <CardHeader>
-                    <CardTitle className="font-headline">Migração de Usuários</CardTitle>
+                    <CardTitle className="font-headline">Migração de Dados</CardTitle>
                     <CardDescription>
-                        Esta ferramenta irá criar contas de autenticação para os usuários da lista
-                        e criar/vincular seus perfis no Firestore.
+                        Ferramentas para migrar usuários e sincronizar dados do sistema antigo para o novo.
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    <Alert variant="destructive">
-                        <AlertTitle>Aviso Importante!</AlertTitle>
-                        <AlertDescription>
-                            Execute esta operação apenas uma vez. Ela fará mudanças permanentes no seu banco de dados e sistema de autenticação.
-                            A senha padrão para todos os usuários criados será <strong>{DEFAULT_PASSWORD}</strong>. A senha do admin logado não será alterada, mas será solicitada para continuar.
-                        </AlertDescription>
-                    </Alert>
-                    <Button onClick={handleMigration} disabled={isMigrating}>
-                        {isMigrating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {isMigrating ? 'Migrando...' : 'Iniciar Migração de Usuários'}
-                    </Button>
+                <CardContent className="space-y-8">
+                    <div className="space-y-4 p-4 border rounded-lg">
+                        <h3 className="font-semibold text-lg">Passo 1: Migração de Usuários</h3>
+                        <Alert variant="destructive">
+                            <AlertTitle>Aviso Importante!</AlertTitle>
+                            <AlertDescription>
+                                Execute esta operação apenas uma vez. Ela criará contas de autenticação com a senha padrão <strong>{DEFAULT_PASSWORD}</strong>.
+                            </AlertDescription>
+                        </Alert>
+                        <Button onClick={handleUserMigration} disabled={isMigratingUsers || isSyncingEvents}>
+                            {isMigratingUsers && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isMigratingUsers ? 'Migrando...' : 'Iniciar Migração de Usuários'}
+                        </Button>
+                    </div>
+
+                     <div className="space-y-4 p-4 border rounded-lg">
+                        <h3 className="font-semibold text-lg">Passo 2: Sincronizar Eventos</h3>
+                        <Alert>
+                            <AlertTitle>Atenção!</AlertTitle>
+                            <AlertDescription>
+                                Execute este passo APÓS a migração de usuários ser concluída com sucesso. Isso atualizará todos os eventos para usar os novos IDs de DJ.
+                            </AlertDescription>
+                        </Alert>
+                        <Button onClick={handleEventSync} disabled={isMigratingUsers || isSyncingEvents} variant="secondary">
+                            {isSyncingEvents && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isSyncingEvents ? 'Sincronizando...' : 'Sincronizar IDs de Eventos'}
+                        </Button>
+                    </div>
+
                     {migrationLog.length > 0 && (
                         <div className="mt-4 p-4 bg-muted rounded-md max-h-96 overflow-y-auto">
-                            <h3 className="font-semibold mb-2">Log da Migração:</h3>
+                            <h3 className="font-semibold mb-2">Log da Operação:</h3>
                             <pre className="text-xs whitespace-pre-wrap">
                                 {migrationLog.join('\n')}
                             </pre>
@@ -166,5 +258,3 @@ export default function MigrationPage() {
         </div>
     );
 }
-
-    
