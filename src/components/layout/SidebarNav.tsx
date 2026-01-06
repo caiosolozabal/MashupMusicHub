@@ -17,7 +17,6 @@ interface NavItem {
   label: string;
   icon: React.ElementType;
   roles?: UserRole[]; 
-  isDev?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -25,7 +24,7 @@ const navItems: NavItem[] = [
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
   { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'] },
-  { href: '/backup', label: 'Backup (Migração)', icon: DownloadCloud, roles: ['admin', 'partner'], isDev: true },
+  { href: '/backup', label: 'Backup (Migração)', icon: DownloadCloud, roles: ['admin', 'partner'] },
 ];
 
 export default function SidebarNav() {
@@ -42,7 +41,7 @@ export default function SidebarNav() {
     // Optionally, show a skeleton or loading state for the nav
     return (
        <SidebarMenu>
-        {[...Array(3)].map((_, i) => (
+        {[...Array(4)].map((_, i) => (
           <SidebarMenuItem key={i} >
             <SidebarMenuButton disabled className="h-8 w-full opacity-50">
               <span className="w-4 h-4 bg-muted rounded-sm animate-pulse"></span>
