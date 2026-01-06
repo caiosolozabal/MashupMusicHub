@@ -18,33 +18,22 @@ let auth: Auth;
 let db: Firestore;
 let storage: FirebaseStorage;
 
-if (typeof window !== 'undefined') {
-  try {
-    if (!getApps().length) {
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = getApp();
+if (typeof window !== 'undefined' && !getApps().length) {
+    try {
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        storage = getStorage(app);
+    } catch(e) {
+        console.error("Firebase initialization failed", e);
     }
+} else if (typeof window !== 'undefined') {
+    app = getApp();
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
-  } catch (error: any) {
-    console.error('Firebase initialization failed. See details below.');
-    console.error('Error Name:', error.name);
-    console.error('Error Message:', error.message);
-    if (error.code) {
-      console.error('Error Code:', error.code);
-    }
-    console.error(
-      "----------------------------------------------------------------------------------\n" +
-      "Firebase Initialization Issue\n" +
-      "----------------------------------------------------------------------------------\n" +
-      "This might be due to missing Firebase environment variables (NEXT_PUBLIC_FIREBASE_*).\n" +
-      "Ensure your project is correctly set up and environment variables are loaded.\n" +
-      "----------------------------------------------------------------------------------"
-    );
-  }
 }
+
 
 // @ts-ignore
 export { app, auth, db, storage };
