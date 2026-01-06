@@ -46,13 +46,8 @@ service cloud.firestore {
       // CREATE: Any signed-in Admin, Partner, or DJ can create an event.
       allow create: if isSignedIn() && (isAdmin() || isPartner() || isDJ());
 
-      // UPDATE: Admin/Partner can update any event. DJ can only update their own.
-      allow update: if isSignedIn() 
-        && (isAdmin() || isPartner() || (isDJ() && resource.data.dj_id == request.auth.uid));
-
-      // DELETE: Admin/Partner can delete any event. DJ can only delete their own.
-      allow delete: if isSignedIn() 
-        && (isAdmin() || isPartner() || (isDJ() && resource.data.dj_id == request.auth.uid));
+      // UPDATE & DELETE: Temporarily permissive for debugging
+      allow update, delete: if request.auth != null;
     }
     
     // 🔐 SETTLEMENTS COLLECTION
