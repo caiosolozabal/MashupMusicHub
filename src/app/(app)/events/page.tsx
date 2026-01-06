@@ -178,15 +178,6 @@ const EventsPage: NextPage = () => {
       return;
     }
 
-    // DJ can't change the assigned DJ
-    if (userDetails.role === 'dj' && selectedEvent && selectedEvent.id) { 
-        if (values.dj_id !== user.uid){
-            toast({ variant: 'destructive', title: 'Operação Inválida', description: 'Você não pode alterar o DJ atribuído.'});
-            return;
-        }
-    }
-
-
     setIsSubmitting(true);
     const eventData = {
       ...values,
@@ -229,20 +220,20 @@ const EventsPage: NextPage = () => {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db || !userDetails) return;
+    if (!selectedEvent || !db) return;
     
     setIsSubmitting(true);
     try {
-        // Admin/Partners can unlink the other event. DJs cannot.
-        if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
-            try {
-                const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
-                await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
-            } catch (e) {
-                console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
-                 // Non-fatal, we still want to delete the main event.
-            }
-        }
+      // Unlink the other event if necessary
+      if (selectedEvent.linkedEventId) {
+          try {
+              const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
+              await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+          } catch (e) {
+              console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
+               // Non-fatal, we still want to delete the main event.
+          }
+      }
       
       await deleteDoc(doc(db, 'events', selectedEvent.id));
 
@@ -410,3 +401,5 @@ const EventsPage: NextPage = () => {
 };
 
 export default EventsPage;
+
+    

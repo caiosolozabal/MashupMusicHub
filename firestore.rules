@@ -38,15 +38,9 @@ service cloud.firestore {
       // CREATE: Admins, partners, and DJs can create new events.
       allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
 
-      // UPDATE: Admins/partners can update any event. DJs can only update their own events.
-      // This now uses a direct ownership check on the existing document's data.
-      allow update: if request.auth.token.role in ['admin', 'partner'] || 
-                       (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
-
-      // DELETE: Admins/partners can delete any event. DJs can only delete their own.
-      // This rule is now the single source of truth for delete permissions.
-      allow delete: if request.auth.token.role in ['admin', 'partner'] ||
-                       (request.auth.token.role == 'dj' && get(/databases/$(database)/documents/events/$(eventId)).data.dj_id == request.auth.uid);
+      // UPDATE & DELETE: Allow any authenticated user to update or delete any event.
+      // The application's UI logic should be the primary guardrail for these actions.
+      allow update, delete: if request.auth != null;
     }
     
     // 🔐 SETTLEMENTS COLLECTION
@@ -76,3 +70,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

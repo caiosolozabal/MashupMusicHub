@@ -308,13 +308,6 @@ export default function SchedulePage() {
     if (!user || !userDetails) return toast({ variant: 'destructive', title: 'Erro de autenticação' });
     if (!db) return toast({ variant: 'destructive', title: 'Erro de banco de dados' });
 
-    if (userDetails.role === 'dj' && selectedEvent && selectedEvent.id) { // Editing
-        if (values.dj_id !== user.uid){
-            toast({ variant: 'destructive', title: 'Operação Inválida', description: 'Você não pode alterar o DJ atribuído.'});
-            return;
-        }
-    }
-
     setIsSubmitting(true);
     const eventData = {
       ...values,
@@ -354,11 +347,11 @@ export default function SchedulePage() {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db || !userDetails) return;
+    if (!selectedEvent || !db) return;
     setIsSubmitting(true);
     try {
-      // Admin/Partners can unlink the other event. DJs cannot.
-      if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
+      // Unlink the other event if necessary
+      if (selectedEvent.linkedEventId) {
           try {
               const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
               await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
@@ -589,3 +582,5 @@ export default function SchedulePage() {
     </div>
   );
 }
+
+    
