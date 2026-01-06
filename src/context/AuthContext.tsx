@@ -4,7 +4,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { ReactNode } from 'react';
 import { createContext, useEffect, useState, useMemo } from 'react';
-import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
 
 // Define user roles for Mashup Music
@@ -30,46 +30,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      setLoading(true);
+    console.log('[DEBUG AuthContext] Setting up onAuthStateChanged listener...');
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setLoading(true); // Always loading when auth state changes
+      console.log('[DEBUG AuthContext] Auth state changed. currentUser:', currentUser ? currentUser.uid : null);
 
       if (currentUser) {
-        // User is logged in, now fetch their profile from Firestore.
-        try {
-          const userDocRef = doc(db, 'users', currentUser.uid);
-          // Use onSnapshot to listen for real-time changes
-          const unsubscribeFirestore = onSnapshot(userDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-              setUserDetails({ uid: docSnap.id, ...docSnap.data() } as UserDetails);
-            } else {
-              // This can happen if the user exists in Auth but not in Firestore DB
-              console.warn(`User profile for ${currentUser.uid} not found in Firestore.`);
-              setUserDetails(null);
-            }
-            setLoading(false);
-          }, (error) => {
-            console.error("Error fetching user profile with onSnapshot:", error);
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        console.log(`[DEBUG AuthContext] User logged in. Subscribing to Firestore doc: ${userDocRef.path}`);
+        
+        const unsubscribeFirestore = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = { uid: docSnap.id, ...docSnap.data() } as UserDetails;
+            console.log('[DEBUG AuthContext] SUCCESS: Firestore document found. UserDetails:', data);
+            setUserDetails(data);
+          } else {
+            console.error(`[DEBUG AuthContext] FATAL: User profile for ${currentUser.uid} not found in Firestore.`);
             setUserDetails(null);
-            setLoading(false);
-          });
-          
-          // Return the firestore unsubscribe function to be called on cleanup
-          return unsubscribeFirestore;
-
-        } catch (error) {
-          console.error("Error setting up user profile listener:", error);
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error("[DEBUG AuthContext] FATAL: Error fetching user profile with onSnapshot:", error);
           setUserDetails(null);
           setLoading(false);
+        });
+        
+        return () => {
+          console.log(`[DEBUG AuthContext] Cleanup: Unsubscribing from Firestore doc: ${userDocRef.path}`);
+          unsubscribeFirestore();
         }
       } else {
-        // User is logged out.
+        console.log('[DEBUG AuthContext] No user logged in. Clearing userDetails.');
         setUserDetails(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribeAuth();
+    return () => {
+      console.log('[DEBUG AuthContext] Cleanup: Unsubscribing from onAuthStateChanged.');
+      unsubscribeAuth();
+    };
   }, []);
 
   const value = useMemo(() => ({
@@ -78,6 +79,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loading,
     role: userDetails?.role ?? null,
   }), [user, userDetails, loading]);
+
+  console.log('[DEBUG AuthContext] Context value updated:', { loading: value.loading, role: value.role, user: value.user?.uid, userDetails: !!value.userDetails });
 
   return (
     <AuthContext.Provider value={value}>
