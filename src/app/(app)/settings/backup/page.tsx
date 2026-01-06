@@ -13,9 +13,10 @@ interface BackupData {
   users: object[];
   events: object[];
   agency_accounts: object[];
+  // Adicione outras coleções aqui se necessário
 }
 
-// Helper to convert Firestore Timestamps to ISO strings
+// Helper para converter Timestamps do Firestore para strings ISO 8601 legíveis
 const replacer = (key: string, value: any) => {
   if (value && typeof value === 'object' && value.hasOwnProperty('seconds') && value.hasOwnProperty('nanoseconds')) {
     const date = new Date(value.seconds * 1000 + value.nanoseconds / 1000000);
@@ -25,7 +26,7 @@ const replacer = (key: string, value: any) => {
 };
 
 
-export default function BackupTab() {
+export default function BackupPage() {
   const [backupData, setBackupData] = useState<BackupData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -46,14 +47,15 @@ export default function BackupTab() {
       for (const collectionName of collectionsToBackup) {
         const collRef = collection(db, collectionName);
         const snapshot = await getDocs(collRef);
+        // Mapeia os documentos e adiciona o ID a cada objeto
         data[collectionName as keyof BackupData] = snapshot.docs.map(doc => ({
-          _id: doc.id, // Add the document ID to the object
+          _id: doc.id,
           ...doc.data(),
         }));
       }
 
       setBackupData(data as BackupData);
-      toast({ title: 'Backup Gerado!', description: 'Os dados foram lidos com sucesso. Copie o conteúdo de cada caixa de texto abaixo.' });
+      toast({ title: 'Backup Gerado com Sucesso!', description: 'Copie e salve o conteúdo de cada caixa de texto abaixo em arquivos .json locais.' });
 
     } catch (error: any) {
       console.error('Error generating backup:', error);
@@ -78,13 +80,13 @@ export default function BackupTab() {
           <CardTitle className="font-headline text-2xl">Ferramenta de Backup Manual do Firestore</CardTitle>
           <CardDescription>
             Use esta página para extrair os dados do seu banco de dados (`listeiro-cf302`) em formato JSON.
-            Salve o conteúdo de cada caixa em um arquivo de texto separado (ex: `users.json`).
+            Clique no botão para carregar os dados das coleções e depois salve o conteúdo de cada caixa em um arquivo de texto separado (ex: `users.json`).
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button onClick={handleGenerateBackup} disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Gerar Backup Agora
+          <Button onClick={handleGenerateBackup} disabled={isLoading} size="lg">
+            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+            {isLoading ? 'Gerando Backup...' : 'Gerar Backup Agora'}
           </Button>
         </CardContent>
       </Card>
@@ -92,28 +94,28 @@ export default function BackupTab() {
       {isLoading && (
          <div className="flex justify-center items-center py-10">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-2">Lendo o banco de dados...</p>
+            <p className="ml-3 text-lg text-muted-foreground">Lendo o banco de dados...</p>
         </div>
       )}
 
       {backupData && (
         <div className="space-y-6">
           {Object.entries(backupData).map(([key, value]) => {
-            if (!Array.isArray(value)) return null; // Safety check
+            if (!Array.isArray(value)) return null; 
             const jsonString = JSON.stringify(value, replacer, 2);
             return (
               <Card key={key}>
                 <CardHeader>
                    <div className="flex justify-between items-center">
                     <CardTitle className="capitalize">{key} ({value.length} documentos)</CardTitle>
-                    <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(jsonString, key)}>Copiar</Button>
+                    <Button variant="outline" size="sm" onClick={() => handleCopyToClipboard(jsonString, key)}>Copiar JSON</Button>
                    </div>
                 </CardHeader>
                 <CardContent>
                   <Textarea
                     readOnly
                     value={jsonString}
-                    className="h-64 font-mono text-xs bg-muted/50"
+                    className="h-80 font-mono text-xs bg-muted/50"
                     placeholder={`Dados de ${key} aparecerão aqui...`}
                   />
                 </CardContent>
