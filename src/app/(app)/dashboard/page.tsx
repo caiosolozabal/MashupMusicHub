@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2 } from 'lucide-react';
+import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
@@ -204,6 +204,27 @@ export default function DashboardPage() {
         </p>
       </div>
 
+      {['admin', 'partner'].includes(userDetails?.role || '') && (
+        <Card className="shadow-lg bg-secondary/50 border-primary/50 border-2">
+            <CardHeader>
+                <CardTitle className="font-headline flex items-center">
+                    <DatabaseZap className="mr-3 h-6 w-6 text-primary" />
+                    Backup e Migração de Dados
+                </CardTitle>
+                <CardDescription>
+                    Acesse a ferramenta para extrair todos os dados do projeto 'listeiro-cf302' antes de migrarmos para o novo projeto.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Button asChild size="lg">
+                    <Link href="/settings/backup">
+                        Ir para a Página de Backup
+                    </Link>
+                </Button>
+            </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.title} className="shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -285,3 +306,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -5,9 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import UserManagementTab from '@/components/settings/UserManagementTab';
 import AgencyAccountsTab from '@/components/settings/AgencyAccountsTab';
 import { useAuth } from '@/hooks/useAuth';
-import { Building, Cog, Users, DatabaseZap } from 'lucide-react';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { Building, Cog, Users } from 'lucide-react';
 
 export default function SettingsPage() {
   const { userDetails } = useAuth();
@@ -44,25 +43,6 @@ export default function SettingsPage() {
           Gerencie usuários, dados da agência e outras configurações do sistema.
         </p>
       </div>
-
-       <Card className="shadow-lg bg-secondary/50">
-        <CardHeader>
-            <CardTitle className="font-headline flex items-center">
-                <DatabaseZap className="mr-3 h-6 w-6 text-primary" />
-                Backup e Migração de Dados
-            </CardTitle>
-            <CardDescription>
-                Acesse a ferramenta para extrair todos os dados do projeto 'listeiro-cf302' antes de migrarmos para o novo projeto.
-            </CardDescription>
-        </CardHeader>
-        <CardContent>
-            <Button asChild size="lg">
-                <Link href="/settings/backup">
-                    Ir para a Página de Backup
-                </Link>
-            </Button>
-        </CardContent>
-      </Card>
 
       <Tabs defaultValue="user-management" className="w-full">
         <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -125,3 +105,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
