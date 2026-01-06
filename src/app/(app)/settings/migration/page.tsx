@@ -11,18 +11,18 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfi
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
-// Dados CORRETOS dos usuários a serem migrados, baseados no seu arquivo users.json
+// Dados CORRETOS dos usuários a serem migrados, baseados no seu arquivo.
 const usersToMigrate = [
-    { old_id: "1", email: "caiozz_lj@hotmail.com", displayName: "Caiozz LJ", role: "admin" },
-    { old_id: "2", email: "lucas@mashupmusic.com.br", displayName: "Lucas", role: "admin" },
-    { old_id: "3", email: "thg@mashupmusic.com.br", displayName: "THG", role: "dj" },
-    { old_id: "4", email: "math@mashupmusic.com.br", displayName: "MATH", role: "dj" },
-    { old_id: "5", email: "andre@mashupmusic.com.br", displayName: "ANDRÉ", role: "dj" },
-    { old_id: "6", email: "vitor@mashupmusic.com.br", displayName: "VITOR", role: "dj" },
-    { old_id: "7", email: "filipe@mashupmusic.com.br", displayName: "FILIPE", role: "dj" },
-    { old_id: "8", email: "giulia@mashupmusic.com.br", displayName: "GIULIA", role: "dj" },
-    { old_id: "9", email: "contato@mashupmusic.com.br", displayName: "MASHUP", role: "partner" },
+  { "_id": "EHF5NOE47IUzfC2ikacf5la54Ar2", "email": "caiosolozabal@gmail.com", "displayName": "Solô", "role": "dj", "dj_percentual": 0.7, "rental_percentual": 0.8, "pode_locar": true, "dj_color": "hsl(195, 100%, 80%)", "pixKey": "48.716.222/0001-31" },
+  { "_id": "IJlQeKdjPeatJDlpZ2SB2mpbB8j2", "email": "djingridnepomuceno@gmail.com", "displayName": "Ingrid", "role": "dj", "dj_percentual": 0.75, "dj_color": "hsl(0, 90%, 85%)" },
+  { "_id": "MiHG3uIO77ZT5Q5E7NmiVXrS1jd2", "email": "pontes_wp@hotmail.com", "displayName": "pontes_wp", "role": "partner" },
+  { "_id": "SqDeLhNYLbOtItHXs3SkCUTf6sR2", "email": "lucaspostigo@gmail.com", "displayName": "Lucas Postigo", "role": "partner" },
+  { "_id": "WDWNdUrMcwUTj31eQorfOGL5Ii62", "email": "caiozz_lj@hotmail.com", "displayName": "Caio Solozabal", "role": "admin" },
+  { "_id": "fuzdD36MoARlNNnbtoC0T64k1C42", "email": "felipelidio@hotmail.com", "displayName": "Feeli", "role": "dj", "dj_percentual": 0.7, "dj_color": "hsl(260, 100%, 85%)" },
+  { "_id": "j2rhrlHKvvPuFH106cAVvPxdFC63", "email": "deejaypivete@gmail.com", "displayName": "Pivete", "role": "dj", "dj_percentual": 0.7, "dj_color": "hsl(90, 100%, 85%)" },
+  { "_id": "lqoYKLlSqqUXR8HkmPbXbXo7clG3", "email": "ynigri44@gmail.com", "displayName": "Yuri Hang", "role": "dj", "dj_percentual": 0.7, "dj_color": "hsl(300, 100%, 85%)" }
 ];
+
 
 const DEFAULT_PASSWORD = 'Mashup';
 
@@ -43,9 +43,9 @@ export default function MigrationPage() {
 
         log('--- INICIANDO MIGRAÇÃO DE USUÁRIOS ---');
 
-        if (!auth.currentUser || auth.currentUser.email !== 'caiozz_lj@hotmail.com') {
-            log('ERRO: Apenas o administrador principal (caiozz_lj@hotmail.com) pode rodar a migração.');
-            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você precisa estar logado como o administrador principal.' });
+        if (!auth.currentUser || (auth.currentUser.email !== 'caiozz_lj@hotmail.com' && auth.currentUser.email !== 'lucas@mashupmusic.com.br')) {
+            log('ERRO: Apenas os administradores principais podem rodar a migração.');
+            toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você precisa estar logado como um administrador principal.' });
             setIsMigrating(false);
             return;
         }
@@ -64,16 +64,17 @@ export default function MigrationPage() {
                 try {
                     const userRef = doc(db, 'users', auth.currentUser.uid);
                     await setDoc(userRef, {
-                        uid: auth.currentUser.uid,
-                        email: userToMigrate.email,
-                        displayName: userToMigrate.displayName,
-                        role: userToMigrate.role,
+                        ...userToMigrate, // Use all data from the provided JSON
+                        uid: auth.currentUser.uid, // Ensure the correct UID is set
                     }, { merge: true });
                      log(`- SUCESSO: Perfil do admin principal verificado/atualizado no Firestore.`);
                 } catch(e: any) {
                     log(`- ERRO ao atualizar perfil do admin principal: ${e.message}`);
                 }
-                mainAdminOriginalPassword = prompt('Por favor, para segurança, re-insira sua senha de administrador para continuar após a migração.') || '';
+
+                if(!mainAdminOriginalPassword) { // Prompt only once
+                  mainAdminOriginalPassword = prompt('Para segurança, re-insira sua senha de administrador para continuar e re-autenticar após a migração.') || '';
+                }
                 continue; 
             }
             
@@ -84,23 +85,22 @@ export default function MigrationPage() {
                 const newUid = userCredential.user.uid;
                 await updateProfile(userCredential.user, { displayName: userToMigrate.displayName });
                 log(`- SUCESSO: Usuário criado no Auth com novo UID: ${newUid} e nome: ${userToMigrate.displayName}`);
+                log(`- Associação: ID Antigo: ${userToMigrate._id} -> NOVO UID: ${newUid}`);
 
                 // 2. Criar ou atualizar o documento do usuário no Firestore com o novo UID
                 const userRef = doc(db, 'users', newUid);
                 await setDoc(userRef, {
-                    uid: newUid,
-                    email: userToMigrate.email,
-                    displayName: userToMigrate.displayName,
-                    role: userToMigrate.role,
-                }, { merge: true }); // Usar merge para não sobrescrever dados existentes como 'createdAt'
+                    ...userToMigrate, // Use all data from the provided JSON
+                    uid: newUid, // Overwrite with the new UID
+                }, { merge: true });
 
                 log(`- SUCESSO: Perfil criado/atualizado no Firestore para o UID: ${newUid}.`);
 
             } catch (error: any) {
                 if (error.code === 'auth/email-already-in-use') {
-                    log(`- INFO: O email ${userToMigrate.email} já existe no Firebase Auth. Pulando criação no Auth, mas tentando atualizar perfil no Firestore...`);
-                    // Se o usuário já existe, precisamos encontrar seu UID para garantir que o perfil do Firestore está correto.
-                    // Esta parte é complexa sem uma função de backend, então focaremos em garantir que os perfis sejam criados para novos usuários.
+                    log(`- INFO: O email ${userToMigrate.email} já existe no Firebase Auth. Pulando criação no Auth, mas tentando atualizar/verificar perfil no Firestore...`);
+                    // This is complex without a backend function to get user by email. 
+                    // For now, we log it. A manual check might be needed if profiles are out of sync for these users.
                 } else {
                     log(`- ERRO ao processar ${userToMigrate.displayName}: ${error.message}`);
                     toast({
@@ -137,8 +137,8 @@ export default function MigrationPage() {
                 <CardHeader>
                     <CardTitle className="font-headline">Migração de Usuários</CardTitle>
                     <CardDescription>
-                        Esta ferramenta irá criar contas de autenticação para os usuários antigos
-                        e vincular seus novos IDs aos perfis existentes no Firestore.
+                        Esta ferramenta irá criar contas de autenticação para os usuários da lista
+                        e criar/vincular seus perfis no Firestore.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -146,7 +146,7 @@ export default function MigrationPage() {
                         <AlertTitle>Aviso Importante!</AlertTitle>
                         <AlertDescription>
                             Execute esta operação apenas uma vez. Ela fará mudanças permanentes no seu banco de dados e sistema de autenticação.
-                            A senha padrão para todos os usuários criados será <strong>{DEFAULT_PASSWORD}</strong>. Sua senha de admin não será alterada, mas será solicitada para continuar.
+                            A senha padrão para todos os usuários criados será <strong>{DEFAULT_PASSWORD}</strong>. A senha do admin logado não será alterada, mas será solicitada para continuar.
                         </AlertDescription>
                     </Alert>
                     <Button onClick={handleMigration} disabled={isMigrating}>
@@ -166,3 +166,5 @@ export default function MigrationPage() {
         </div>
     );
 }
+
+    
