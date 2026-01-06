@@ -4,6 +4,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ⚠️ DEBUG TEMPORÁRIO: libera DELETE em qualquer documento autenticado
+    match /{document=**} {
+      allow delete: if request.auth != null;
+    }
+
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
@@ -21,21 +26,7 @@ service cloud.firestore {
     // 🔐 EVENTS COLLECTION
     // Rules for accessing event data.
     match /events/{eventId} {
-       // READ: Admins/partners can read any event. DJs can only read events they are assigned to.
-       allow read: if request.auth.token.role in ['admin', 'partner'] || 
-                     (request.auth.token.role == 'dj' && resource.data.dj_id == request.auth.uid);
-                     
-      // LIST: Admins/partners can list all events. DJs can list events to find their own.
-      // The client-side query for DJs MUST include `where('dj_id', '==', auth.uid)`.
-      allow list: if request.auth.token.role in ['admin', 'partner', 'dj'];
-
-      // CREATE: Admins, partners, and DJs can create new events.
-      allow create: if request.auth.token.role in ['admin', 'partner', 'dj'];
-
-      // UPDATE & DELETE: Allow any authenticated user to update or delete any event.
-      // This is a simplified rule to prevent permission errors.
-      // The application's UI logic is the primary guardrail for these actions.
-      allow update, delete: if request.auth != null;
+      allow read, write: if request.auth != null;
     }
     
     // 🔐 SETTLEMENTS COLLECTION
@@ -60,7 +51,7 @@ service cloud.firestore {
 
     // 🔒 FALLBACK RULE
     // Explicitly deny all other access to prevent accidental exposure of data.
-    match /{document=**} {
+    match /{path=**} {
       allow read, write: if false;
     }
   }

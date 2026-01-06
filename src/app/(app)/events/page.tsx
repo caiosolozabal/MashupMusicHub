@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { NextPage } from 'next';
@@ -18,6 +19,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EventForm, { type EventFormValues } from '@/components/events/EventForm';
 import EventView from '@/components/events/EventView';
 import { useAuth } from '@/hooks/useAuth';
+import { logFirebaseContext } from '@/lib/firebase/debug';
 
 
 const getDayOfWeek = (date: Date | undefined): string => {
@@ -87,6 +89,7 @@ const EventsPage: NextPage = () => {
         const data = docSnapshot.data();
         return {
           id: docSnapshot.id,
+          path: docSnapshot.ref.path, // ✅ Store the real path
           ...data,
           data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
           created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(data.created_at),
@@ -223,25 +226,20 @@ const EventsPage: NextPage = () => {
     
     setIsSubmitting(true);
     try {
-      // Unlink the other event if necessary - ONLY if admin/partner
-      if (selectedEvent.linkedEventId && (userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
-          try {
-              const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
-              await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
-          } catch (e) {
-              console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
-               // Non-fatal, we still want to delete the main event.
-          }
-      }
-      
-      await deleteDoc(doc(db, 'events', selectedEvent.id));
+      logFirebaseContext();
+
+      console.log("[Delete] selectedEvent.id:", selectedEvent.id);
+      console.log("[Delete] selectedEvent.path:", selectedEvent.path);
+
+      // ✅ Delete using the real document path
+      await deleteDoc(doc(db, selectedEvent.path));
 
       toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
       fetchEvents(); 
       setIsDeleteConfirmOpen(false);
       setSelectedEvent(null);
     } catch (error) {
-      console.error("Error deleting event: ", error);
+      console.error("Error deleting event:", error);
       toast({ variant: 'destructive', title: 'Erro ao excluir evento', description: (error as Error).message });
     } finally {
       setIsSubmitting(false);

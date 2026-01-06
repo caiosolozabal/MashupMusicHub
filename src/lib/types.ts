@@ -48,6 +48,7 @@ export interface EventFile {
 
 export interface Event {
   id: string;
+  path: string; // ✅ The real path of the document in Firestore
   data_evento: Date; // Stored as Firestore Timestamp, converted to Date on client
   horario_inicio?: string | null;
   horario_fim?: string | null;
