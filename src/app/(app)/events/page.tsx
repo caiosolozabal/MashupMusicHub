@@ -228,33 +228,54 @@ const EventsPage: NextPage = () => {
   };
 
   const handleDeleteEvent = async () => {
-    if (!selectedEvent || !db || !userDetails) return;
-    
-    setIsSubmitting(true);
-    try {
-        // Admin/Partners can unlink the other event. DJs cannot (and should not need to).
-        if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
-            try {
-                const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
-                await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
-            } catch (e) {
-                console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
-                 // Non-fatal, we still want to delete the main event.
-            }
-        }
-      
-      await deleteDoc(doc(db, 'events', selectedEvent.id));
+    // --- DEBUGGING ---
+    console.log("--- DEBUGGING DELETE (events/page.tsx) ---");
+    console.log("USER DETAILS:", { uid: user?.uid, role: userDetails?.role });
+    console.log("EVENT TO DELETE:", { 
+        id: selectedEvent?.id, 
+        dj_id: selectedEvent?.dj_id,
+        linkedEventId: selectedEvent?.linkedEventId
+    });
+    toast({
+        variant: "default",
+        title: "MODO DEBUG: Exclusão interceptada",
+        description: "Verifique o console do navegador para informações.",
+        duration: 8000
+    });
+    console.log("Simulating delete action. No database call will be made.");
+    setIsDeleteConfirmOpen(false);
+    setSelectedEvent(null);
+    return;
+    // --- END DEBUGGING ---
 
-      toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
-      fetchEvents(); 
-      setIsDeleteConfirmOpen(false);
-      setSelectedEvent(null);
-    } catch (error) {
-      console.error("Error deleting event: ", error);
-      toast({ variant: 'destructive', title: 'Erro ao excluir evento', description: (error as Error).message });
-    } finally {
-      setIsSubmitting(false);
-    }
+
+    // if (!selectedEvent || !db || !userDetails) return;
+    
+    // setIsSubmitting(true);
+    // try {
+    //     // Admin/Partners can unlink the other event. DJs cannot.
+    //     if ((userDetails?.role === 'admin' || userDetails?.role === 'partner') && selectedEvent.linkedEventId) {
+    //         try {
+    //             const otherEventRef = doc(db, 'events', selectedEvent.linkedEventId);
+    //             await updateDoc(otherEventRef, { linkedEventId: null, linkedEventName: null });
+    //         } catch (e) {
+    //             console.warn("Could not unlink the other event, it might have been deleted or permissions are insufficient.", e);
+    //              // Non-fatal, we still want to delete the main event.
+    //         }
+    //     }
+      
+    //   await deleteDoc(doc(db, 'events', selectedEvent.id));
+
+    //   toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
+    //   fetchEvents(); 
+    //   setIsDeleteConfirmOpen(false);
+    //   setSelectedEvent(null);
+    // } catch (error) {
+    //   console.error("Error deleting event: ", error);
+    //   toast({ variant: 'destructive', title: 'Erro ao excluir evento', description: (error as Error).message });
+    // } finally {
+    //   setIsSubmitting(false);
+    // }
   };
 
   const handleSuccessfulProofUpload = (updatedEvent: Event) => {
@@ -263,13 +284,6 @@ const EventsPage: NextPage = () => {
   };
 
   const canCreateEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner' || userDetails?.role === 'dj';
-  
-  const canEditSelectedEvent = (event: Event | null) => {
-    if (!event || !user || !userDetails) return false;
-    if (userDetails.role === 'admin' || userDetails.role === 'partner') return true;
-    if (userDetails.role === 'dj' && event.dj_id === user.uid) return true;
-    return false;
-  };
   
   return (
     <div className="space-y-8">
@@ -343,11 +357,9 @@ const EventsPage: NextPage = () => {
                         <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => handleOpenView(event.id)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {canEditSelectedEvent(event) && (
-                          <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => handleOpenEditForm(event)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => handleOpenEditForm(event)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => handleOpenDeleteConfirm(event)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
