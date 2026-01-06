@@ -18,8 +18,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EventForm, { type EventFormValues } from '@/components/events/EventForm';
 import EventView from '@/components/events/EventView';
 import { useAuth } from '@/hooks/useAuth';
-import { logFirebaseContext } from '@/lib/firebase/debug';
-
 
 const getDayOfWeek = (date: Date | undefined): string => {
   if (!date) return '';
@@ -63,15 +61,7 @@ const EventsPage: NextPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const fetchEvents = async () => {
-    console.log('[DEBUG EventsPage] fetchEvents triggered. Current state:', {
-      authLoading,
-      user: user?.uid,
-      userDetailsRole: userDetails?.role,
-      isDbAvailable: !!db,
-    });
-    
     if (authLoading || !user || !userDetails || !db) {
-      console.log('[DEBUG EventsPage] Aborting fetchEvents. Conditions not met.');
       setIsLoading(false);
       return;
     }
@@ -81,13 +71,10 @@ const EventsPage: NextPage = () => {
       let eventsQuery;
 
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-        console.log('[DEBUG EventsPage] User is admin/partner. Building query for ALL events.');
         eventsQuery = query(eventsCollectionRef, orderBy('data_evento', 'desc'));
       } else if (userDetails.role === 'dj') {
-        console.log(`[DEBUG EventsPage] User is DJ. Building query for DJ with ID: ${user.uid}`);
         eventsQuery = query(eventsCollectionRef, where('dj_id', '==', user.uid), orderBy('data_evento', 'desc'));
       } else {
-        console.warn('[DEBUG EventsPage] User has no valid role. No query will be executed.');
         setEvents([]);
         setIsLoading(false);
         toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver eventos.' });
@@ -95,7 +82,6 @@ const EventsPage: NextPage = () => {
       }
       
       const eventsSnapshot = await getDocs(eventsQuery);
-      console.log(`[DEBUG EventsPage] Firestore query executed. Found ${eventsSnapshot.docs.length} documents.`);
       const eventsList = eventsSnapshot.docs.map(docSnapshot => {
         const data = docSnapshot.data();
         return {
@@ -118,7 +104,7 @@ const EventsPage: NextPage = () => {
       });
       setEvents(eventsList);
     } catch (error) {
-      console.error("[DEBUG EventsPage] FATAL: Error fetching events: ", error);
+      console.error("Error fetching events: ", error);
       toast({ variant: 'destructive', title: 'Erro ao buscar eventos', description: (error as Error).message });
     } finally {
       setIsLoading(false);
@@ -237,11 +223,6 @@ const EventsPage: NextPage = () => {
     
     setIsSubmitting(true);
     try {
-      logFirebaseContext();
-
-      console.log("[Delete] selectedEvent.id:", selectedEvent.id);
-      console.log("[Delete] selectedEvent.path:", selectedEvent.path);
-
       // ✅ Delete using the real document path
       await deleteDoc(doc(db, selectedEvent.path));
 
