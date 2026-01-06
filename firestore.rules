@@ -33,12 +33,13 @@ service cloud.firestore {
     // SECURITY RULES
 
     // USER PROFILES (/users/{userId})
-    // Admins can see anyone's profile.
-    // Users can read and write their own profile.
+    // Users can read their own profile. This is CRUCIAL to break the Catch-22.
+    // Admins and Partners can read any profile and list all users.
+    // Users can update their own profile. Admins/Partners can update any.
     match /users/{userId} {
-      allow read: if isAdmin() || isPartner() || isOwner(userId);
-      allow write: if isAdmin() || isPartner() || isOwner(userId);
-      allow list: if isAdmin() || isPartner(); // Allows admins to list all users in settings
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
+      allow write: if isSignedIn() && (isOwner(userId) || isAdmin() || isPartner());
+      allow list: if isAdmin() || isPartner();
     }
 
     // EVENTS (/events/{eventId})
@@ -54,11 +55,6 @@ service cloud.firestore {
     // Only admins and partners can manage agency accounts.
     match /agency_accounts/{accountId} {
         allow read, list, create, update, delete: if isAdmin() || isPartner();
-    }
-    
-    // Default deny all other reads/writes
-    match /{path=**} {
-      allow read, write: if false;
     }
   }
 }
