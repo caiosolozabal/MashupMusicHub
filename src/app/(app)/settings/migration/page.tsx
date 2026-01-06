@@ -32,7 +32,6 @@ export default function MigrationPage() {
     const [isMigratingUsers, setIsMigratingUsers] = useState(false);
     const [isSyncingEvents, setIsSyncingEvents] = useState(false);
     const [migrationLog, setMigrationLog] = useState<string[]>([]);
-    const [mainAdminPassword, setMainAdminPassword] = useState('');
 
     const handleUserMigration = async () => {
         setIsMigratingUsers(true);
@@ -54,17 +53,6 @@ export default function MigrationPage() {
         }
 
         const mainAdminEmail = mainAdminAuth.email;
-        let adminPassword = mainAdminPassword;
-
-        if (mainAdminEmail && !adminPassword) {
-            adminPassword = prompt('Para segurança, re-insira sua senha de administrador para continuar e re-autenticar após a migração.') || '';
-            if (!adminPassword) {
-                log('ERRO: Senha do administrador não fornecida. Migração cancelada.');
-                setIsMigratingUsers(false);
-                return;
-            }
-            setMainAdminPassword(adminPassword);
-        }
 
         for (const userToMigrate of usersToMigrate) {
             log(`\nProcessando: ${userToMigrate.displayName} (${userToMigrate.email})`);
@@ -76,29 +64,23 @@ export default function MigrationPage() {
 
                 if (signInMethods.length > 0) {
                     log(`- INFO: O email ${userToMigrate.email} já existe. Pulando criação no Auth.`);
-                    // This is a simplification. For a real scenario, you'd need to properly get the UID.
-                    // Here, we're assuming the logged-in admin is one of the list, or we can't get other UIDs without admin SDK.
-                    // The best way is to attempt a login to get the user, but that's complex without passwords.
-                    // For this script, we'll focus on creating the Firestore doc.
                     
-                    // A workaround: find the user in firestore by email to get UID.
-                    const usersRef = collection(db, "users");
-                    const q = query(usersRef, where("email", "==", userToMigrate.email));
-                    const querySnapshot = await getDocs(q);
-
-                    if (!querySnapshot.empty) {
-                        userUid = querySnapshot.docs[0].id;
-                        log(`- INFO: Encontrado UID existente para ${userToMigrate.email}: ${userUid}`);
-                    } else if(userToMigrate.email === mainAdminEmail) {
+                    if(userToMigrate.email === mainAdminEmail) {
                         userUid = mainAdminAuth.uid;
                          log(`- INFO: Usando UID do admin logado para ${userToMigrate.email}: ${userUid}`);
-                    }
-                    else {
-                        // This case is tricky. The user exists in Auth but not in Firestore. 
-                        // The only way to get the UID on the client is to log them in.
-                        // We'll have to skip this user if we can't get the UID.
-                        log(`- AVISO: Usuário ${userToMigrate.email} existe no Auth mas não foi encontrado no Firestore. Não é possível obter o UID sem login. O perfil pode não ser criado/atualizado corretamente.`);
-                        continue;
+                    } else {
+                        // A workaround: find the user in firestore by email to get UID.
+                        const usersRef = collection(db, "users");
+                        const q = query(usersRef, where("email", "==", userToMigrate.email));
+                        const querySnapshot = await getDocs(q);
+
+                        if (!querySnapshot.empty) {
+                            userUid = querySnapshot.docs[0].id;
+                            log(`- INFO: Encontrado UID existente para ${userToMigrate.email}: ${userUid}`);
+                        } else {
+                            log(`- AVISO: Usuário ${userToMigrate.email} existe no Auth mas não foi encontrado no Firestore. Não é possível obter o UID sem login. O perfil pode não ser criado/atualizado corretamente.`);
+                            continue;
+                        }
                     }
 
                 } else {
@@ -128,17 +110,7 @@ export default function MigrationPage() {
             }
         }
         
-        try {
-            if(mainAdminEmail && adminPassword) {
-                log('\nTentando re-autenticar o administrador principal...');
-                await signInWithEmailAndPassword(auth, mainAdminEmail, adminPassword);
-                log('Re-autenticação do administrador bem-sucedida.');
-            }
-        } catch(e: any) {
-            log(`ERRO: Falha na re-autenticação do administrador: ${e.message}. Você pode precisar recarregar a página e fazer login novamente.`);
-        }
-
-
+        // No re-authentication needed if we don't sign out the admin
         log('\n--- MIGRAÇÃO DE USUÁRIOS CONCLUÍDA ---');
         toast({ title: 'Migração de Usuários Concluída', description: 'Verifique o log para detalhes. O próximo passo é sincronizar os eventos.' });
         setIsMigratingUsers(false);
