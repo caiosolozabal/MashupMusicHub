@@ -1,0 +1,505 @@
+{
+  "entities": {
+    "Event": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Event",
+      "type": "object",
+      "description": "Represents an event managed by Mashup Music Hub.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the event."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the event.",
+          "format": "date-time"
+        },
+        "dayOfWeek": {
+          "type": "string",
+          "description": "Day of the week the event takes place."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the event."
+        },
+        "venue": {
+          "type": "string",
+          "description": "Location or venue of the event."
+        },
+        "client": {
+          "type": "string",
+          "description": "Name of the client or contractor for the event."
+        },
+        "totalValue": {
+          "type": "number",
+          "description": "Total value of the event contract."
+        },
+        "downPayment": {
+          "type": "number",
+          "description": "Amount of the down payment received."
+        },
+        "paymentStatus": {
+          "type": "string",
+          "description": "Current payment status of the event (e.g., pending, paid, overdue)."
+        },
+        "accountId": {
+          "type": "string",
+          "description": "Reference to Account. (Relationship: Account 1:N Event). The account that received the value for the event."
+        },
+        "djIds": {
+          "type": "array",
+          "description": "References to DJs. (Relationship: DJ N:N Event). List of DJs assigned to the event.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "date",
+        "name",
+        "venue",
+        "client",
+        "totalValue",
+        "paymentStatus",
+        "accountId"
+      ]
+    },
+    "DJ": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DJ",
+      "type": "object",
+      "description": "Represents a DJ in the Mashup Music Hub agency.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DJ."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the DJ."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the DJ.",
+          "format": "email"
+        },
+        "percentage": {
+          "type": "number",
+          "description": "Percentage of event revenue the DJ receives."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "percentage"
+      ]
+    },
+    "Account": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Account",
+      "type": "object",
+      "description": "Represents a bank or payment account used for event transactions.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the account."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the account (e.g., Bank of America Checking)."
+        },
+        "accountNumber": {
+          "type": "string",
+          "description": "Account number."
+        },
+        "routingNumber": {
+          "type": "string",
+          "description": "Routing number for the account."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "accountNumber",
+        "routingNumber"
+      ]
+    },
+    "Settlement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Settlement",
+      "type": "object",
+      "description": "Represents a financial settlement for a DJ, generated for a specific period.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the settlement."
+        },
+        "djId": {
+          "type": "string",
+          "description": "Reference to DJ. (Relationship: DJ 1:N Settlement). The DJ this settlement is for."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date the settlement was generated.",
+          "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Total amount to be paid to the DJ."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Any notes or observations related to the settlement."
+        },
+        "receiptUrl": {
+          "type": "string",
+          "description": "URL of the uploaded payment receipt.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "djId",
+        "date",
+        "amount"
+      ]
+    },
+    "GuestList": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GuestList",
+      "type": "object",
+      "description": "Represents a guest list for an event.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the guest list."
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Reference to Event. (Relationship: Event 1:N GuestList). The event this guest list belongs to."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the guest list (e.g., Promoter VIP List)."
+        },
+        "value": {
+          "type": "number",
+          "description": "Value or price associated with the guest list entry."
+        },
+        "type": {
+          "type": "string",
+          "description": "Type of guest list (e.g., VIP, Complimentary)."
+        },
+        "checkInTimes": {
+          "type": "string",
+          "description": "Check-in times for the guest list.",
+          "format": "date-time"
+        },
+        "promoterId": {
+          "type": "string",
+          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N GuestList).  The promoter or user who owns this guest list.  Allows for permission control."
+        }
+      },
+      "required": [
+        "id",
+        "eventId",
+        "name"
+      ]
+    },
+    "Guest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Guest",
+      "type": "object",
+      "description": "Represents a guest on a guest list.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the guest."
+        },
+        "guestListId": {
+          "type": "string",
+          "description": "Reference to GuestList. (Relationship: GuestList 1:N Guest). The guest list this guest belongs to."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the guest."
+        },
+        "checkInTime": {
+          "type": "string",
+          "description": "Time the guest checked in.",
+          "format": "date-time"
+        },
+        "checkedInBy": {
+          "type": "string",
+          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Guest). The user who checked in the guest."
+        }
+      },
+      "required": [
+        "id",
+        "guestListId",
+        "name"
+      ]
+    },
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user profile within the Mashup Music Hub platform. Note: Does NOT store authentication credentials.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user profile."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user (e.g., admin, partner, dj, finance, manager/producer)."
+        },
+        "djId": {
+          "type": "string",
+          "description": "Reference to DJ. (Relationship: DJ 1:1 UserProfile).  If the user is a DJ, this is the reference to their DJ record."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "role"
+      ]
+    },
+    "Document": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Document",
+      "type": "object",
+      "description": "Represents a document associated with an event, stored in Firebase Storage.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the document."
+        },
+        "eventId": {
+          "type": "string",
+          "description": "Reference to Event. (Relationship: Event 1:N Document). The event this document is associated with."
+        },
+        "filename": {
+          "type": "string",
+          "description": "Original filename of the document."
+        },
+        "storageUrl": {
+          "type": "string",
+          "description": "URL of the document in Firebase Storage.",
+          "format": "uri"
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date and time the document was uploaded.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "eventId",
+        "filename",
+        "storageUrl",
+        "uploadDate"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}/profile",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profile information. Path-based ownership ensures that only the user can access their profile.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "roles_admin",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Indicates admin privileges for a user. Existence of a document grants admin access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}",
+        "definition": {
+          "entityName": "Event",
+          "schema": {
+            "$ref": "#/backend/entities/Event"
+          },
+          "description": "Stores event information. Includes denormalized 'members' map for authorization independence.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "The unique identifier for the event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/djs/{djId}",
+        "definition": {
+          "entityName": "DJ",
+          "schema": {
+            "$ref": "#/backend/entities/DJ"
+          },
+          "description": "Stores DJ information. Used to associate DJs with events and settlements.",
+          "params": [
+            {
+              "name": "djId",
+              "description": "The unique identifier for the DJ."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/djs/{djId}/settlements/{settlementId}",
+        "definition": {
+          "entityName": "Settlement",
+          "schema": {
+            "$ref": "#/backend/entities/Settlement"
+          },
+          "description": "Stores settlement information for DJs.  Path-based ownership ensures that only the DJ and authorized personnel can access the settlement data.",
+          "params": [
+            {
+              "name": "djId",
+              "description": "The unique identifier for the DJ."
+            },
+            {
+              "name": "settlementId",
+              "description": "The unique identifier for the settlement."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/guestLists/{guestListId}",
+        "definition": {
+          "entityName": "GuestList",
+          "schema": {
+            "$ref": "#/backend/entities/GuestList"
+          },
+          "description": "Stores guest lists owned by promoters. Includes denormalized 'promoterId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (promoter)."
+            },
+            {
+              "name": "guestListId",
+              "description": "The unique identifier for the guest list."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}/guestLists/{guestListId}",
+        "definition": {
+          "entityName": "GuestList",
+          "schema": {
+            "$ref": "#/backend/entities/GuestList"
+          },
+          "description": "Stores guest lists related to event. Includes denormalized 'eventId' for authorization independence.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "The unique identifier for the event."
+            },
+            {
+              "name": "guestListId",
+              "description": "The unique identifier for the guest list."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/guestLists/{guestListId}/guests/{guestId}",
+        "definition": {
+          "entityName": "Guest",
+          "schema": {
+            "$ref": "#/backend/entities/Guest"
+          },
+          "description": "Stores guests associated with a guest list.",
+          "params": [
+            {
+              "name": "guestListId",
+              "description": "The unique identifier for the guest list."
+            },
+            {
+              "name": "guestId",
+              "description": "The unique identifier for the guest."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}/documents/{documentId}",
+        "definition": {
+          "entityName": "Document",
+          "schema": {
+            "$ref": "#/backend/entities/Document"
+          },
+          "description": "Stores documents associated with an event.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "The unique identifier for the event."
+            },
+            {
+              "name": "documentId",
+              "description": "The unique identifier for the document."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/accounts/{accountId}",
+        "definition": {
+          "entityName": "Account",
+          "schema": {
+            "$ref": "#/backend/entities/Account"
+          },
+          "description": "Stores financial account information.  Access should be restricted to finance and admin roles.",
+          "params": [
+            {
+              "name": "accountId",
+              "description": "The unique identifier for the financial account."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the Mashup Music Hub application, focusing on secure, scalable, and maintainable data management. The design emphasizes authorization independence through denormalization, clear segregation of data based on access requirements, and consistent access modeling.  This design addresses the core features: user authentication with role-based access control, event management, DJ financial system, guest list management, and search/filtering capabilities.\n\nAuthorization Independence is achieved by denormalizing the 'promoterId' from the UserProfile document into the GuestList document, which allows for secure querying of guest lists based on the user's ID without needing to perform a `get()` operation on the UserProfile.  For collaborative scenarios, such as accessing events or DJ financial data, denormalization of membership is crucial to avoid reads in rules.  Since access to `Settlement` data is role-based and only for the user referenced in the `djId` field or for admins/finance users, no denormalization is required on `Settlement` documents.\n\nQAPs (Rules are not Filters) is achieved through Structural Segregation.  For example, user-specific guest lists are stored under `/users/{userId}/guestLists/{guestListId}`, while global event data is stored under `/events/{eventId}`.  This separation ensures that list operations can be performed securely without exposing unauthorized data.\n\nConsistent access modeling is applied throughout the structure. Private data related to users is stored under the `/users/{userId}` path, ensuring path-based ownership. Collaborative data, like events, leverages the denormalized 'members' map to define access control.\n\nTo support role-based access control, a dedicated collection `/roles_admin/{uid}` is used.  The existence of a document with the user's UID in this collection grants admin privileges, and this simplifies rules for admin-level access.\n\nThis structure supports all application use cases, including:\n\n*   **User Authentication and Roles**: User profiles are stored in `/users/{userId}/profile`, with a `role` field indicating their permissions. Admins can be identified via `/roles_admin/{userId}`.\n*   **Event Management**: Events are stored in `/events/{eventId}`.  DJ assignments are managed within the `event` document via the `djIds` property.\n*   **DJ Financial System**: Settlement documents are stored under `/djs/{djId}/settlements/{settlementId}`. This structure ensures that only the DJ and authorized personnel can access the settlement data.\n*   **Guest List Management**: Guest lists are stored under `/users/{userId}/guestLists/{guestListId}` for promoter-owned lists and `/events/{eventId}/guestLists/{guestListId}` for event-level lists. Guests are stored under `/guestLists/{guestListId}/guests/{guestId}`. The `promoterId` within the GuestList document allows the application to control access based on user roles.\n*   **Search and Filters**: The structure allows for efficient querying of events and guest lists using Firestore's indexing capabilities. Filters can be applied based on denormalized data, such as event status or guest list type."
+  }
+}
