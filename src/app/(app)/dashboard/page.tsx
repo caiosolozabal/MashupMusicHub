@@ -45,7 +45,7 @@ export default function DashboardPage() {
       setIsLoading(true);
       if (!db || !user || !userDetails) {
         console.error("Firestore, user, or userDetails not available for fetchData");
-        setIsLoading(false);
+        if (!authLoading) setIsLoading(false);
         const errorStats = [
           { title: 'Eventos', value: 'Erro', icon: CalendarClock, color: 'text-destructive' },
           { title: 'Métricas', value: 'Erro', icon: Users, color: 'text-destructive' },
@@ -74,17 +74,24 @@ export default function DashboardPage() {
         const eventsQuery = query(eventsCollectionRef, ...specificQueries);
         const eventsSnapshot = await getDocs(eventsQuery);
         setEventCount(eventsSnapshot.size); // Set total count of events
-        fetchedEvents = eventsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
-            created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date()),
-            updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate() : (data.updated_at ? new Date(data.updated_at) : new Date()),
-            dj_costs: data.dj_costs ?? 0,
-          } as Event;
-        });
+        if (eventsSnapshot.empty) {
+          setRecentActivities([]);
+          setUpcomingEvents([]);
+          // Handle stats for no events
+        } else {
+            fetchedEvents = eventsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
+                created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date()),
+                updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate() : (data.updated_at ? new Date(data.updated_at) : new Date()),
+                dj_costs: data.dj_costs ?? 0,
+            } as Event;
+            });
+        }
+        
 
         const activeEventsCount = fetchedEvents.length;
         const upcomingGigsCount = fetchedEvents.filter(event => event.data_evento > now).length;
@@ -205,6 +212,22 @@ export default function DashboardPage() {
           Aqui está uma visão geral das suas atividades e da agência.
         </p>
       </div>
+
+       {eventCount === 0 && userDetails?.role !== 'dj' && (
+        <Card className="bg-primary/10 border-primary shadow-lg">
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2"><UploadCloud className="h-6 w-6"/>Comece a Migração de Dados</CardTitle>
+            <CardDescription>
+              Seu novo projeto está pronto, mas o banco de dados está vazio. Use a ferramenta de migração para importar seus dados do projeto antigo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/settings/migration">Ir para Ferramenta de Migração</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (

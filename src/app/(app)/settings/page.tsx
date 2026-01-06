@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -46,7 +45,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="user-management" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
           <TabsTrigger value="user-management">
             <Users className="mr-2 h-4 w-4" />
             Usuários
@@ -54,6 +53,12 @@ export default function SettingsPage() {
           <TabsTrigger value="agency-accounts">
             <Building className="mr-2 h-4 w-4" />
             Contas
+          </TabsTrigger>
+           <TabsTrigger value="migration" asChild>
+            <Link href="/settings/migration">
+              <UploadCloud className="mr-2 h-4 w-4" />
+              Migração
+            </Link>
           </TabsTrigger>
           <TabsTrigger value="general-settings">
             <Cog className="mr-2 h-4 w-4" />
