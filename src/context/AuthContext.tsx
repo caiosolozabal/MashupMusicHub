@@ -4,7 +4,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { ReactNode } from 'react';
 import { createContext, useEffect, useState, useMemo } from 'react';
-import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
 
 // Define user roles for Mashup Music
@@ -14,7 +14,7 @@ interface AuthContextType {
   user: User | null;
   userDetails: UserDetails | null; 
   loading: boolean;
-  role: UserRole; // Kept for convenience, derived from userDetails.role
+  role: UserRole;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -32,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // This listener handles Firebase Authentication state changes
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      setLoading(true); // Always start loading when auth state changes
       setUser(currentUser);
       if (!currentUser) {
         // If user logs out, clear everything and stop loading
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // This listener handles Firestore user profile changes
     if (user) {
-      setLoading(true);
+      // Don't set loading to true here, auth state change already did
       const userDocRef = doc(db, 'users', user.uid);
       
       // onSnapshot listens for real-time updates to the user's profile
@@ -74,11 +75,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Cleanup the Firestore subscription when the user changes or component unmounts
       return () => unsubscribeFirestore();
     } else {
-      // No user, no need to listen to Firestore
-      setUserDetails(null);
-      setLoading(false);
+      // No user, no need to listen to Firestore, ensure loading is false
+      if (loading) { // Only update state if needed
+          setUserDetails(null);
+          setLoading(false);
+      }
     }
-  }, [user]); // This effect runs whenever the `user` object changes
+  }, [user, loading]); // This effect runs whenever the `user` object changes
 
   const value = useMemo(() => ({
     user,

@@ -3,7 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // HELPER FUNCTIONS
     function isSignedIn() {
       return request.auth != null;
     }
@@ -12,55 +12,53 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function getRole(userId) {
-      // Safely get role data, return null if user doc or role doesn't exist
+    // Function to get the user's role from their profile document.
+    // This is the core of our role-based access control.
+    function getUserRole(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.role;
     }
 
     function isAdmin() {
-      return isSignedIn() && getRole(request.auth.uid) == 'admin';
+      return isSignedIn() && getUserRole(request.auth.uid) == 'admin';
     }
 
     function isPartner() {
-      return isSignedIn() && getRole(request.auth.uid) == 'partner';
-    }
-
-    function isDj() {
-       return isSignedIn() && getRole(request.auth.uid) == 'dj';
-    }
-
-    // USER PROFILES
-    // Admins/Partners can read any profile. Users can read/update their own.
-    match /users/{userId} {
-      allow read: if (isSignedIn() && (isOwner(userId) || isAdmin() || isPartner()));
-      allow update: if (isSignedIn() && (isOwner(userId) || isAdmin() || isPartner()));
-      // Allow create for new users (though this is typically handled by trusted server code or first login)
-      allow create: if isSignedIn();
-    }
-
-    // Collection group query for users (used in settings)
-    match /{path=**}/users/{userId} {
-       allow list: if isAdmin() || isPartner();
+        return isSignedIn() && getUserRole(request.auth.uid) == 'partner';
     }
     
-
-    // AGENCY ACCOUNTS
-    // Only admins and partners can manage agency accounts.
-    match /agency_accounts/{accountId} {
-      allow read, list, create, update, delete: if isAdmin() || isPartner();
+    function isDj() {
+      return isSignedIn() && getUserRole(request.auth.uid) == 'dj';
     }
 
-    // EVENTS
-    // Admins/partners can read/write all events.
-    // DJs can read events assigned to them.
+    // SECURITY RULES
+
+    // USER PROFILES (/users/{userId})
+    // Admins can see anyone's profile.
+    // Users can read and write their own profile.
+    match /users/{userId} {
+      allow read: if isAdmin() || isPartner() || isOwner(userId);
+      allow write: if isAdmin() || isPartner() || isOwner(userId);
+      allow list: if isAdmin() || isPartner(); // Allows admins to list all users in settings
+    }
+
+    // EVENTS (/events/{eventId})
+    // Admins/Partners can read/write all events.
+    // DJs can only read events where their ID is listed.
     match /events/{eventId} {
-      // Read access
-      allow get: if (isAdmin() || isPartner()) || (isDj() && resource.data.dj_id == request.auth.uid);
-      allow list: if isAdmin() || isPartner() || isDj(); // DJ list queries are filtered in the app code
-      
-      // Write access
-      allow create, update: if isAdmin() || isPartner() || (isDj() && request.resource.data.dj_id == request.auth.uid);
-      allow delete: if isAdmin() || isPartner();
+      allow read: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
+      allow list: if isAdmin() || isPartner() || isDj();
+      allow create, update, delete: if isAdmin() || isPartner();
+    }
+    
+    // AGENCY ACCOUNTS (/agency_accounts/{accountId})
+    // Only admins and partners can manage agency accounts.
+    match /agency_accounts/{accountId} {
+        allow read, list, create, update, delete: if isAdmin() || isPartner();
+    }
+    
+    // Default deny all other reads/writes
+    match /{path=**} {
+      allow read, write: if false;
     }
   }
 }
