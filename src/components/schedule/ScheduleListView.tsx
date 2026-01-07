@@ -77,7 +77,7 @@ export default function ScheduleListView({
   
   const { user, userDetails } = useAuth();
   
-  const canEditEvent = (event: Event) => {
+  const canEditDeleteEvent = (event: Event) => {
     if (!event || !user || !userDetails) return false;
     if (userDetails.role === 'admin' || userDetails.role === 'partner') return true;
     if (userDetails.role === 'dj' && event.dj_id === user.uid) return true;
@@ -160,16 +160,16 @@ export default function ScheduleListView({
                 <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => onView(event)}>
                   <Eye className="h-4 w-4" />
                 </Button>
-                {canEditEvent(event) && (
+                {canEditDeleteEvent(event) && (
+                  <>
                   <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => onEdit(event)}>
                     <Edit className="h-4 w-4" />
                   </Button>
+                  <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => onDelete(event)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  </>
                 )}
-                
-                <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => onDelete(event)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-                
               </TableCell>
             </TableRow>
           )})}

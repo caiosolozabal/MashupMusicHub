@@ -245,6 +245,13 @@ const EventsPage: NextPage = () => {
 
   const canCreateEvents = userDetails?.role === 'admin' || userDetails?.role === 'partner' || userDetails?.role === 'dj';
   
+  const canEditDeleteEvent = (event: Event) => {
+    if (!user || !userDetails) return false;
+    if (userDetails.role === 'admin' || userDetails.role === 'partner') return true;
+    if (userDetails.role === 'dj' && event.dj_id === user.uid) return true;
+    return false;
+  };
+  
   return (
     <div className="space-y-8">
       <Card className="shadow-lg">
@@ -317,12 +324,16 @@ const EventsPage: NextPage = () => {
                         <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => handleOpenView(event.id)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => handleOpenEditForm(event)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => handleOpenDeleteConfirm(event)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {canEditDeleteEvent(event) && (
+                          <>
+                            <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => handleOpenEditForm(event)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => handleOpenDeleteConfirm(event)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

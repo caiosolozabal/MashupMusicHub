@@ -40,11 +40,15 @@ service cloud.firestore {
     }
 
     // EVENTS (/events/{eventId})
-    // Admins/Partners can read/write all events.
-    // DJs can only read/list events where their ID is in the 'dj_id' field.
     match /events/{eventId} {
+      // READ: Admins, partners, and the assigned DJ can read/list events.
       allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
-      allow create, update, delete: if isAdmin() || isPartner() || (isDj() && (request.resource.data.dj_id == request.auth.uid));
+      
+      // CREATE/UPDATE: Admins, partners, and a DJ creating/updating their own event.
+      allow create, update: if isAdmin() || isPartner() || (isDj() && request.resource.data.dj_id == request.auth.uid);
+      
+      // DELETE: Admins, partners, and the assigned DJ can delete their own event.
+      allow delete: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
     }
     
     // AGENCY ACCOUNTS (/agency_accounts/{accountId})
