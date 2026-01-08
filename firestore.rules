@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -56,6 +57,21 @@ service cloud.firestore {
     match /agency_accounts/{accountId} {
         allow read, write, create, update, delete: if isAdmin() || isPartner();
         allow list: if isAdmin() || isPartner();
+    }
+
+    // SETTLEMENTS (/settlements/{settlementId})
+    match /settlements/{settlementId} {
+      // CREATE: Only admins and partners can create settlements.
+      allow create: if isAdmin() || isPartner();
+
+      // READ: Admins, partners, and the specific DJ the settlement belongs to.
+      allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.djId == request.auth.uid);
+      
+      // UPDATE: Only admins and partners can update (e.g., mark as paid).
+      allow update: if isAdmin() || isPartner();
+      
+      // DELETE: Not recommended, but if necessary, restrict to admins.
+      allow delete: if isAdmin();
     }
   }
 }

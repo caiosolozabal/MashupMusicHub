@@ -102,7 +102,7 @@ export interface FinancialSettlement {
   };
   periodStart: Date | Timestamp;
   periodEnd: Date | Timestamp;
-  events: Event[]; // Array of event objects included in this settlement
+  events: string[]; // Array of event IDs included in this settlement
   summary: {
       totalEvents: number;
       grossRevenueInPeriod: number;

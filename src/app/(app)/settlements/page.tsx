@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Info, X } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
-import type { Event, UserDetails } from '@/lib/types';
+import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc } from 'firebase/firestore';
+import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -90,6 +90,7 @@ export default function SettlementsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Filters State
   const [selectedDjId, setSelectedDjId] = useState<string>('');
@@ -114,13 +115,14 @@ export default function SettlementsPage() {
       let djsPromise;
 
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-        eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
+        // Query for events that are "em aberto" (not yet linked to a settlement)
+        eventsQuery = query(collection(db, 'events'), where('settlementId', '==', null), orderBy('data_evento', 'asc'));
         const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
         djsPromise = getDocs(djsQuery).then(snapshot => 
           snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails))
         );
       } else if (userDetails.role === 'dj') {
-        eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
+        eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), where('settlementId', '==', null), orderBy('data_evento', 'asc'));
         djsPromise = Promise.resolve([userDetails]);
         setSelectedDjId(user.uid);
       } else {
@@ -189,7 +191,6 @@ export default function SettlementsPage() {
 
   const filteredEvents = useMemo(() => {
     if (!selectedDjId) {
-      setSelectedEventIds([]);
       return [];
     }
 
@@ -216,9 +217,15 @@ export default function SettlementsPage() {
       );
     }
     
-    setSelectedEventIds(filtered.map(e => e.id));
     return filtered;
   }, [events, selectedDjId, dateRange, searchTerm]);
+
+  // Reset selected events if the main filtered list changes
+  useEffect(() => {
+    const filteredIds = new Set(filteredEvents.map(e => e.id));
+    setSelectedEventIds(prev => prev.filter(id => filteredIds.has(id)));
+  }, [filteredEvents]);
+
 
   const eventsForCalculation = useMemo(() => {
     return filteredEvents.filter(event => selectedEventIds.includes(event.id));
@@ -259,7 +266,6 @@ export default function SettlementsPage() {
         return null;
     }
 
-
     let totalBruto = 0;
     let totalCustos = 0;
     let parcelaDjTotal = 0;
@@ -291,6 +297,75 @@ export default function SettlementsPage() {
     };
   }, [eventsForCalculation, selectedDjId, allDjs, toast, userDetails]);
 
+  const handleGenerateSettlement = async () => {
+    if (!user || !financialSummary || eventsForCalculation.length === 0 || !selectedDjId) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não é possível gerar o fechamento. Verifique os dados.'});
+      return;
+    }
+    setIsSubmitting(true);
+
+    const selectedDj = allDjs.find(dj => dj.uid === selectedDjId);
+    if (!selectedDj) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'DJ selecionado não encontrado.'});
+        setIsSubmitting(false);
+        return;
+    }
+
+    const batch = writeBatch(db);
+
+    // 1. Create the new settlement document
+    const settlementRef = doc(collection(db, 'settlements'));
+    const newSettlement: Omit<FinancialSettlement, 'id'> = {
+      djId: selectedDj.uid,
+      djName: selectedDj.displayName || '',
+      djDetails: {
+        bankName: selectedDj.bankName,
+        bankAgency: selectedDj.bankAgency,
+        bankAccount: selectedDj.bankAccount,
+        bankAccountType: selectedDj.bankAccountType,
+        bankDocument: selectedDj.bankDocument,
+        pixKey: selectedDj.pixKey
+      },
+      periodStart: dateRange?.from ? Timestamp.fromDate(dateRange.from) : Timestamp.now(),
+      periodEnd: dateRange?.to ? Timestamp.fromDate(dateRange.to) : Timestamp.now(),
+      events: eventsForCalculation.map(e => e.id),
+      summary: {
+        totalEvents: eventsForCalculation.length,
+        grossRevenueInPeriod: financialSummary.totalBruto,
+        djNetEntitlementInPeriod: financialSummary.parcelaDjTotal,
+        totalReceivedByDjInPeriod: financialSummary.totalRecebidoPeloDj,
+        djFinalBalanceInPeriod: financialSummary.saldoFinal,
+      },
+      status: 'pending',
+      generatedAt: Timestamp.now(),
+      generatedBy: user.uid,
+    };
+    batch.set(settlementRef, newSettlement);
+
+    // 2. Update each selected event to link it to the new settlement
+    for (const event of eventsForCalculation) {
+      const eventRef = doc(db, 'events', event.id);
+      batch.update(eventRef, { settlementId: settlementRef.id });
+    }
+
+    // 3. Commit the batch
+    try {
+      await batch.commit();
+      toast({
+        title: 'Fechamento Gerado!',
+        description: `O fechamento para ${selectedDj.displayName} foi criado com sucesso.`
+      });
+      // Refetch data to show the updated list of "open" events
+      fetchAllData();
+    } catch (error) {
+      console.error("Error generating settlement:", error);
+      toast({ variant: 'destructive', title: 'Erro ao Gerar Fechamento', description: (error as Error).message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+
   if (authLoading) {
     return (
         <div className="flex flex-col justify-center items-center h-64 space-y-3">
@@ -313,6 +388,8 @@ export default function SettlementsPage() {
      )
   }
 
+  const isActionAllowed = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+
   return (
     <div className="space-y-6">
       <Card className="shadow-lg">
@@ -321,9 +398,9 @@ export default function SettlementsPage() {
             <div>
                 <CardTitle className="font-headline text-2xl">Gerar Fechamentos</CardTitle>
                 <CardDescription>
-                  {userDetails?.role === 'dj' 
-                    ? 'Visualize seus eventos e o resumo financeiro para o período.'
-                    : 'Selecione um DJ e o período para gerar um novo fechamento.'
+                  {isActionAllowed
+                    ? 'Selecione um DJ, o período e os eventos para gerar um novo fechamento.'
+                    : 'Visualize seus eventos e o resumo financeiro para o período.'
                   }
                 </CardDescription>
             </div>
@@ -331,7 +408,7 @@ export default function SettlementsPage() {
         </CardHeader>
         <CardContent>
           <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
-            {userDetails?.role !== 'dj' && (
+            {isActionAllowed && (
               <div className="space-y-2 xl:col-span-1">
                   <label className="text-sm font-medium">DJ *</label>
                   <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
@@ -438,7 +515,7 @@ export default function SettlementsPage() {
                   </div>
                   <div>
                     <div className="flex items-center justify-center gap-1.5">
-                        <p className="text-sm text-muted-foreground">Sua Parcela Líquida</p>
+                        <p className="text-sm text-muted-foreground">Parcela Líquida do DJ</p>
                         <TooltipProvider>
                             <Tooltip>
                                 <TooltipTrigger>
@@ -453,19 +530,23 @@ export default function SettlementsPage() {
                     <p className="text-lg font-bold">{financialSummary.parcelaDjTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Valor que Você Recebeu</p>
+                    <p className="text-sm text-muted-foreground">Valor que o DJ Recebeu</p>
                     <p className="text-lg font-bold">{financialSummary.totalRecebidoPeloDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                    <div className={`p-2 rounded-md ${financialSummary.saldoFinal >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
-                    <p className="text-sm font-semibold">{financialSummary.saldoFinal >= 0 ? (userDetails?.role === 'dj' ? 'Você RECEBE' : 'A Agência PAGA') : (userDetails?.role === 'dj' ? 'Você PAGA' : 'O DJ PAGA')}</p>
+                    <p className="text-sm font-semibold">{financialSummary.saldoFinal >= 0 ? 'A Agência PAGA' : 'O DJ PAGA'}</p>
                     <p className={`text-xl font-bold ${financialSummary.saldoFinal >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
                       {Math.abs(financialSummary.saldoFinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
                   </div>
                 </div>
-                 {userDetails?.role !== 'dj' && (
+                 {isActionAllowed && (
                     <div className="flex justify-end pt-4">
-                        <Button disabled={eventsForCalculation.length === 0}>
+                        <Button 
+                          onClick={handleGenerateSettlement}
+                          disabled={eventsForCalculation.length === 0 || isSubmitting}
+                        >
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Gerar Fechamento
                         </Button>
                     </div>
@@ -483,21 +564,23 @@ export default function SettlementsPage() {
              </div>
           ) : !selectedDjId ? (
             <p className="text-muted-foreground text-center py-8">
-              {userDetails?.role === 'dj' ? 'Carregando seus dados...' : 'Por favor, selecione um DJ para visualizar os eventos.'}
+              {isActionAllowed ? 'Por favor, selecione um DJ para visualizar os eventos.' : 'Carregando seus dados...'}
             </p>
           ) : filteredEvents.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Nenhum evento encontrado para os filtros selecionados.</p>
+            <p className="text-muted-foreground text-center py-8">Nenhum evento em aberto encontrado para os filtros selecionados.</p>
           ) : (
              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                      <TableHead className="w-[50px]">
-                      <Checkbox
-                        checked={selectedEventIds.length === filteredEvents.length && filteredEvents.length > 0}
-                        onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                        aria-label="Selecionar todos"
-                      />
+                      {isActionAllowed && (
+                        <Checkbox
+                          checked={selectedEventIds.length === filteredEvents.length && filteredEvents.length > 0}
+                          onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                          aria-label="Selecionar todos"
+                        />
+                      )}
                     </TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Evento</TableHead>
@@ -517,11 +600,13 @@ export default function SettlementsPage() {
                     return(
                       <TableRow key={event.id} data-state={selectedEventIds.includes(event.id) ? 'selected' : ''}>
                          <TableCell>
-                          <Checkbox
-                            checked={selectedEventIds.includes(event.id)}
-                            onCheckedChange={() => handleSelectEvent(event.id)}
-                            aria-label={`Selecionar evento ${event.nome_evento}`}
-                          />
+                          {isActionAllowed && (
+                            <Checkbox
+                              checked={selectedEventIds.includes(event.id)}
+                              onCheckedChange={() => handleSelectEvent(event.id)}
+                              aria-label={`Selecionar evento ${event.nome_evento}`}
+                            />
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
@@ -557,5 +642,3 @@ export default function SettlementsPage() {
     </div>
   );
 }
-
-    
