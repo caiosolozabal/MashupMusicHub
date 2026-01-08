@@ -115,14 +115,13 @@ export default function SettlementsPage() {
       let djsPromise;
 
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-        // Query for events that are "em aberto" (not yet linked to a settlement)
-        eventsQuery = query(collection(db, 'events'), where('settlementId', '==', null), orderBy('data_evento', 'asc'));
+        eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
         const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
         djsPromise = getDocs(djsQuery).then(snapshot => 
           snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails))
         );
       } else if (userDetails.role === 'dj') {
-        eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), where('settlementId', '==', null), orderBy('data_evento', 'asc'));
+        eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
         djsPromise = Promise.resolve([userDetails]);
         setSelectedDjId(user.uid);
       } else {
@@ -194,7 +193,9 @@ export default function SettlementsPage() {
       return [];
     }
 
-    let filtered = events.filter(event => event.dj_id === selectedDjId);
+    let filtered = events.filter(event => 
+      event.dj_id === selectedDjId && !event.settlementId
+    );
     
     if (dateRange?.from) {
       const fromDate = startOfDay(dateRange.from); 
