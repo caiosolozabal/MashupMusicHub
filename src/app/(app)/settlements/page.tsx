@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Info, X } from 'lucide-react';
+import { Loader2, Info, X, AlertTriangle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc } from 'firebase/firestore';
 import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfDay, getYear, getMonth, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfDay, getYear, getMonth, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -24,6 +24,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { calculateDjCut } from '@/lib/utils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
@@ -66,6 +67,14 @@ interface FinancialSummary {
   totalRecebidoPeloDj: number;
   saldoFinal: number;
 }
+
+interface PendingPaymentsInfo {
+  totalPending: number;
+  totalOverdue: number;
+  pendingEvents: Event[];
+  overdueEvents: Event[];
+}
+
 
 const months = [
   { value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' }, { value: '2', label: 'Março' },
@@ -213,13 +222,42 @@ export default function SettlementsPage() {
       const lowerSearchTerm = searchTerm.toLowerCase();
       filtered = filtered.filter(event => 
         event.nome_evento.toLowerCase().includes(lowerSearchTerm) ||
-        event.contratante_nome.toLowerCase().includes(lowerSearchTerm) ||
+        (event.contratante_nome && event.contratante_nome.toLowerCase().includes(lowerSearchTerm)) ||
         event.local.toLowerCase().includes(lowerSearchTerm)
       );
     }
     
     return filtered;
   }, [events, selectedDjId, dateRange, searchTerm]);
+
+  const pendingPaymentsInfo = useMemo<PendingPaymentsInfo | null>(() => {
+    if (!selectedDjId) return null;
+
+    const today = startOfDay(new Date());
+    const overdueLimitDate = subDays(today, 15);
+
+    const djEvents = events.filter(e => e.dj_id === selectedDjId);
+    
+    const pendingEvents = djEvents.filter(event => 
+        event.data_evento < today && 
+        event.status_pagamento !== 'pago' && 
+        event.status_pagamento !== 'cancelado'
+    );
+    
+    const overdueEvents = pendingEvents.filter(event => event.data_evento < overdueLimitDate);
+
+    if (pendingEvents.length === 0) {
+        return null;
+    }
+
+    return {
+        totalPending: pendingEvents.length,
+        totalOverdue: overdueEvents.length,
+        pendingEvents,
+        overdueEvents,
+    };
+  }, [events, selectedDjId]);
+
 
   // Reset selected events if the main filtered list changes
   useEffect(() => {
@@ -390,6 +428,7 @@ export default function SettlementsPage() {
   }
 
   const isActionAllowed = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+  const selectedDjName = allDjs.find(dj => dj.uid === selectedDjId)?.displayName;
 
   return (
     <div className="space-y-6">
@@ -495,6 +534,16 @@ export default function SettlementsPage() {
               />
             </div>
           </div>
+
+          {selectedDjId && pendingPaymentsInfo && pendingPaymentsInfo.totalPending > 0 && isActionAllowed && (
+             <Alert variant="destructive" className="mb-6">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Atenção: Pagamentos Pendentes!</AlertTitle>
+                <AlertDescription>
+                    O DJ <span className="font-semibold">{selectedDjName}</span> possui <span className="font-bold">{pendingPaymentsInfo.totalPending}</span> evento(s) com pagamento pendente, dos quais <span className="font-bold">{pendingPaymentsInfo.totalOverdue}</span> estão em atraso (+15 dias).
+                </AlertDescription>
+            </Alert>
+          )}
 
           {selectedDjId && financialSummary && (
             <Card className="mb-6 bg-secondary/50">
