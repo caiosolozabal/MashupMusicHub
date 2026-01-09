@@ -42,10 +42,9 @@ service cloud.firestore {
 
     // EVENTS (/events/{eventId})
     match /events/{eventId} {
-      // READ: Admins, partners, and the assigned DJ can read/list events.
-      allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
+      // READ: Temporarily allow any signed-in user to read/list for migration purposes.
+      allow read, list: if isSignedIn();
       
-      // TEMPORARILY MODIFIED FOR MIGRATION
       // CREATE/UPDATE: Admins, partners can create/update any event.
       allow create, update: if isAdmin() || isPartner();
       
