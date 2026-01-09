@@ -13,10 +13,10 @@
 import admin from "firebase-admin";
 
 // Inicialize com as credenciais do seu projeto.
-// Se estiver rodando em um ambiente Google (Cloud Run, Functions), isso é automático.
-// Localmente, você precisa configurar as credenciais via variável de ambiente:
-// export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your/service-account-file.json"
-admin.initializeApp();
+// Força a conexão com o projeto correto para evitar erros de ambiente.
+admin.initializeApp({
+  projectId: "mashup-music-hub",
+});
 const db = admin.firestore();
 
 // ✅ Controle de segurança

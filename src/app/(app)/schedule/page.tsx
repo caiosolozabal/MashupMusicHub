@@ -35,9 +35,6 @@ const getDayOfWeek = (date: Date | undefined): string => {
   return days[date.getDay()];
 };
 
-const OLD_SOLO_UID = 'PTvylxq1UHPYXqot3JmtzyW6TDq2';
-const NEW_SOLO_UID = '1qpxEJkeihf1mmlI2IDu8NDZRgk2';
-
 
 export default function SchedulePage() {
   const { user, userDetails, loading: authLoading } = useAuth();
@@ -92,8 +89,7 @@ export default function SchedulePage() {
         const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
         dataPromises.push(getDocs(djsQuery));
       } else if (userDetails.role === 'dj') {
-        const djIds = user.uid === NEW_SOLO_UID ? [NEW_SOLO_UID, OLD_SOLO_UID] : [user.uid];
-        eventsQuery = query(collection(db, 'events'), where('dj_id', 'in', djIds), orderBy('data_evento', 'asc'));
+        eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
       } else {
         setEvents([]);
         setAllDjs([]);
@@ -108,15 +104,10 @@ export default function SchedulePage() {
       const eventsSnapshot = results[0];
       const eventsList = eventsSnapshot.docs.map(docSnapshot => {
         const data = docSnapshot.data();
-        let djId = data.dj_id;
-        if (djId === OLD_SOLO_UID) {
-            djId = NEW_SOLO_UID;
-        }
         return {
           id: docSnapshot.id,
           path: docSnapshot.ref.path,
           ...data,
-          dj_id: djId,
           data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
           created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(data.created_at),
           updated_at: data.updated_at && (data.updated_at instanceof Timestamp ? data.updated_at.toDate() : new Date(data.updated_at)),
