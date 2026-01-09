@@ -3,18 +3,52 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Regra temporária para migração: permite leitura pública para que
-    // o script de migração possa acessar os dados do banco antigo e
-    // também para que o próprio script possa ler os dados do banco atual
-    // para evitar duplicatas.
-    // IMPORTANTE: Esta regra deve ser revertida para a versão segura
-    // após a conclusão da migração.
-    allow read, list: if true;
 
-    // As regras de escrita permanecem restritas para segurança.
-    // Apenas administradores podem escrever durante a migração.
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isPartner() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'partner';
+    }
+
+    function isDj() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dj';
+    }
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId || isAdmin() || isPartner();
+      allow list: if isAdmin() || isPartner();
+    }
+    
+    match /agency_accounts/{accountId} {
+       allow read, list: if isAdmin() || isPartner();
+       allow create, update, delete: if isAdmin() || isPartner();
+    }
+
+    match /events/{eventId} {
+      // Todos os usuários autenticados podem ler/listar eventos para a funcionalidade principal da agenda.
+      allow read, list: if isSignedIn();
+      // Apenas Admins, Sócios podem criar/atualizar. DJs podem criar/atualizar SE o dj_id for o seu próprio.
+      allow create, update: if isAdmin() || isPartner() || (isDj() && request.resource.data.dj_id == request.auth.uid);
+      // Apenas Admins e Sócios podem deletar eventos.
+      allow delete: if isAdmin() || isPartner();
+    }
+    
+    match /settlements/{settlementId} {
+        // DJs podem ler seus próprios fechamentos, Admins e Sócios podem ler todos.
+        allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.djId == request.auth.uid);
+        // Apenas Admins e Sócios podem criar, atualizar ou deletar fechamentos.
+        allow create, update, delete: if isAdmin() || isPartner();
+    }
+
+    // Regra de fallback mais segura: nega todas as outras leituras/escritas.
     match /{document=**} {
-      allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read, write: if false;
     }
   }
 }
