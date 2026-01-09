@@ -65,31 +65,39 @@ export default function DashboardPage() {
         const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
         let fetchedEvents: Event[] = [];
-        let specificQueries: any[] = [where('status_pagamento', '!=', 'cancelado')];
+        let eventsQuery;
 
-        if (userDetails.role === 'dj') {
-          specificQueries.push(where('dj_id', '==', user.uid));
-        }
-        
-        const eventsQuery = query(eventsCollectionRef, ...specificQueries);
-        const eventsSnapshot = await getDocs(eventsQuery);
-        setEventCount(eventsSnapshot.size); // Set total count of events
-        if (eventsSnapshot.empty) {
-          setRecentActivities([]);
-          setUpcomingEvents([]);
-          // Handle stats for no events
+        // Corrected Query Logic:
+        // If admin/partner, fetch all non-cancelled events.
+        // If DJ, fetch only their non-cancelled events.
+        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+            eventsQuery = query(eventsCollectionRef, where('status_pagamento', '!=', 'cancelado'));
+        } else if (userDetails.role === 'dj') {
+            eventsQuery = query(eventsCollectionRef, where('dj_id', '==', user.uid), where('status_pagamento', '!=', 'cancelado'));
         } else {
-            fetchedEvents = eventsSnapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
-                created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date()),
-                updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate() : (data.updated_at ? new Date(data.updated_at) : new Date()),
-                dj_costs: data.dj_costs ?? 0,
-            } as Event;
-            });
+            // No role or other roles, fetch nothing
+            eventsQuery = null;
+        }
+
+        if (eventsQuery) {
+            const eventsSnapshot = await getDocs(eventsQuery);
+            setEventCount(eventsSnapshot.size); // Set total count of events
+            if (eventsSnapshot.empty) {
+                setRecentActivities([]);
+                setUpcomingEvents([]);
+            } else {
+                fetchedEvents = eventsSnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
+                        created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date()),
+                        updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate() : (data.updated_at ? new Date(data.updated_at) : new Date()),
+                        dj_costs: data.dj_costs ?? 0,
+                    } as Event;
+                });
+            }
         }
         
 

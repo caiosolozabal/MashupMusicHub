@@ -86,6 +86,7 @@ export default function SchedulePage() {
       // Define queries based on user role
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
         eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
+        // Corrected DJ Query: Specifically query for users with the role 'dj'
         const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
         dataPromises.push(getDocs(djsQuery));
       } else if (userDetails.role === 'dj') {
@@ -129,7 +130,11 @@ export default function SchedulePage() {
          const djsList = djsSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails));
          setAllDjs(djsList);
       } else if (userDetails.role === 'dj') {
-        setAllDjs([userDetails]); // For a DJ, their own details are the only ones needed
+        // A DJ only needs to see themself in any dropdown that might appear
+        const selfDetails = await getDoc(doc(db, 'users', user.uid));
+        if(selfDetails.exists()) {
+            setAllDjs([{ uid: selfDetails.id, ...selfDetails.data() } as UserDetails]);
+        }
       }
 
     } catch (error) {
