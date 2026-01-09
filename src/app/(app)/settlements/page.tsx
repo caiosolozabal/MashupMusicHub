@@ -449,7 +449,7 @@ export default function SettlementsPage() {
 
   const handleReturnToSettlementMode = () => {
     setSelectedSettlement(null);
-    setViewMode('detail');
+    setViewMode('settlement');
   };
 
 
@@ -795,6 +795,3 @@ export default function SettlementsPage() {
     </div>
   );
 }
-
-    
-    

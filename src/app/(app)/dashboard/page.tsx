@@ -48,7 +48,6 @@ export default function DashboardPage() {
     const fetchData = async () => {
       setIsLoading(true);
       if (!db || !user || !userDetails) {
-        console.error("Firestore, user, or userDetails not available for fetchData");
         if (!authLoading) setIsLoading(false);
         const errorStats = [
           { title: 'Eventos', value: 'Erro', icon: CalendarClock, color: 'text-destructive' },
