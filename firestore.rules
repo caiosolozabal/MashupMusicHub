@@ -45,8 +45,9 @@ service cloud.firestore {
       // READ: Admins, partners, and the assigned DJ can read/list events.
       allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
       
-      // CREATE/UPDATE: Admins, partners, and a DJ creating/updating their own event.
-      allow create, update: if isAdmin() || isPartner() || (isDj() && request.resource.data.dj_id == request.auth.uid);
+      // TEMPORARILY MODIFIED FOR MIGRATION
+      // CREATE/UPDATE: Admins, partners can create/update any event.
+      allow create, update: if isAdmin() || isPartner();
       
       // DELETE: Admins, partners, and the assigned DJ can delete their own event.
       allow delete: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
