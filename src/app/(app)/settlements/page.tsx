@@ -113,11 +113,14 @@ export default function SettlementsPage() {
 
   // Filters State
   const [selectedDjId, setSelectedDjId] = useState<string>('');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
-  const [selectedYear, setSelectedYear] = useState<string | undefined>();
+  const [selectedMonth, setSelectedMonth] = useState<string>(getMonth(new Date()).toString());
+  const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
   const [showClosedEvents, setShowClosedEvents] = useState(false);
   const availableYears = useMemo(() => getYears(), []);
   
@@ -782,4 +785,5 @@ export default function SettlementsPage() {
   );
 }
 
+    
     
