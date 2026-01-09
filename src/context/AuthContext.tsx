@@ -1,3 +1,4 @@
+
 'use client';
 import type { User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
@@ -29,36 +30,34 @@ const emergencyFixUserData = async (uid: string) => {
   if (uid !== 'EHF5NOE47IUzfC2ikacf5la54Ar2') return;
 
   const userDocRef = doc(db, 'users', uid);
-  const docSnap = await getDoc(userDocRef);
-
-  if (!docSnap.exists()) {
-    console.log(`[EMERGENCY FIX] Perfil para ${uid} não encontrado. Recriando...`);
-    try {
-      const userData: Omit<UserDetails, 'createdAt' | 'updatedAt'> = {
-          uid: "EHF5NOE47IUzfC2ikacf5la54Ar2",
-          displayName: "Solô",
-          email: "caiosolozabal@gmail.com",
-          role: "dj",
-          dj_color: "hsl(195, 100%, 80%)",
-          dj_percentual: 0.7,
-          pode_locar: true,
-          rental_percentual: 0.8,
-          pixKey: "48.716.222/0001-31",
-          bankAccount: null,
-          bankAccountType: null,
-          bankAgency: null,
-          bankDocument: null,
-          bankName: null,
-      };
-      await setDoc(userDocRef, {
-        ...userData,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      });
-      console.log(`[EMERGENCY FIX] Perfil para ${uid} recriado com sucesso.`);
-    } catch (error) {
-      console.error("[EMERGENCY FIX] Erro ao recriar perfil:", error);
-    }
+  
+  console.log(`[EMERGENCY FIX] Checking profile for ${uid}...`);
+  try {
+    const userData: Omit<UserDetails, 'createdAt' | 'updatedAt'> = {
+        uid: "EHF5NOE47IUzfC2ikacf5la54Ar2",
+        displayName: "Solô",
+        email: "caiosolozabal@gmail.com",
+        role: "dj",
+        dj_color: "hsl(195, 100%, 80%)",
+        dj_percentual: 0.7,
+        pode_locar: true,
+        rental_percentual: 0.8,
+        pixKey: "48.716.222/0001-31",
+        bankAccount: null,
+        bankAccountType: null,
+        bankAgency: null,
+        bankDocument: null,
+        bankName: null,
+    };
+    // Sobrescreve o documento para garantir que ele tenha os dados corretos.
+    await setDoc(userDocRef, {
+      ...userData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }, { merge: true }); // Usar merge para não destruir outros campos se houver
+    console.log(`[EMERGENCY FIX] Profile for ${uid} was successfully recreated/updated.`);
+  } catch (error) {
+    console.error("[EMERGENCY FIX] Error recreating profile:", error);
   }
 };
 
