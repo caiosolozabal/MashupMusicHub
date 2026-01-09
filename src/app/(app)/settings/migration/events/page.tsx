@@ -8,7 +8,7 @@ import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { Event } from '@/lib/types';
 import { format, parseISO, startOfDay, getYear, getMonth, startOfMonth, endOfMonth } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
-import { Loader2, Link as LinkIcon, Disc, Truck, Calendar as CalendarIcon, X, ArrowLeft } from 'lucide-react';
+import { Loader2, Link as LinkIcon, Disc, Truck, Calendar as CalendarIcon, X, ArrowLeft, Download } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState, useMemo } from 'react';
 import { db_old } from '@/lib/firebase/migration-client'; // <<<====== USANDO O BANCO DE DADOS ANTIGO
@@ -20,6 +20,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 const getDayOfWeek = (date: Date | undefined): string => {
@@ -146,20 +148,66 @@ const OldEventsPage: NextPage = () => {
     return filtered;
   }, [events, dateRange, searchTerm]);
 
+  const handleDownloadPdf = () => {
+    if (filteredEvents.length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Nenhum evento para exportar',
+        description: 'Não há eventos na tabela para serem exportados para PDF.',
+      });
+      return;
+    }
+  
+    const doc = new jsPDF({
+      orientation: 'landscape',
+    });
+  
+    doc.setFontSize(16);
+    doc.text('Relatório de Eventos (Banco de Dados Antigo)', 14, 15);
+  
+    const tableColumn = ["Data", "Evento", "Local", "Contratante", "Valor Total", "Status Pag.", "DJ"];
+    const tableRows: (string | number)[][] = [];
+  
+    filteredEvents.forEach(event => {
+      const eventData = [
+        format(event.data_evento, 'dd/MM/yyyy'),
+        event.nome_evento,
+        event.local,
+        event.contratante_nome || 'N/A',
+        Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
+        getStatusText(event.status_pagamento),
+        event.dj_nome || 'N/A'
+      ];
+      tableRows.push(eventData);
+    });
+  
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: 20,
+    });
+  
+    doc.save(`relatorio_eventos_antigos_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+  };
+
   return (
     <div className="space-y-8">
       <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-start justify-between space-y-0">
-          <div>
-            <Button variant="ghost" size="sm" asChild className="-ml-3 mb-2">
-                <Link href="/settings/migration">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Voltar para Migração
-                </Link>
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+            <div>
+              <Button variant="ghost" size="sm" asChild className="-ml-3 mb-2">
+                  <Link href="/settings/migration">
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Voltar para Migração
+                  </Link>
+              </Button>
+              <CardTitle className="font-headline text-2xl">Eventos do Banco de Dados Antigo</CardTitle>
+              <CardDescription>Visualização somente leitura dos eventos de `listeiro-cf302`.</CardDescription>
+            </div>
+            <Button onClick={handleDownloadPdf} variant="outline" className="ml-auto">
+              <Download className="mr-2 h-4 w-4" />
+              Baixar PDF
             </Button>
-            <CardTitle className="font-headline text-2xl">Eventos do Banco de Dados Antigo</CardTitle>
-            <CardDescription>Visualização somente leitura dos eventos de `listeiro-cf302`.</CardDescription>
-          </div>
         </CardHeader>
         <CardContent>
           <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
@@ -289,3 +337,5 @@ const OldEventsPage: NextPage = () => {
 };
 
 export default OldEventsPage;
+
+    
