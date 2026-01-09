@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -9,7 +8,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc } from 'firebase/firestore';
 import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
-import { Input } from '@/components/ui/input';
+import { Input }from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon } from 'lucide-react';
@@ -100,10 +99,12 @@ export default function SettlementsPage() {
   const { toast } = useToast();
   
   // State
-  const [events, setEvents] = useState<Event[]>([]);
-  const [settlements, setSettlements] = useState<FinancialSettlement[]>([]);
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [allSettlements, setAllSettlements] = useState<FinancialSettlement[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingDjs, setIsLoadingDjs] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // UI Mode State
@@ -119,42 +120,50 @@ export default function SettlementsPage() {
   const [selectedYear, setSelectedYear] = useState<string | undefined>();
   const [showClosedEvents, setShowClosedEvents] = useState(false);
   const availableYears = useMemo(() => getYears(), []);
-
-
-  const fetchAllData = useCallback(async () => {
-    if (authLoading || !user || !userDetails) {
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      if (!db) throw new Error("Firestore not initialized");
   
-      let eventsQuery, djsPromise, settlementsQuery;
+  // Fetch only the list of DJs on initial load for Admins/Partners
+  useEffect(() => {
+    if (authLoading || !userDetails) return;
 
+    const fetchDjs = async () => {
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-        eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
-        settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
-        const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
-        djsPromise = getDocs(djsQuery).then(snapshot => 
-          snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails))
-        );
+        setIsLoadingDjs(true);
+        try {
+          const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
+          const djsSnapshot = await getDocs(djsQuery);
+          const djsList = djsSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails));
+          setAllDjs(djsList);
+        } catch (error) {
+           console.error("Error fetching DJs: ", error);
+           toast({ variant: 'destructive', title: 'Erro ao carregar DJs', description: (error as Error).message });
+        } finally {
+          setIsLoadingDjs(false);
+        }
       } else if (userDetails.role === 'dj') {
-        eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
-        settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', user.uid), orderBy('generatedAt', 'desc'));
-        djsPromise = Promise.resolve([userDetails]);
-        setSelectedDjId(user.uid);
-      } else {
-        setIsLoading(false);
-        return;
+        setAllDjs([userDetails]);
+        setSelectedDjId(userDetails.uid); // Auto-select the logged-in DJ
+        setIsLoadingDjs(false);
       }
-      
-      const [eventsSnapshot, settlementsSnapshot, djsList] = await Promise.all([
+    };
+    
+    fetchDjs();
+  }, [authLoading, userDetails, toast]);
+
+
+  // Fetch events and settlements when a DJ is selected
+  const fetchDjData = useCallback(async (djId: string) => {
+    if (!djId) return;
+
+    setIsLoadingData(true);
+    try {
+      const eventsQuery = query(collection(db, 'events'), where('dj_id', '==', djId), orderBy('data_evento', 'asc'));
+      const settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', djId), orderBy('generatedAt', 'desc'));
+
+      const [eventsSnapshot, settlementsSnapshot] = await Promise.all([
         getDocs(eventsQuery),
-        getDocs(settlementsQuery),
-        djsPromise
+        getDocs(settlementsQuery)
       ]);
-  
+
       const eventsList = eventsSnapshot.docs.map(docSnapshot => {
         const data = docSnapshot.data();
         return {
@@ -170,27 +179,28 @@ export default function SettlementsPage() {
         id: doc.id,
         ...doc.data()
       } as FinancialSettlement));
-  
-      setEvents(eventsList);
-      setSettlements(settlementsList);
-      setAllDjs(djsList);
-  
+
+      setAllEvents(eventsList);
+      setAllSettlements(settlementsList);
     } catch (error) {
-      console.error("Error fetching data: ", error);
-      toast({ variant: 'destructive', title: 'Erro ao carregar dados', description: (error as Error).message });
+      console.error("Error fetching DJ data: ", error);
+      toast({ variant: 'destructive', title: 'Erro ao carregar dados do DJ', description: (error as Error).message });
     } finally {
-      setIsLoading(false);
+      setIsLoadingData(false);
     }
-  }, [authLoading, user, userDetails, toast]);
-
-
+  }, [toast]);
+  
+  // Trigger data fetch when selectedDjId changes
   useEffect(() => {
-    if (!authLoading && user && userDetails) {
-        fetchAllData();
-    } else if (!authLoading && (!user || !userDetails)) {
-        setIsLoading(false);
+    if (selectedDjId) {
+      fetchDjData(selectedDjId);
+    } else {
+      // Clear data if no DJ is selected
+      setAllEvents([]);
+      setAllSettlements([]);
     }
-  }, [authLoading, user, userDetails, fetchAllData]);
+  }, [selectedDjId, fetchDjData]);
+
   
   useEffect(() => {
     if (selectedYear && selectedMonth) {
@@ -198,7 +208,7 @@ export default function SettlementsPage() {
         const month = parseInt(selectedMonth, 10);
         const start = startOfMonth(new Date(year, month));
         const end = endOfMonth(new Date(year, month));
-setDateRange({ from: start, to: end });
+        setDateRange({ from: start, to: end });
     }
   }, [selectedMonth, selectedYear]);
 
@@ -217,22 +227,18 @@ setDateRange({ from: start, to: end });
 
   // Filter logic
   const { filteredEvents, djSettlements } = useMemo(() => {
-    if (!selectedDjId) {
-      return { filteredEvents: [], djSettlements: [] };
-    }
-
-    let djEvents = events.filter(event => event.dj_id === selectedDjId);
+    let eventsToFilter = [...allEvents];
 
     if (dateRange?.from) {
       const fromDate = startOfDay(dateRange.from);
       const toDate = dateRange.to ? new Date(dateRange.to) : new Date(8640000000000000); // Far future date if no end
       toDate.setHours(23, 59, 59, 999);
-      djEvents = djEvents.filter(event => event.data_evento >= fromDate && event.data_evento <= toDate);
+      eventsToFilter = eventsToFilter.filter(event => event.data_evento >= fromDate && event.data_evento <= toDate);
     }
 
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      djEvents = djEvents.filter(event => 
+      eventsToFilter = eventsToFilter.filter(event => 
         event.nome_evento.toLowerCase().includes(lowerSearchTerm) ||
         (event.contratante_nome && event.contratante_nome.toLowerCase().includes(lowerSearchTerm)) ||
         event.local.toLowerCase().includes(lowerSearchTerm)
@@ -240,25 +246,21 @@ setDateRange({ from: start, to: end });
     }
     
     // Main filter for open/closed events
-    const finalFilteredEvents = djEvents.filter(event => {
+    const finalFilteredEvents = eventsToFilter.filter(event => {
         if (showClosedEvents) return true; // Show all if checkbox is checked
         return !event.settlementId; // Otherwise, show only open events
     });
 
-    const djSettlements = settlements.filter(s => s.djId === selectedDjId);
-
-    return { filteredEvents: finalFilteredEvents, djSettlements };
-  }, [events, settlements, selectedDjId, dateRange, searchTerm, showClosedEvents]);
+    return { filteredEvents: finalFilteredEvents, djSettlements: allSettlements };
+  }, [allEvents, allSettlements, dateRange, searchTerm, showClosedEvents]);
 
   const pendingPaymentsInfo = useMemo<PendingPaymentsInfo | null>(() => {
     if (!selectedDjId) return null;
 
     const today = startOfDay(new Date());
     const overdueLimitDate = subDays(today, 15);
-
-    const djEventsAll = events.filter(e => e.dj_id === selectedDjId);
     
-    const pendingEvents = djEventsAll.filter(event => 
+    const pendingEvents = allEvents.filter(event => 
         event.data_evento < today && 
         event.status_pagamento !== 'pago' && 
         event.status_pagamento !== 'cancelado'
@@ -276,7 +278,7 @@ setDateRange({ from: start, to: end });
         pendingEvents,
         overdueEvents,
     };
-  }, [events, selectedDjId]);
+  }, [allEvents, selectedDjId]);
 
 
   // Reset selected events if the main filtered list changes
@@ -415,7 +417,9 @@ setDateRange({ from: start, to: end });
         description: `O fechamento para ${selectedDj.displayName} foi criado com sucesso.`
       });
       // Refetch data to show the updated list of "open" events
-      fetchAllData();
+      fetchDjData(selectedDjId);
+      // Clear selections after successful generation
+      setSelectedEventIds([]);
     } catch (error) {
       console.error("Error generating settlement:", error);
       toast({ variant: 'destructive', title: 'Erro ao Gerar Fechamento', description: (error as Error).message });
@@ -464,7 +468,7 @@ setDateRange({ from: start, to: end });
     return (
         <SettlementDetailView 
             settlement={selectedSettlement}
-            events={events.filter(e => selectedSettlement.events.includes(e.id))}
+            events={allEvents.filter(e => selectedSettlement.events.includes(e.id))}
             onBack={handleReturnToSettlementMode}
         />
     )
@@ -491,15 +495,15 @@ setDateRange({ from: start, to: end });
             {isActionAllowed && (
               <div className="space-y-2 xl:col-span-1">
                   <Label htmlFor='dj-select'>DJ *</Label>
-                  <Select inputId='dj-select' value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
+                  <Select inputId='dj-select' value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs}>
                       <SelectTrigger>
-                      <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione o DJ"} />
+                      <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione o DJ"} />
                       </SelectTrigger>
                       <SelectContent>
                       {allDjs.map(dj => (
                           <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
                       ))}
-                      {!isLoading && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                      {!isLoadingDjs && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
                       </SelectContent>
                   </Select>
               </div>
@@ -653,7 +657,7 @@ setDateRange({ from: start, to: end });
                 <Checkbox id="show-closed" checked={showClosedEvents} onCheckedChange={(checked) => setShowClosedEvents(checked as boolean)} />
                 <Label htmlFor="show-closed">Visualizar eventos fechados / anteriores no período</Label>
             </div>
-            {isLoading ? (
+            {isLoadingData ? (
                 <div className="flex justify-center items-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <p className="ml-2">Carregando eventos...</p>
@@ -740,7 +744,7 @@ setDateRange({ from: start, to: end });
 
           <div className="space-y-4">
              <h3 className="font-headline text-lg">Histórico de Fechamentos</h3>
-             {isLoading ? (
+             {isLoadingData ? (
                  <p className="text-muted-foreground">Carregando histórico...</p>
              ) : !selectedDjId ? (
                  <p className="text-muted-foreground text-center py-4">{isActionAllowed ? 'Selecione um DJ para ver o histórico.' : ''}</p>
