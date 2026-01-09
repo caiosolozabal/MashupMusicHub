@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { db, auth } from '@/lib/firebase';
-import { collection, doc, writeBatch, getDocs, query, where, setDoc } from 'firebase/firestore';
+import { db_old } from '@/lib/firebase/migration-client';
+import { collection, doc, writeBatch, getDocs, query, where, setDoc, getDoc } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, fetchSignInMethodsForEmail } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -37,6 +38,7 @@ export default function MigrationPage() {
     const { toast } = useToast();
     const [isMigratingUsers, setIsMigratingUsers] = useState(false);
     const [isSyncingEvents, setIsSyncingEvents] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
     const [migrationLog, setMigrationLog] = useState<string[]>([]);
 
     const handleUserMigration = async () => {
@@ -63,15 +65,13 @@ export default function MigrationPage() {
         for (const userToMigrate of usersToMigrate) {
             log(`\nProcessando: ${userToMigrate.displayName} (${userToMigrate.email})`);
             
-            // Se for a conta do admin logado, pula a criação/login para não invalidar a sessão atual.
-            // Apenas garante que o perfil no Firestore esteja correto.
             if (userToMigrate.email === mainAdminEmail) {
                 try {
                     log(`- INFO: É a conta do admin logado. Atualizando perfil do Firestore para UID: ${mainAdminAuth.uid}`);
                     const userRef = doc(db, 'users', mainAdminAuth.uid);
                     await setDoc(userRef, { ...userToMigrate, uid: mainAdminAuth.uid }, { merge: true });
                     log(`- SUCESSO: Perfil de admin no Firestore atualizado.`);
-                    continue; // Pula para o próximo usuário
+                    continue; 
                 } catch (error: any) {
                     log(`- ERRO ao atualizar o perfil do admin: ${error.message}`);
                     continue;
@@ -79,7 +79,6 @@ export default function MigrationPage() {
             }
 
             try {
-                // ETAPA 1: Tenta criar o usuário. Se já existir, vai dar um erro que pegaremos no catch.
                 const userCredential = await createUserWithEmailAndPassword(auth, userToMigrate.email, DEFAULT_PASSWORD);
                 const newUser = userCredential.user;
                 log(`- SUCESSO: Usuário criado no Auth com UID: ${newUser.uid}`);
@@ -92,11 +91,9 @@ export default function MigrationPage() {
                 log(`- SUCESSO: Perfil do Firestore criado/atualizado para UID: ${newUser.uid}.`);
 
             } catch (error: any) {
-                // ETAPA 2: Se o erro for "email-already-in-use", isso é o esperado para usuários existentes.
                 if (error.code === 'auth/email-already-in-use') {
                     log(`- INFO: O email ${userToMigrate.email} já existe no Auth. Sincronizando perfil...`);
                     try {
-                        // Faz login temporário para obter o UID do usuário existente.
                         const tempUserCredential = await signInWithEmailAndPassword(auth, userToMigrate.email, DEFAULT_PASSWORD);
                         const existingUser = tempUserCredential.user;
                         log(`- INFO: Login temporário bem-sucedido. UID existente é: ${existingUser.uid}`);
@@ -105,13 +102,11 @@ export default function MigrationPage() {
                         await setDoc(userRef, { ...userToMigrate, uid: existingUser.uid }, { merge: true });
                         log(`- SUCESSO: Perfil do Firestore sincronizado para o UID existente: ${existingUser.uid}.`);
                         
-                        // IMPORTANTE: Faz o logout do usuário temporário e re-autentica o admin.
                         await auth.updateCurrentUser(mainAdminAuth);
                         log(`- INFO: Sessão restaurada para o administrador.`);
 
                     } catch (signInError: any) {
                          log(`- ERRO CRÍTICO: O email ${userToMigrate.email} existe, mas o login com a senha padrão falhou. A senha pode ter sido alterada. Erro: ${signInError.message}`);
-                         // Restaura a sessão do admin mesmo em caso de erro.
                          await auth.updateCurrentUser(mainAdminAuth);
                     }
                 } else {
@@ -121,7 +116,7 @@ export default function MigrationPage() {
         }
         
         log('\n--- MIGRAÇÃO DE USUÁRIOS CONCLUÍDA ---');
-        toast({ title: 'Migração de Usuários Concluída', description: 'Verifique o log para detalhes. O próximo passo é sincronizar os eventos.' });
+        toast({ title: 'Migração de Usuários Concluída', description: 'Verifique o log para detalhes.' });
         setIsMigratingUsers(false);
     };
 
@@ -135,7 +130,6 @@ export default function MigrationPage() {
         log("\n--- INICIANDO SINCRONIZAÇÃO DE IDs DE EVENTOS ---");
 
         try {
-            // 1. Criar mapa de ID antigo para novo UID
             log("1. Buscando todos os usuários para criar o mapa de IDs...");
             const usersQuery = query(collection(db, 'users'));
             const usersSnapshot = await getDocs(usersQuery);
@@ -149,13 +143,11 @@ export default function MigrationPage() {
             log(`- Mapa criado com ${idMap.size} usuários.`);
             idMap.forEach((v, k) => log(`  - ${k} -> ${v}`));
 
-            // 2. Buscar todos os eventos
             log("2. Buscando todos os eventos para atualização...");
             const eventsRef = collection(db, 'events');
             const eventsSnapshot = await getDocs(eventsRef);
             log(`- ${eventsSnapshot.size} eventos encontrados.`);
 
-            // 3. Atualizar eventos em lotes (batches)
             let batch = writeBatch(db);
             let writeCount = 0;
             let eventsUpdatedCount = 0;
@@ -206,6 +198,84 @@ export default function MigrationPage() {
         }
     };
 
+    const handleEventImport = async () => {
+        setIsImporting(true);
+        const log = (message: string) => {
+            console.log(message);
+            setMigrationLog(prev => [...prev, message]);
+        };
+
+        log("\n--- INICIANDO IMPORTAÇÃO INTELIGENTE DE EVENTOS ---");
+        try {
+            // 1. Get all event IDs from the CURRENT database
+            log("1. Buscando IDs de eventos no banco de dados atual...");
+            const currentEventsRef = collection(db, 'events');
+            const currentEventsSnapshot = await getDocs(currentEventsRef);
+            const currentEventIds = new Set(currentEventsSnapshot.docs.map(d => d.id));
+            log(`- ${currentEventIds.size} eventos encontrados no banco de dados atual.`);
+
+            // 2. Get all events from the OLD database
+            log("2. Buscando todos os eventos do banco de dados antigo (listeiro-cf302)...");
+            const oldEventsRef = collection(db_old, 'events');
+            const oldEventsSnapshot = await getDocs(oldEventsRef);
+            log(`- ${oldEventsSnapshot.size} eventos encontrados no banco de dados antigo.`);
+
+            // 3. Identify new events
+            const newEvents = [];
+            for (const oldEventDoc of oldEventsSnapshot.docs) {
+                if (!currentEventIds.has(oldEventDoc.id)) {
+                    newEvents.push({ id: oldEventDoc.id, data: oldEventDoc.data() });
+                }
+            }
+            log(`- ${newEvents.length} novos eventos foram identificados para importação.`);
+
+            if (newEvents.length === 0) {
+                log("Nenhum evento novo para importar. O banco de dados atual já está sincronizado.");
+                toast({ title: 'Tudo Sincronizado!', description: 'Nenhum evento novo foi encontrado no banco de dados antigo.' });
+                setIsImporting(false);
+                return;
+            }
+
+            // 4. Process new events in batches
+            log("4. Iniciando a importação dos novos eventos...");
+            let batch = writeBatch(db);
+            let writeCount = 0;
+            const commitPromises = [];
+
+            for (const { id, data } of newEvents) {
+                const newEventRef = doc(db, 'events', id);
+                // We simply copy the data from the old event. The dj_id sync should be run after.
+                batch.set(newEventRef, data);
+                writeCount++;
+                log(`- Adicionando evento "${data.nome_evento}" ao lote.`);
+
+                if (writeCount === 499) {
+                    log(`- Submetendo lote de ${writeCount} eventos...`);
+                    commitPromises.push(batch.commit());
+                    batch = writeBatch(db);
+                    writeCount = 0;
+                }
+            }
+
+            if (writeCount > 0) {
+                log(`- Submetendo lote final de ${writeCount} eventos...`);
+                commitPromises.push(batch.commit());
+            }
+
+            await Promise.all(commitPromises);
+
+            log(`\n--- IMPORTAÇÃO INTELIGENTE CONCLUÍDA ---`);
+            log(`${newEvents.length} novos eventos foram importados com sucesso.`);
+            toast({ title: 'Importação Concluída!', description: `${newEvents.length} novos eventos foram adicionados.` });
+
+        } catch (error: any) {
+            log(`ERRO GRAVE DURANTE A IMPORTAÇÃO: ${error.message}`);
+            toast({ variant: 'destructive', title: 'Erro na Importação', description: error.message });
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
 
     return (
         <div className="space-y-6">
@@ -225,23 +295,37 @@ export default function MigrationPage() {
                                 Execute esta operação para garantir que todos os usuários da sua lista existam na autenticação e no banco de dados com os IDs corretos. A senha padrão para novos usuários ou usuários existentes com a senha padrão será <strong>{DEFAULT_PASSWORD}</strong>.
                             </AlertDescription>
                         </Alert>
-                        <Button onClick={handleUserMigration} disabled={isMigratingUsers || isSyncingEvents}>
+                        <Button onClick={handleUserMigration} disabled={isMigratingUsers || isSyncingEvents || isImporting}>
                             {isMigratingUsers && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {isMigratingUsers ? 'Migrando...' : 'Iniciar Migração de Usuários'}
                         </Button>
                     </div>
 
                      <div className="space-y-4 p-4 border rounded-lg">
-                        <h3 className="font-semibold text-lg">Passo 2: Sincronizar Eventos</h3>
+                        <h3 className="font-semibold text-lg">Passo 2: Sincronizar IDs de Eventos</h3>
                         <Alert>
                             <AlertTitle>Atenção!</AlertTitle>
                             <AlertDescription>
                                 Execute este passo APÓS a migração de usuários ser concluída com sucesso. Isso atualizará todos os eventos para usar os novos IDs de DJ.
                             </AlertDescription>
                         </Alert>
-                        <Button onClick={handleEventSync} disabled={isMigratingUsers || isSyncingEvents} variant="secondary">
+                        <Button onClick={handleEventSync} disabled={isMigratingUsers || isSyncingEvents || isImporting} variant="secondary">
                             {isSyncingEvents && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {isSyncingEvents ? 'Sincronizando...' : 'Sincronizar IDs de Eventos'}
+                        </Button>
+                    </div>
+
+                    <div className="space-y-4 p-4 border rounded-lg bg-secondary/50">
+                        <h3 className="font-semibold text-lg">Passo 3: Importar Novos Eventos (Banco Antigo)</h3>
+                        <Alert variant="default" className='bg-background'>
+                            <AlertTitle>Importação Inteligente</AlertTitle>
+                            <AlertDescription>
+                                Esta operação se conectará ao banco de dados antigo (listeiro-cf302), encontrará apenas os eventos que não existem no banco de dados atual e os importará, evitando duplicatas. Rode este passo APÓS a Etapa 1.
+                            </AlertDescription>
+                        </Alert>
+                        <Button onClick={handleEventImport} disabled={isMigratingUsers || isSyncingEvents || isImporting} variant="default">
+                            {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isImporting ? 'Importando...' : 'Importar Novos Eventos'}
                         </Button>
                     </div>
 
