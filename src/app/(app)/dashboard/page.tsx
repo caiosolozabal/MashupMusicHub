@@ -251,7 +251,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                      <Button variant="outline" size="sm" asChild className="ml-auto flex-shrink-0">
-                        <Link href={`/events?view=${activity.id}`}>Ver</Link>
+                        <Link href={`/schedule?view=${activity.id}`}>Ver</Link>
                     </Button>
                   </div>
                 ))}
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <Button variant="outline" size="sm" asChild className="flex-shrink-0">
-                        <Link href={`/events?view=${event.id}`}>Ver</Link>
+                        <Link href={`/schedule?view=${event.id}`}>Ver</Link>
                     </Button>
                   </div>
                 ))}
