@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Info, X, AlertTriangle } from 'lucide-react';
+import { Loader2, Info, X, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc } from 'firebase/firestore';
 import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
@@ -25,7 +25,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { calculateDjCut } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import SettlementDetailView from '@/components/settlements/SettlementDetailView';
+import { Label } from '@/components/ui/label';
 
+type ViewMode = 'settlement' | 'detail';
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
   switch (status) {
@@ -96,10 +99,16 @@ export default function SettlementsPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
+  // State
   const [events, setEvents] = useState<Event[]>([]);
+  const [settlements, setSettlements] = useState<FinancialSettlement[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // UI Mode State
+  const [viewMode, setViewMode] = useState<ViewMode>('settlement');
+  const [selectedSettlement, setSelectedSettlement] = useState<FinancialSettlement | null>(null);
 
   // Filters State
   const [selectedDjId, setSelectedDjId] = useState<string>('');
@@ -108,6 +117,7 @@ export default function SettlementsPage() {
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
   const [selectedYear, setSelectedYear] = useState<string | undefined>();
+  const [showClosedEvents, setShowClosedEvents] = useState(false);
   const availableYears = useMemo(() => getYears(), []);
 
 
@@ -120,17 +130,18 @@ export default function SettlementsPage() {
     try {
       if (!db) throw new Error("Firestore not initialized");
   
-      let eventsQuery;
-      let djsPromise;
+      let eventsQuery, djsPromise, settlementsQuery;
 
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
         eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
+        settlementsQuery = query(collection(db, 'settlements'), orderBy('generatedAt', 'desc'));
         const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
         djsPromise = getDocs(djsQuery).then(snapshot => 
           snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails))
         );
       } else if (userDetails.role === 'dj') {
         eventsQuery = query(collection(db, 'events'), where('dj_id', '==', user.uid), orderBy('data_evento', 'asc'));
+        settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', user.uid), orderBy('generatedAt', 'desc'));
         djsPromise = Promise.resolve([userDetails]);
         setSelectedDjId(user.uid);
       } else {
@@ -138,8 +149,9 @@ export default function SettlementsPage() {
         return;
       }
       
-      const [eventsSnapshot, djsList] = await Promise.all([
+      const [eventsSnapshot, settlementsSnapshot, djsList] = await Promise.all([
         getDocs(eventsQuery),
+        getDocs(settlementsQuery),
         djsPromise
       ]);
   
@@ -153,8 +165,14 @@ export default function SettlementsPage() {
           tipo_servico: data.tipo_servico || 'servico_dj',
         } as Event;
       });
+
+      const settlementsList = settlementsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as FinancialSettlement));
   
       setEvents(eventsList);
+      setSettlements(settlementsList);
       setAllDjs(djsList);
   
     } catch (error) {
@@ -180,7 +198,7 @@ export default function SettlementsPage() {
         const month = parseInt(selectedMonth, 10);
         const start = startOfMonth(new Date(year, month));
         const end = endOfMonth(new Date(year, month));
-        setDateRange({ from: start, to: end });
+setDateRange({ from: start, to: end });
     }
   }, [selectedMonth, selectedYear]);
 
@@ -197,38 +215,40 @@ export default function SettlementsPage() {
       }
   }, [dateRange, selectedMonth, selectedYear]);
 
-  const filteredEvents = useMemo(() => {
+  // Filter logic
+  const { filteredEvents, djSettlements } = useMemo(() => {
     if (!selectedDjId) {
-      return [];
+      return { filteredEvents: [], djSettlements: [] };
     }
 
-    let filtered = events.filter(event => 
-      event.dj_id === selectedDjId && !event.settlementId
-    );
-    
+    let djEvents = events.filter(event => event.dj_id === selectedDjId);
+
     if (dateRange?.from) {
-      const fromDate = startOfDay(dateRange.from); 
-      if (!dateRange.to) {
-         filtered = filtered.filter(event => event.data_evento >= fromDate);
-      } 
-      else {
-        const toDate = new Date(dateRange.to);
-        toDate.setHours(23, 59, 59, 999);
-        filtered = filtered.filter(event => event.data_evento >= fromDate && event.data_evento <= toDate);
-      }
+      const fromDate = startOfDay(dateRange.from);
+      const toDate = dateRange.to ? new Date(dateRange.to) : new Date(8640000000000000); // Far future date if no end
+      toDate.setHours(23, 59, 59, 999);
+      djEvents = djEvents.filter(event => event.data_evento >= fromDate && event.data_evento <= toDate);
     }
-    
+
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter(event => 
+      djEvents = djEvents.filter(event => 
         event.nome_evento.toLowerCase().includes(lowerSearchTerm) ||
         (event.contratante_nome && event.contratante_nome.toLowerCase().includes(lowerSearchTerm)) ||
         event.local.toLowerCase().includes(lowerSearchTerm)
       );
     }
     
-    return filtered;
-  }, [events, selectedDjId, dateRange, searchTerm]);
+    // Main filter for open/closed events
+    const finalFilteredEvents = djEvents.filter(event => {
+        if (showClosedEvents) return true; // Show all if checkbox is checked
+        return !event.settlementId; // Otherwise, show only open events
+    });
+
+    const djSettlements = settlements.filter(s => s.djId === selectedDjId);
+
+    return { filteredEvents: finalFilteredEvents, djSettlements };
+  }, [events, settlements, selectedDjId, dateRange, searchTerm, showClosedEvents]);
 
   const pendingPaymentsInfo = useMemo<PendingPaymentsInfo | null>(() => {
     if (!selectedDjId) return null;
@@ -236,9 +256,9 @@ export default function SettlementsPage() {
     const today = startOfDay(new Date());
     const overdueLimitDate = subDays(today, 15);
 
-    const djEvents = events.filter(e => e.dj_id === selectedDjId);
+    const djEventsAll = events.filter(e => e.dj_id === selectedDjId);
     
-    const pendingEvents = djEvents.filter(event => 
+    const pendingEvents = djEventsAll.filter(event => 
         event.data_evento < today && 
         event.status_pagamento !== 'pago' && 
         event.status_pagamento !== 'cancelado'
@@ -267,7 +287,7 @@ export default function SettlementsPage() {
 
 
   const eventsForCalculation = useMemo(() => {
-    return filteredEvents.filter(event => selectedEventIds.includes(event.id));
+    return filteredEvents.filter(event => selectedEventIds.includes(event.id) && !event.settlementId);
   }, [selectedEventIds, filteredEvents]);
 
 
@@ -279,7 +299,7 @@ export default function SettlementsPage() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedEventIds(filteredEvents.map(e => e.id));
+      setSelectedEventIds(filteredEvents.filter(e => !e.settlementId).map(e => e.id));
     } else {
       setSelectedEventIds([]);
     }
@@ -365,15 +385,15 @@ export default function SettlementsPage() {
         bankDocument: selectedDj.bankDocument,
         pixKey: selectedDj.pixKey
       },
-      periodStart: dateRange?.from ? Timestamp.fromDate(dateRange.from) : Timestamp.now(),
-      periodEnd: dateRange?.to ? Timestamp.fromDate(dateRange.to) : Timestamp.now(),
+      periodStart: dateRange?.from ? Timestamp.fromDate(dateRange.from) : null,
+      periodEnd: dateRange?.to ? Timestamp.fromDate(dateRange.to) : null,
       events: eventsForCalculation.map(e => e.id),
       summary: {
         totalEvents: eventsForCalculation.length,
-        grossRevenueInPeriod: financialSummary.totalBruto,
-        djNetEntitlementInPeriod: financialSummary.parcelaDjTotal,
-        totalReceivedByDjInPeriod: financialSummary.totalRecebidoPeloDj,
-        djFinalBalanceInPeriod: financialSummary.saldoFinal,
+        grossRevenue: financialSummary.totalBruto,
+        djNetEntitlement: financialSummary.parcelaDjTotal,
+        totalReceivedByDj: financialSummary.totalRecebidoPeloDj,
+        finalBalance: financialSummary.saldoFinal,
       },
       status: 'pending',
       generatedAt: Timestamp.now(),
@@ -404,6 +424,16 @@ export default function SettlementsPage() {
     }
   };
 
+  const handleViewSettlement = (settlement: FinancialSettlement) => {
+    setSelectedSettlement(settlement);
+    setViewMode('detail');
+  };
+
+  const handleReturnToSettlementMode = () => {
+    setSelectedSettlement(null);
+    setViewMode('settlement');
+  };
+
 
   if (authLoading) {
     return (
@@ -430,17 +460,27 @@ export default function SettlementsPage() {
   const isActionAllowed = userDetails?.role === 'admin' || userDetails?.role === 'partner';
   const selectedDjName = allDjs.find(dj => dj.uid === selectedDjId)?.displayName;
 
+  if (viewMode === 'detail' && selectedSettlement) {
+    return (
+        <SettlementDetailView 
+            settlement={selectedSettlement}
+            events={events.filter(e => selectedSettlement.events.includes(e.id))}
+            onBack={handleReturnToSettlementMode}
+        />
+    )
+  }
+
   return (
     <div className="space-y-6">
       <Card className="shadow-lg">
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <CardTitle className="font-headline text-2xl">Gerar Fechamentos</CardTitle>
+                <CardTitle className="font-headline text-2xl">Fechamentos</CardTitle>
                 <CardDescription>
                   {isActionAllowed
-                    ? 'Selecione um DJ, o período e os eventos para gerar um novo fechamento.'
-                    : 'Visualize seus eventos e o resumo financeiro para o período.'
+                    ? 'Selecione um DJ, o período e os eventos para gerar um novo fechamento ou consultar o histórico.'
+                    : 'Visualize seus eventos, fechamentos e resumos financeiros.'
                   }
                 </CardDescription>
             </div>
@@ -450,8 +490,8 @@ export default function SettlementsPage() {
           <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
             {isActionAllowed && (
               <div className="space-y-2 xl:col-span-1">
-                  <label className="text-sm font-medium">DJ *</label>
-                  <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
+                  <Label htmlFor='dj-select'>DJ *</Label>
+                  <Select inputId='dj-select' value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
                       <SelectTrigger>
                       <SelectValue placeholder={isLoading ? "Carregando..." : "Selecione o DJ"} />
                       </SelectTrigger>
@@ -465,7 +505,7 @@ export default function SettlementsPage() {
               </div>
             )}
              <div className="space-y-2 xl:col-span-1">
-                <label className="text-sm font-medium">Mês</label>
+                <Label>Mês</Label>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!selectedYear}>
                     <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
                     <SelectContent>
@@ -474,7 +514,7 @@ export default function SettlementsPage() {
                 </Select>
              </div>
              <div className="space-y-2 xl:col-span-1">
-                <label className="text-sm font-medium">Ano</label>
+                <Label>Ano</Label>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
                     <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
                     <SelectContent>
@@ -483,7 +523,7 @@ export default function SettlementsPage() {
                 </Select>
             </div>
             <div className="space-y-2 xl:col-span-1">
-              <label className="text-sm font-medium">ou Período Manual</label>
+              <Label>ou Período Manual</Label>
               <div className="flex items-center gap-1">
                 <Popover>
                     <PopoverTrigger asChild>
@@ -526,7 +566,7 @@ export default function SettlementsPage() {
               </div>
             </div>
             <div className="space-y-2 xl:col-span-1">
-              <label className="text-sm font-medium">Buscar Evento</label>
+              <Label>Buscar Evento</Label>
               <Input 
                 placeholder="Nome, contratante..."
                 value={searchTerm}
@@ -536,7 +576,7 @@ export default function SettlementsPage() {
           </div>
 
           {selectedDjId && pendingPaymentsInfo && pendingPaymentsInfo.totalPending > 0 && isActionAllowed && (
-             <Alert variant="destructive" className="mb-6">
+             <Alert variant="destructive" className="mb-6 cursor-pointer" onClick={() => alert('Ação de clique para filtrar pendentes a ser implementada')}>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Atenção: Pagamentos Pendentes!</AlertTitle>
                 <AlertDescription>
@@ -550,7 +590,7 @@ export default function SettlementsPage() {
               <CardHeader>
                  <CardTitle className="text-xl">Resumo do Fechamento</CardTitle>
                  <CardDescription>
-                    Resumo para {allDjs.find(dj => dj.uid === selectedDjId)?.displayName} com base nos {eventsForCalculation.length} eventos selecionados.
+                    Resumo para {selectedDjName} com base nos {eventsForCalculation.length} eventos selecionados.
                  </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -607,86 +647,131 @@ export default function SettlementsPage() {
 
           <Separator className="my-4" />
 
-          {isLoading ? (
-             <div className="flex justify-center items-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-2">Carregando eventos...</p>
-             </div>
-          ) : !selectedDjId ? (
-            <p className="text-muted-foreground text-center py-8">
-              {isActionAllowed ? 'Por favor, selecione um DJ para visualizar os eventos.' : 'Carregando seus dados...'}
-            </p>
-          ) : filteredEvents.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Nenhum evento em aberto encontrado para os filtros selecionados.</p>
-          ) : (
-             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                     <TableHead className="w-[50px]">
-                      {isActionAllowed && (
-                        <Checkbox
-                          checked={selectedEventIds.length === filteredEvents.length && filteredEvents.length > 0}
-                          onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
-                          aria-label="Selecionar todos"
-                        />
-                      )}
-                    </TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Evento</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Status Pag.</TableHead>
-                    <TableHead>Recebido por</TableHead>
-                    <TableHead>Valor Total</TableHead>
-                    <TableHead>Custos DJ</TableHead>
-                    <TableHead>Parcela DJ (Apurado)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEvents.map((event) => {
-                     const djData = allDjs.find(dj => dj.uid === event.dj_id);
-                     const parcelaDj = calculateDjCut(event, djData);
-
-                    return(
-                      <TableRow key={event.id} data-state={selectedEventIds.includes(event.id) ? 'selected' : ''}>
-                         <TableCell>
-                          {isActionAllowed && (
-                            <Checkbox
-                              checked={selectedEventIds.includes(event.id)}
-                              onCheckedChange={() => handleSelectEvent(event.id)}
-                              aria-label={`Selecionar evento ${event.nome_evento}`}
-                            />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
-                        </TableCell>
-                        <TableCell className="font-medium">{event.nome_evento}</TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className="text-xs whitespace-nowrap">{getServiceTypeText(event.tipo_servico)}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
-                            {getStatusText(event.status_pagamento)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="capitalize">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</TableCell>
-                        <TableCell>
-                          {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                        <TableCell>
-                          {Number(event.dj_costs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                         <TableCell className="font-semibold">
-                          {parcelaDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
+          <div className="space-y-4">
+            <h3 className="font-headline text-lg">Eventos</h3>
+            <div className="flex items-center space-x-2">
+                <Checkbox id="show-closed" checked={showClosedEvents} onCheckedChange={(checked) => setShowClosedEvents(checked as boolean)} />
+                <Label htmlFor="show-closed">Visualizar eventos fechados / anteriores no período</Label>
             </div>
-          )}
+            {isLoading ? (
+                <div className="flex justify-center items-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="ml-2">Carregando eventos...</p>
+                </div>
+            ) : !selectedDjId ? (
+                <p className="text-muted-foreground text-center py-8">
+                {isActionAllowed ? 'Por favor, selecione um DJ para visualizar os eventos.' : 'Carregando seus dados...'}
+                </p>
+            ) : filteredEvents.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nenhum evento encontrado para os filtros selecionados.</p>
+            ) : (
+                <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                    <TableRow>
+                        <TableHead className="w-[50px]">
+                        {isActionAllowed && (
+                            <Checkbox
+                            checked={selectedEventIds.length === filteredEvents.filter(e => !e.settlementId).length && filteredEvents.filter(e => !e.settlementId).length > 0}
+                            onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                            aria-label="Selecionar todos"
+                            />
+                        )}
+                        </TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Evento</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Status Pag.</TableHead>
+                        <TableHead>Recebido por</TableHead>
+                        <TableHead>Valor Total</TableHead>
+                        <TableHead>Custos DJ</TableHead>
+                        <TableHead>Parcela DJ (Apurado)</TableHead>
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {filteredEvents.map((event) => {
+                        const djData = allDjs.find(dj => dj.uid === event.dj_id);
+                        const parcelaDj = calculateDjCut(event, djData);
+                        const isSettled = !!event.settlementId;
+
+                        return(
+                        <TableRow key={event.id} data-state={selectedEventIds.includes(event.id) ? 'selected' : ''} className={isSettled ? 'bg-muted/30' : ''}>
+                            <TableCell>
+                            {isActionAllowed && !isSettled && (
+                                <Checkbox
+                                checked={selectedEventIds.includes(event.id)}
+                                onCheckedChange={() => handleSelectEvent(event.id)}
+                                aria-label={`Selecionar evento ${event.nome_evento}`}
+                                />
+                            )}
+                            </TableCell>
+                            <TableCell>
+                            <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
+                            </TableCell>
+                            <TableCell className="font-medium">{event.nome_evento}</TableCell>
+                            <TableCell>
+                            <Badge variant="secondary" className="text-xs whitespace-nowrap">{getServiceTypeText(event.tipo_servico)}</Badge>
+                            </TableCell>
+                            <TableCell>
+                            <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
+                                {getStatusText(event.status_pagamento)}
+                            </Badge>
+                            </TableCell>
+                            <TableCell className="capitalize">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</TableCell>
+                            <TableCell>
+                            {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </TableCell>
+                            <TableCell>
+                            {Number(event.dj_costs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                            {parcelaDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </TableCell>
+                        </TableRow>
+                        )
+                    })}
+                    </TableBody>
+                </Table>
+                </div>
+            )}
+          </div>
+
+          <Separator className="my-6" />
+
+          <div className="space-y-4">
+             <h3 className="font-headline text-lg">Histórico de Fechamentos</h3>
+             {isLoading ? (
+                 <p className="text-muted-foreground">Carregando histórico...</p>
+             ) : !selectedDjId ? (
+                 <p className="text-muted-foreground text-center py-4">{isActionAllowed ? 'Selecione um DJ para ver o histórico.' : ''}</p>
+             ) : djSettlements.length === 0 ? (
+                <p className="text-muted-foreground text-center py-4">Nenhum fechamento encontrado para este DJ.</p>
+             ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                    {djSettlements.map(settlement => (
+                        <Button 
+                            key={settlement.id} 
+                            variant="outline" 
+                            className="justify-between h-auto py-2 px-3"
+                            onClick={() => handleViewSettlement(settlement)}
+                        >
+                            <div className="flex flex-col items-start">
+                                <span className="text-sm font-semibold">
+                                    Fechamento {format(settlement.generatedAt.toDate(), 'dd/MM/yy')}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {settlement.summary.totalEvents} eventos
+                                </span>
+                            </div>
+                             <Badge variant={settlement.status === 'paid' ? 'default' : 'secondary'} className="capitalize text-xs">
+                                {settlement.status === 'paid' ? 'Pago' : 'Pendente'}
+                            </Badge>
+                        </Button>
+                    ))}
+                </div>
+             )}
+          </div>
+
         </CardContent>
       </Card>
     </div>

@@ -65,8 +65,11 @@ service cloud.firestore {
       allow create: if isAdmin() || isPartner();
 
       // READ: Admins, partners, and the specific DJ the settlement belongs to.
-      allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.djId == request.auth.uid);
+      allow read: if isAdmin() || isPartner() || (isDj() && resource.data.djId == request.auth.uid);
       
+      // LIST: Only Admins/Partners can list all. DJs can only list their own.
+      allow list: if isAdmin() || isPartner() || (isDj() && request.query.where.djId == request.auth.uid);
+
       // UPDATE: Only admins and partners can update (e.g., mark as paid).
       allow update: if isAdmin() || isPartner();
       

@@ -100,20 +100,20 @@ export interface FinancialSettlement {
     bankDocument?: string | null;
     pixKey?: string | null;
   };
-  periodStart: Date | Timestamp;
-  periodEnd: Date | Timestamp;
+  periodStart?: Timestamp | null;
+  periodEnd?: Timestamp | null;
   events: string[]; // Array of event IDs included in this settlement
   summary: {
       totalEvents: number;
-      grossRevenueInPeriod: number;
-      djNetEntitlementInPeriod: number;
-      totalReceivedByDjInPeriod: number;
-      djFinalBalanceInPeriod: number;
+      grossRevenue: number;
+      djNetEntitlement: number;
+      totalReceivedByDj: number;
+      finalBalance: number;
   };
   status: 'pending' | 'paid' | 'disputed';
-  generatedAt: Date | Timestamp;
+  generatedAt: Timestamp;
   generatedBy: string; // UID of admin/partner
-  paidAt?: Date | Timestamp | null;
+  paidAt?: Timestamp | null;
   paymentProofUrl?: string | null;
 }
 
