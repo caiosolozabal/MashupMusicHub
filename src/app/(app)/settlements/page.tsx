@@ -576,11 +576,11 @@ setDateRange({ from: start, to: end });
           </div>
 
           {selectedDjId && pendingPaymentsInfo && pendingPaymentsInfo.totalPending > 0 && isActionAllowed && (
-             <Alert variant="destructive" className="mb-6 cursor-pointer" onClick={() => alert('Ação de clique para filtrar pendentes a ser implementada')}>
+             <Alert variant="destructive" className="mb-6">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Atenção: Pagamentos Pendentes!</AlertTitle>
                 <AlertDescription>
-                    O DJ <span className="font-semibold">{selectedDjName}</span> possui <span className="font-bold">{pendingPaymentsInfo.totalPending}</span> evento(s) com pagamento pendente, dos quais <span className="font-bold">{pendingPaymentsInfo.totalOverdue}</span> estão em atraso (+15 dias).
+                    Este DJ possui <span className="font-bold">{pendingPaymentsInfo.totalPending}</span> evento(s) com pagamento pendente, dos quais <span className="font-bold">{pendingPaymentsInfo.totalOverdue}</span> estão em atraso (+15 dias).
                 </AlertDescription>
             </Alert>
           )}
@@ -777,3 +777,5 @@ setDateRange({ from: start, to: end });
     </div>
   );
 }
+
+    
