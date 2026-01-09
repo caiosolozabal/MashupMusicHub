@@ -378,12 +378,12 @@ setDateRange({ from: start, to: end });
       djId: selectedDj.uid,
       djName: selectedDj.displayName || '',
       djDetails: {
-        bankName: selectedDj.bankName,
-        bankAgency: selectedDj.bankAgency,
-        bankAccount: selectedDj.bankAccount,
-        bankAccountType: selectedDj.bankAccountType,
-        bankDocument: selectedDj.bankDocument,
-        pixKey: selectedDj.pixKey
+        bankName: selectedDj.bankName || null,
+        bankAgency: selectedDj.bankAgency || null,
+        bankAccount: selectedDj.bankAccount || null,
+        bankAccountType: selectedDj.bankAccountType || null,
+        bankDocument: selectedDj.bankDocument || null,
+        pixKey: selectedDj.pixKey || null,
       },
       periodStart: dateRange?.from ? Timestamp.fromDate(dateRange.from) : null,
       periodEnd: dateRange?.to ? Timestamp.fromDate(dateRange.to) : null,
