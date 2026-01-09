@@ -167,82 +167,6 @@
         "amount"
       ]
     },
-    "GuestList": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "GuestList",
-      "type": "object",
-      "description": "Represents a guest list for an event.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the guest list."
-        },
-        "eventId": {
-          "type": "string",
-          "description": "Reference to Event. (Relationship: Event 1:N GuestList). The event this guest list belongs to."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the guest list (e.g., Promoter VIP List)."
-        },
-        "value": {
-          "type": "number",
-          "description": "Value or price associated with the guest list entry."
-        },
-        "type": {
-          "type": "string",
-          "description": "Type of guest list (e.g., VIP, Complimentary)."
-        },
-        "checkInTimes": {
-          "type": "string",
-          "description": "Check-in times for the guest list.",
-          "format": "date-time"
-        },
-        "promoterId": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N GuestList).  The promoter or user who owns this guest list.  Allows for permission control."
-        }
-      },
-      "required": [
-        "id",
-        "eventId",
-        "name"
-      ]
-    },
-    "Guest": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Guest",
-      "type": "object",
-      "description": "Represents a guest on a guest list.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the guest."
-        },
-        "guestListId": {
-          "type": "string",
-          "description": "Reference to GuestList. (Relationship: GuestList 1:N Guest). The guest list this guest belongs to."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the guest."
-        },
-        "checkInTime": {
-          "type": "string",
-          "description": "Time the guest checked in.",
-          "format": "date-time"
-        },
-        "checkedInBy": {
-          "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N Guest). The user who checked in the guest."
-        }
-      },
-      "required": [
-        "id",
-        "guestListId",
-        "name"
-      ]
-    },
     "UserProfile": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserProfile",
@@ -404,66 +328,6 @@
         }
       },
       {
-        "path": "/users/{userId}/guestLists/{guestListId}",
-        "definition": {
-          "entityName": "GuestList",
-          "schema": {
-            "$ref": "#/backend/entities/GuestList"
-          },
-          "description": "Stores guest lists owned by promoters. Includes denormalized 'promoterId' for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user (promoter)."
-            },
-            {
-              "name": "guestListId",
-              "description": "The unique identifier for the guest list."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/events/{eventId}/guestLists/{guestListId}",
-        "definition": {
-          "entityName": "GuestList",
-          "schema": {
-            "$ref": "#/backend/entities/GuestList"
-          },
-          "description": "Stores guest lists related to event. Includes denormalized 'eventId' for authorization independence.",
-          "params": [
-            {
-              "name": "eventId",
-              "description": "The unique identifier for the event."
-            },
-            {
-              "name": "guestListId",
-              "description": "The unique identifier for the guest list."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/guestLists/{guestListId}/guests/{guestId}",
-        "definition": {
-          "entityName": "Guest",
-          "schema": {
-            "$ref": "#/backend/entities/Guest"
-          },
-          "description": "Stores guests associated with a guest list.",
-          "params": [
-            {
-              "name": "guestListId",
-              "description": "The unique identifier for the guest list."
-            },
-            {
-              "name": "guestId",
-              "description": "The unique identifier for the guest."
-            }
-          ]
-        }
-      },
-      {
         "path": "/events/{eventId}/documents/{documentId}",
         "definition": {
           "entityName": "Document",
@@ -500,6 +364,7 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to support the Mashup Music Hub application, focusing on secure, scalable, and maintainable data management. The design emphasizes authorization independence through denormalization, clear segregation of data based on access requirements, and consistent access modeling.  This design addresses the core features: user authentication with role-based access control, event management, DJ financial system, guest list management, and search/filtering capabilities.\n\nAuthorization Independence is achieved by denormalizing the 'promoterId' from the UserProfile document into the GuestList document, which allows for secure querying of guest lists based on the user's ID without needing to perform a `get()` operation on the UserProfile.  For collaborative scenarios, such as accessing events or DJ financial data, denormalization of membership is crucial to avoid reads in rules.  Since access to `Settlement` data is role-based and only for the user referenced in the `djId` field or for admins/finance users, no denormalization is required on `Settlement` documents.\n\nQAPs (Rules are not Filters) is achieved through Structural Segregation.  For example, user-specific guest lists are stored under `/users/{userId}/guestLists/{guestListId}`, while global event data is stored under `/events/{eventId}`.  This separation ensures that list operations can be performed securely without exposing unauthorized data.\n\nConsistent access modeling is applied throughout the structure. Private data related to users is stored under the `/users/{userId}` path, ensuring path-based ownership. Collaborative data, like events, leverages the denormalized 'members' map to define access control.\n\nTo support role-based access control, a dedicated collection `/roles_admin/{uid}` is used.  The existence of a document with the user's UID in this collection grants admin privileges, and this simplifies rules for admin-level access.\n\nThis structure supports all application use cases, including:\n\n*   **User Authentication and Roles**: User profiles are stored in `/users/{userId}/profile`, with a `role` field indicating their permissions. Admins can be identified via `/roles_admin/{userId}`.\n*   **Event Management**: Events are stored in `/events/{eventId}`.  DJ assignments are managed within the `event` document via the `djIds` property.\n*   **DJ Financial System**: Settlement documents are stored under `/djs/{djId}/settlements/{settlementId}`. This structure ensures that only the DJ and authorized personnel can access the settlement data.\n*   **Guest List Management**: Guest lists are stored under `/users/{userId}/guestLists/{guestListId}` for promoter-owned lists and `/events/{eventId}/guestLists/{guestListId}` for event-level lists. Guests are stored under `/guestLists/{guestListId}/guests/{guestId}`. The `promoterId` within the GuestList document allows the application to control access based on user roles.\n*   **Search and Filters**: The structure allows for efficient querying of events and guest lists using Firestore's indexing capabilities. Filters can be applied based on denormalized data, such as event status or guest list type."
+    "reasoning": "The Firestore structure is designed to support the Mashup Music Hub application, focusing on secure, scalable, and maintainable data management. The design emphasizes authorization independence through denormalization, clear segregation of data based on access requirements, and consistent access modeling.  This design addresses the core features: user authentication with role-based access control, event management, DJ financial system, and search/filtering capabilities.\n\nConsistent access modeling is applied throughout the structure. Private data related to users is stored under the `/users/{userId}` path, ensuring path-based ownership. Collaborative data, like events, leverages the denormalized 'members' map to define access control.\n\nTo support role-based access control, a dedicated collection `/roles_admin/{uid}` is used.  The existence of a document with the user's UID in this collection grants admin privileges, and this simplifies rules for admin-level access.\n\nThis structure supports all application use cases, including:\n\n*   **User Authentication and Roles**: User profiles are stored in `/users/{userId}/profile`, with a `role` field indicating their permissions. Admins can be identified via `/roles_admin/{userId}`.\n*   **Event Management**: Events are stored in `/events/{eventId}`.  DJ assignments are managed within the `event` document via the `djIds` property.\n*   **DJ Financial System**: Settlement documents are stored under `/djs/{djId}/settlements/{settlementId}`. This structure ensures that only the DJ and authorized personnel can access the settlement data.\n*   **Search and Filters**: The structure allows for efficient querying of events using Firestore's indexing capabilities."
   }
 }
+    
