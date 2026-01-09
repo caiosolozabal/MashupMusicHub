@@ -73,8 +73,8 @@ export default function DashboardPage() {
         if (userDetails.role === 'admin' || userDetails.role === 'partner') {
             eventsQuery = query(eventsCollectionRef, where('status_pagamento', '!=', 'cancelado'));
         } else if (userDetails.role === 'dj') {
-            const djId = user.uid === NEW_SOLO_UID ? [NEW_SOLO_UID, OLD_SOLO_UID] : [user.uid];
-            eventsQuery = query(eventsCollectionRef, where('dj_id', 'in', djId), where('status_pagamento', '!=', 'cancelado'));
+            const djIds = user.uid === NEW_SOLO_UID ? [NEW_SOLO_UID, OLD_SOLO_UID] : [user.uid];
+            eventsQuery = query(eventsCollectionRef, where('dj_id', 'in', djIds), where('status_pagamento', '!=', 'cancelado'));
         } else {
             eventsQuery = null;
         }

@@ -92,8 +92,8 @@ export default function SchedulePage() {
         const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
         dataPromises.push(getDocs(djsQuery));
       } else if (userDetails.role === 'dj') {
-        const djId = user.uid === NEW_SOLO_UID ? [NEW_SOLO_UID, OLD_SOLO_UID] : [user.uid];
-        eventsQuery = query(collection(db, 'events'), where('dj_id', 'in', djId), orderBy('data_evento', 'asc'));
+        const djIds = user.uid === NEW_SOLO_UID ? [NEW_SOLO_UID, OLD_SOLO_UID] : [user.uid];
+        eventsQuery = query(collection(db, 'events'), where('dj_id', 'in', djIds), orderBy('data_evento', 'asc'));
       } else {
         setEvents([]);
         setAllDjs([]);
@@ -580,5 +580,3 @@ export default function SchedulePage() {
     </div>
   );
 }
-
-    
