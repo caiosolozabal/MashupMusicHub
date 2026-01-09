@@ -21,7 +21,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId || isAdmin() || isPartner();
+      allow read, update, create: if request.auth.uid == userId || isAdmin() || isPartner();
       allow list: if isAdmin() || isPartner();
     }
     
