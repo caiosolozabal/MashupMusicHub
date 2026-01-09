@@ -1,5 +1,7 @@
-import { initializeApp, FirebaseApp } from 'firebase/app';
+
+import { initializeApp, FirebaseApp, getApp, getApps } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
 
 // Configuration for the OLD Firebase project
 const oldFirebaseConfig = {
@@ -13,9 +15,11 @@ const oldFirebaseConfig = {
 
 // Initialize a separate, named Firebase app for the old project
 // This prevents conflicts with the primary Firebase app instance
-const oldApp: FirebaseApp = initializeApp(oldFirebaseConfig, 'old-db-migration');
+const oldAppAlreadyExists = getApps().find(app => app.name === 'old-db-migration');
+const oldApp: FirebaseApp = oldAppAlreadyExists || initializeApp(oldFirebaseConfig, 'old-db-migration');
 
-// Get the Firestore instance for the old app
+// Get the Firestore and Auth instances for the old app
 const db_old: Firestore = getFirestore(oldApp);
+const auth_old: Auth = getAuth(oldApp);
 
-export { db_old };
+export { db_old, auth_old };

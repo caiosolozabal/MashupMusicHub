@@ -6,11 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { db, auth } from '@/lib/firebase';
-import { db_old } from '@/lib/firebase/migration-client';
+import { db_old, auth_old } from '@/lib/firebase/migration-client';
 import { collection, doc, writeBatch, getDocs, query, where, setDoc, getDoc } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, fetchSignInMethodsForEmail } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, fetchSignInMethodsForEmail, signOut } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Dados CORRETOS dos usuários a serem migrados, baseados no seu arquivo.
 const usersToMigrate = [
@@ -40,6 +42,10 @@ export default function MigrationPage() {
     const [isSyncingEvents, setIsSyncingEvents] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
     const [migrationLog, setMigrationLog] = useState<string[]>([]);
+    
+    // State for old DB credentials
+    const [oldDbEmail, setOldDbEmail] = useState('');
+    const [oldDbPassword, setOldDbPassword] = useState('');
 
     const handleUserMigration = async () => {
         setIsMigratingUsers(true);
@@ -122,6 +128,7 @@ export default function MigrationPage() {
 
     const handleEventSync = async () => {
         setIsSyncingEvents(true);
+        setMigrationLog([]);
         const log = (message: string) => {
             console.log(message);
             setMigrationLog(prev => [...prev, message]);
@@ -199,7 +206,13 @@ export default function MigrationPage() {
     };
 
     const handleEventImport = async () => {
+        if (!oldDbEmail || !oldDbPassword) {
+            toast({ variant: 'destructive', title: 'Credenciais Faltando', description: 'Por favor, insira o email e a senha do administrador do banco de dados antigo.' });
+            return;
+        }
+
         setIsImporting(true);
+        setMigrationLog([]);
         const log = (message: string) => {
             console.log(message);
             setMigrationLog(prev => [...prev, message]);
@@ -207,20 +220,21 @@ export default function MigrationPage() {
 
         log("\n--- INICIANDO IMPORTAÇÃO INTELIGENTE DE EVENTOS ---");
         try {
-            // 1. Get all event IDs from the CURRENT database
-            log("1. Buscando IDs de eventos no banco de dados atual...");
+            log("1. Autenticando no banco de dados antigo (listeiro-cf302)...");
+            await signInWithEmailAndPassword(auth_old, oldDbEmail, oldDbPassword);
+            log("- SUCESSO: Autenticado no sistema antigo.");
+
+            log("2. Buscando IDs de eventos no banco de dados atual...");
             const currentEventsRef = collection(db, 'events');
             const currentEventsSnapshot = await getDocs(currentEventsRef);
             const currentEventIds = new Set(currentEventsSnapshot.docs.map(d => d.id));
             log(`- ${currentEventIds.size} eventos encontrados no banco de dados atual.`);
 
-            // 2. Get all events from the OLD database
-            log("2. Buscando todos os eventos do banco de dados antigo (listeiro-cf302)...");
+            log("3. Buscando todos os eventos do banco de dados antigo...");
             const oldEventsRef = collection(db_old, 'events');
             const oldEventsSnapshot = await getDocs(oldEventsRef);
             log(`- ${oldEventsSnapshot.size} eventos encontrados no banco de dados antigo.`);
 
-            // 3. Identify new events
             const newEvents = [];
             for (const oldEventDoc of oldEventsSnapshot.docs) {
                 if (!currentEventIds.has(oldEventDoc.id)) {
@@ -233,10 +247,10 @@ export default function MigrationPage() {
                 log("Nenhum evento novo para importar. O banco de dados atual já está sincronizado.");
                 toast({ title: 'Tudo Sincronizado!', description: 'Nenhum evento novo foi encontrado no banco de dados antigo.' });
                 setIsImporting(false);
+                await signOut(auth_old);
                 return;
             }
 
-            // 4. Process new events in batches
             log("4. Iniciando a importação dos novos eventos...");
             let batch = writeBatch(db);
             let writeCount = 0;
@@ -244,12 +258,11 @@ export default function MigrationPage() {
 
             for (const { id, data } of newEvents) {
                 const newEventRef = doc(db, 'events', id);
-                // We simply copy the data from the old event. The dj_id sync should be run after.
                 batch.set(newEventRef, data);
                 writeCount++;
                 log(`- Adicionando evento "${data.nome_evento}" ao lote.`);
 
-                if (writeCount === 499) {
+                if (writeCount >= 499) {
                     log(`- Submetendo lote de ${writeCount} eventos...`);
                     commitPromises.push(batch.commit());
                     batch = writeBatch(db);
@@ -272,6 +285,8 @@ export default function MigrationPage() {
             log(`ERRO GRAVE DURANTE A IMPORTAÇÃO: ${error.message}`);
             toast({ variant: 'destructive', title: 'Erro na Importação', description: error.message });
         } finally {
+            await signOut(auth_old);
+            log("- INFO: Desconectado do sistema antigo.");
             setIsImporting(false);
         }
     };
@@ -301,31 +316,44 @@ export default function MigrationPage() {
                         </Button>
                     </div>
 
+                    <div className="space-y-4 p-4 border rounded-lg bg-secondary/50">
+                        <h3 className="font-semibold text-lg">Passo 2: Importar Novos Eventos (Banco Antigo)</h3>
+                        <Alert variant="default" className='bg-background'>
+                            <AlertTitle>Importação Inteligente</AlertTitle>
+                            <AlertDescription>
+                                Conecte-se ao banco de dados antigo (`listeiro-cf302`) para encontrar e importar apenas os eventos que não existem no banco atual, evitando duplicatas.
+                            </AlertDescription>
+                        </Alert>
+                        <div className='space-y-4 mt-4'>
+                            <p className="text-sm font-medium">Credenciais de Administrador do Banco de Dados Antigo:</p>
+                            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                                <div>
+                                    <Label htmlFor="old-db-email">Email do Admin Antigo</Label>
+                                    <Input id="old-db-email" type="email" value={oldDbEmail} onChange={(e) => setOldDbEmail(e.target.value)} placeholder="admin_antigo@email.com" />
+                                </div>
+                                <div>
+                                    <Label htmlFor="old-db-password">Senha do Admin Antigo</Label>
+                                    <Input id="old-db-password" type="password" value={oldDbPassword} onChange={(e) => setOldDbPassword(e.target.value)} />
+                                </div>
+                            </div>
+                            <Button onClick={handleEventImport} disabled={isMigratingUsers || isSyncingEvents || isImporting} variant="default">
+                                {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                {isImporting ? 'Importando...' : 'Importar Novos Eventos'}
+                            </Button>
+                        </div>
+                    </div>
+
                      <div className="space-y-4 p-4 border rounded-lg">
-                        <h3 className="font-semibold text-lg">Passo 2: Sincronizar IDs de Eventos</h3>
+                        <h3 className="font-semibold text-lg">Passo 3: Sincronizar IDs de Eventos</h3>
                         <Alert>
                             <AlertTitle>Atenção!</AlertTitle>
                             <AlertDescription>
-                                Execute este passo APÓS a migração de usuários ser concluída com sucesso. Isso atualizará todos os eventos para usar os novos IDs de DJ.
+                                Execute este passo APÓS a migração de usuários e a importação de eventos serem concluídas. Isso atualizará todos os eventos recém-importados para usar os novos IDs de DJ.
                             </AlertDescription>
                         </Alert>
                         <Button onClick={handleEventSync} disabled={isMigratingUsers || isSyncingEvents || isImporting} variant="secondary">
                             {isSyncingEvents && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {isSyncingEvents ? 'Sincronizando...' : 'Sincronizar IDs de Eventos'}
-                        </Button>
-                    </div>
-
-                    <div className="space-y-4 p-4 border rounded-lg bg-secondary/50">
-                        <h3 className="font-semibold text-lg">Passo 3: Importar Novos Eventos (Banco Antigo)</h3>
-                        <Alert variant="default" className='bg-background'>
-                            <AlertTitle>Importação Inteligente</AlertTitle>
-                            <AlertDescription>
-                                Esta operação se conectará ao banco de dados antigo (listeiro-cf302), encontrará apenas os eventos que não existem no banco de dados atual e os importará, evitando duplicatas. Rode este passo APÓS a Etapa 1.
-                            </AlertDescription>
-                        </Alert>
-                        <Button onClick={handleEventImport} disabled={isMigratingUsers || isSyncingEvents || isImporting} variant="default">
-                            {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isImporting ? 'Importando...' : 'Importar Novos Eventos'}
                         </Button>
                     </div>
 
