@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -94,6 +95,10 @@ const getYears = () => {
     return years;
 };
 
+const OLD_SOLO_UID = 'PTvylxq1UHPYXqot3JmtzyW6TDq2';
+const NEW_SOLO_UID = '1qpxEJkeihf1mmlI2IDu8NDZRgk2';
+
+
 export default function SettlementsPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -154,13 +159,14 @@ export default function SettlementsPage() {
 
 
   // Fetch events and settlements when a DJ is selected
-  const fetchDjData = useCallback(async (djId: string) => {
-    if (!djId) return;
+  const fetchDjData = useCallback(async (djIdToFetch: string) => {
+    if (!djIdToFetch) return;
 
     setIsLoadingData(true);
     try {
-      const eventsQuery = query(collection(db, 'events'), where('dj_id', '==', djId), orderBy('data_evento', 'asc'));
-      const settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', djId), orderBy('generatedAt', 'desc'));
+      const uidsToQuery = djIdToFetch === NEW_SOLO_UID ? [NEW_SOLO_UID, OLD_SOLO_UID] : [djIdToFetch];
+      const eventsQuery = query(collection(db, 'events'), where('dj_id', 'in', uidsToQuery), orderBy('data_evento', 'asc'));
+      const settlementsQuery = query(collection(db, 'settlements'), where('djId', '==', djIdToFetch), orderBy('generatedAt', 'desc'));
 
       const [eventsSnapshot, settlementsSnapshot] = await Promise.all([
         getDocs(eventsQuery),
@@ -169,9 +175,14 @@ export default function SettlementsPage() {
 
       const eventsList = eventsSnapshot.docs.map(docSnapshot => {
         const data = docSnapshot.data();
+        let djId = data.dj_id;
+        if (djId === OLD_SOLO_UID) {
+            djId = NEW_SOLO_UID;
+        }
         return {
           id: docSnapshot.id,
           ...data,
+          dj_id: djId,
           data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
           dj_costs: data.dj_costs ?? 0,
           tipo_servico: data.tipo_servico || 'servico_dj',
@@ -438,7 +449,7 @@ export default function SettlementsPage() {
 
   const handleReturnToSettlementMode = () => {
     setSelectedSettlement(null);
-    setViewMode('settlement');
+    setViewMode('detail');
   };
 
 

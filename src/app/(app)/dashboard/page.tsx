@@ -32,6 +32,9 @@ interface DashboardEvent {
   updated_at?: Date;
 }
 
+const OLD_SOLO_UID = 'PTvylxq1UHPYXqot3JmtzyW6TDq2';
+const NEW_SOLO_UID = '1qpxEJkeihf1mmlI2IDu8NDZRgk2';
+
 export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth(); // Get authLoading here
   const { toast } = useToast();
@@ -68,15 +71,12 @@ export default function DashboardPage() {
         let fetchedEvents: Event[] = [];
         let eventsQuery;
         
-        // Corrected Query Logic:
-        // If admin/partner, fetch all non-cancelled events.
-        // If DJ, fetch only their non-cancelled events.
         if (userDetails.role === 'admin' || userDetails.role === 'partner') {
             eventsQuery = query(eventsCollectionRef, where('status_pagamento', '!=', 'cancelado'));
         } else if (userDetails.role === 'dj') {
-            eventsQuery = query(eventsCollectionRef, where('dj_id', '==', user.uid), where('status_pagamento', '!=', 'cancelado'));
+            const djId = user.uid === NEW_SOLO_UID ? [NEW_SOLO_UID, OLD_SOLO_UID] : [user.uid];
+            eventsQuery = query(eventsCollectionRef, where('dj_id', 'in', djId), where('status_pagamento', '!=', 'cancelado'));
         } else {
-            // No role or other roles, fetch nothing
             eventsQuery = null;
         }
 
@@ -89,9 +89,14 @@ export default function DashboardPage() {
             } else {
                 fetchedEvents = eventsSnapshot.docs.map(doc => {
                     const data = doc.data();
+                    let djId = data.dj_id;
+                    if (djId === OLD_SOLO_UID) {
+                        djId = NEW_SOLO_UID;
+                    }
                     return {
                         id: doc.id,
                         ...data,
+                        dj_id: djId,
                         data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
                         created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date()),
                         updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate() : (data.updated_at ? new Date(data.updated_at) : new Date()),
@@ -101,7 +106,6 @@ export default function DashboardPage() {
             }
         }
         
-
         const activeEventsCount = fetchedEvents.length;
         const upcomingGigsCount = fetchedEvents.filter(event => event.data_evento > now).length;
         
