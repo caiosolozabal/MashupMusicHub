@@ -101,23 +101,13 @@ export default function DashboardPage() {
         
         let monthlyRevenue;
 
-        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-            // Para admin/sócio, soma o valor de TODOS os eventos do mês (exceto cancelados)
-            monthlyRevenue = fetchedEvents
-              .filter(event => 
-                isWithinInterval(event.data_evento, { start: currentMonthStart, end: currentMonthEnd })
-              )
-              .reduce((sum, event) => sum + (event.valor_total || 0), 0);
-        } else {
-            // Para DJ, mantém a lógica de somar apenas os pagos
-            monthlyRevenue = fetchedEvents
-              .filter(event => 
-                isWithinInterval(event.data_evento, { start: currentMonthStart, end: currentMonthEnd }) &&
-                event.status_pagamento === 'pago'
-              )
-              .reduce((sum, event) => sum + (event.valor_total || 0), 0);
-        }
-
+        // Soma o valor de TODOS os eventos do mês (exceto cancelados) para todos os perfis
+        monthlyRevenue = fetchedEvents
+          .filter(event => 
+            isWithinInterval(event.data_evento, { start: currentMonthStart, end: currentMonthEnd })
+          )
+          .reduce((sum, event) => sum + (event.valor_total || 0), 0);
+       
 
         let newStats: StatCardData[] = [];
 
