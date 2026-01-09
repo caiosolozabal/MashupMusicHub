@@ -4,12 +4,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Regra temporária para migração: permite leitura pública para que
-    // o script de migração possa acessar os dados do banco antigo.
+    // o script de migração possa acessar os dados do banco antigo e
+    // também para que o próprio script possa ler os dados do banco atual
+    // para evitar duplicatas.
     // IMPORTANTE: Esta regra deve ser revertida para a versão segura
     // após a conclusão da migração.
     allow read, list: if true;
 
     // As regras de escrita permanecem restritas para segurança.
+    // Apenas administradores podem escrever durante a migração.
     match /{document=**} {
       allow write: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
