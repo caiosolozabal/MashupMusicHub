@@ -303,7 +303,7 @@ const EventsPage: NextPage = () => {
                         <div className="flex items-center gap-2">
                             {event.tipo_servico === 'locacao_equipamento' ? <Truck className="h-4 w-4 text-muted-foreground" /> : <Disc className="h-4 w-4 text-muted-foreground" />}
                             <span>{event.nome_evento}</span>
-                            {event.linkedEventId && <LinkIcon className="h-4 w-4 text-muted-foreground" title={`Vinculado a outro evento`} />}
+                            {event.settlementId && <LinkIcon className="h-4 w-4 text-primary" title={`Este evento pertence a um fechamento`} />}
                         </div>
                       </TableCell>
                       <TableCell>{event.local}</TableCell>
