@@ -13,69 +13,6 @@ import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 
 
-// Componente temporário para corrigir os dados
-const DataFixer = () => {
-    const [message, setMessage] = useState('Restaurando perfil de usuário...');
-    const { toast } = useToast();
-
-    useEffect(() => {
-        const fixData = async () => {
-            try {
-                const userDocRef = doc(db, 'users', 'EHF5NOE47IUzfC2ikacf5la54Ar2');
-                
-                const userData: Omit<UserDetails, 'createdAt' | 'updatedAt'> = {
-                    uid: "EHF5NOE47IUzfC2ikacf5la54Ar2",
-                    displayName: "Solô",
-                    email: "caiosolozabal@gmail.com",
-                    role: "dj",
-                    dj_color: "hsl(195, 100%, 80%)",
-                    dj_percentual: 0.7,
-                    pode_locar: true,
-                    rental_percentual: 0.8,
-                    pixKey: "48.716.222/0001-31",
-                    bankAccount: null,
-                    bankAccountType: null,
-                    bankAgency: null,
-                    bankDocument: null,
-                    bankName: null,
-                };
-
-                await setDoc(userDocRef, {
-                    ...userData,
-                    createdAt: Timestamp.now(),
-                    updatedAt: Timestamp.now(),
-                });
-
-                setMessage('Perfil de usuário "Solô" restaurado com sucesso! Você pode remover o componente DataFixer do arquivo dashboard/page.tsx agora.');
-                toast({
-                    title: 'Sucesso!',
-                    description: 'O perfil de usuário foi recriado. Por favor, atualize a página.',
-                    duration: 5000,
-                });
-            } catch (error: any) {
-                console.error("Erro ao recriar o perfil:", error);
-                setMessage(`Erro ao restaurar perfil: ${error.message}`);
-                 toast({
-                    title: 'Erro na Correção',
-                    description: `Não foi possível recriar o perfil: ${error.message}`,
-                    variant: 'destructive',
-                });
-            }
-        };
-
-        fixData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    return (
-        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">
-            <p className="font-bold">Aviso de Correção de Dados</p>
-            <p>{message}</p>
-        </div>
-    );
-};
-
-
 interface StatCardData {
   title: string;
   value: string | number;
@@ -255,7 +192,8 @@ export default function DashboardPage() {
     } else if (!user && !userDetails && !authLoading) { // Auth is done, no user/details
         setIsLoading(false); 
     }
-  }, [user, userDetails, authLoading, toast]); // Added authLoading to dependencies
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userDetails, authLoading]); 
 
   if (isLoading || authLoading) { // Show loader if either dashboard data or auth state is loading
     return (
@@ -276,7 +214,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col space-y-8">
-      {/* <DataFixer /> */}
       <div className="space-y-2">
         <h1 className="text-3xl font-bold tracking-tight font-headline">
           Olá, {userDetails?.displayName || user?.displayName || user?.email || 'Usuário'}!
