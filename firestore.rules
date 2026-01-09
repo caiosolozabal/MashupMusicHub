@@ -35,8 +35,8 @@ service cloud.firestore {
       allow read, list: if isSignedIn();
       // Apenas Admins, Sócios podem criar/atualizar. DJs podem criar/atualizar SE o dj_id for o seu próprio.
       allow create, update: if isAdmin() || isPartner() || (isDj() && request.resource.data.dj_id == request.auth.uid);
-      // Apenas Admins e Sócios podem deletar eventos.
-      allow delete: if isAdmin() || isPartner();
+      // Apenas Admins e Sócios podem deletar eventos. DJs podem deletar seus próprios eventos.
+      allow delete: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
     }
     
     match /settlements/{settlementId} {
