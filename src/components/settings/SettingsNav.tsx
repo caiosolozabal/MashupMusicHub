@@ -22,11 +22,6 @@ const sidebarNavItems = [
     href: '/settings/accounts',
     roles: ['admin', 'partner'],
   },
-  {
-    title: 'Migração de Dados',
-    href: '/settings/migration',
-    roles: ['admin'],
-  },
 ];
 
 export function SettingsNav() {
