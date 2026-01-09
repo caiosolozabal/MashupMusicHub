@@ -78,6 +78,7 @@ export default function DashboardPage() {
             // No role or other roles, fetch nothing
             eventsQuery = null;
         }
+        
 
         if (eventsQuery) {
             const eventsSnapshot = await getDocs(eventsQuery);
