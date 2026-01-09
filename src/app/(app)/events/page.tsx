@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
-import type { Event } from '@/lib/types';
-import { format, parseISO } from 'date-fns';
-import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck, Copy } from 'lucide-react';
+import type { Event, UserDetails } from '@/lib/types';
+import { format, parseISO, startOfDay, getYear, getMonth, startOfMonth, endOfMonth } from 'date-fns';
+import type { DateRange } from 'react-day-picker';
+import { PlusCircle, Eye, Edit, Trash2, Loader2, Link as LinkIcon, Disc, Truck, Copy, Calendar as CalendarIcon, X } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp, query, orderBy, where, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +19,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EventForm, { type EventFormValues } from '@/components/events/EventForm';
 import EventView from '@/components/events/EventView';
 import { useAuth } from '@/hooks/useAuth';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+
 
 const getDayOfWeek = (date: Date | undefined): string => {
   if (!date) return '';
@@ -51,16 +57,33 @@ const EventsPage: NextPage = () => {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [events, setEvents] = useState<Event[]>([]);
+  const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Dialog states
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
-  const fetchEvents = async () => {
+  // Filters State
+  const [selectedDjId, setSelectedDjId] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
+  const [selectedYear, setSelectedYear] = useState<string | undefined>();
+  const availableYears = useMemo(() => {
+    const currentYear = getYear(new Date());
+    const years = [];
+    for (let i = currentYear + 1; i >= currentYear - 5; i--) {
+        years.push(i.toString());
+    }
+    return years;
+  }, []);
+
+  const fetchEventsAndDjs = async () => {
     if (authLoading || !user || !userDetails || !db) {
       setIsLoading(false);
       return;
@@ -86,26 +109,28 @@ const EventsPage: NextPage = () => {
         const data = docSnapshot.data();
         return {
           id: docSnapshot.id,
-          path: docSnapshot.ref.path, // ✅ Store the real path
+          path: docSnapshot.ref.path,
           ...data,
           data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
           created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(data.created_at),
           updated_at: data.updated_at && (data.updated_at instanceof Timestamp ? data.updated_at.toDate() : new Date(data.updated_at)),
-          payment_proofs: Array.isArray(data.payment_proofs) ? data.payment_proofs.map(proof => ({
-            ...proof,
-            uploadedAt: proof.uploadedAt instanceof Timestamp ? proof.uploadedAt.toDate() : new Date(proof.uploadedAt)
-          })) : [],
-          files: Array.isArray(data.files) ? data.files.map(file => ({
-            ...file,
-            uploadedAt: file.uploadedAt instanceof Timestamp ? file.uploadedAt.toDate() : new Date(file.uploadedAt)
-          })) : [],
+          payment_proofs: Array.isArray(data.payment_proofs) ? data.payment_proofs.map(proof => ({...proof, uploadedAt: proof.uploadedAt instanceof Timestamp ? proof.uploadedAt.toDate() : new Date(proof.uploadedAt)})) : [],
+          files: Array.isArray(data.files) ? data.files.map(file => ({...file, uploadedAt: file.uploadedAt instanceof Timestamp ? file.uploadedAt.toDate() : new Date(file.uploadedAt)})) : [],
           dj_costs: data.dj_costs ?? 0, 
         } as Event;
       });
       setEvents(eventsList);
+
+      if (userDetails.role === 'admin' || userDetails.role === 'partner') {
+         const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
+         const djsSnapshot = await getDocs(djsQuery);
+         const djsList = djsSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as UserDetails));
+         setAllDjs(djsList);
+      }
+
     } catch (error) {
-      console.error("Error fetching events: ", error);
-      toast({ variant: 'destructive', title: 'Erro ao buscar eventos', description: (error as Error).message });
+      console.error("Error fetching data: ", error);
+      toast({ variant: 'destructive', title: 'Erro ao buscar dados', description: (error as Error).message });
     } finally {
       setIsLoading(false);
     }
@@ -113,13 +138,60 @@ const EventsPage: NextPage = () => {
 
   useEffect(() => {
     if (!authLoading && user && userDetails) {
-      fetchEvents();
+      fetchEventsAndDjs();
     } else if (!authLoading && !user) {
       setEvents([]);
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userDetails, authLoading]);
+  
+  useEffect(() => {
+    if (selectedYear && selectedMonth) {
+        const year = parseInt(selectedYear, 10);
+        const month = parseInt(selectedMonth, 10);
+        const start = startOfMonth(new Date(year, month));
+        const end = endOfMonth(new Date(year, month));
+        setDateRange({ from: start, to: end });
+    }
+  }, [selectedMonth, selectedYear]);
+
+  useEffect(() => {
+      if (dateRange && dateRange.from) {
+        const from = dateRange.from;
+        if (!selectedYear || !selectedMonth || getYear(from) !== parseInt(selectedYear, 10) || getMonth(from) !== parseInt(selectedMonth, 10)) {
+            setSelectedYear(undefined);
+            setSelectedMonth(undefined);
+        }
+      }
+  }, [dateRange, selectedMonth, selectedYear]);
+
+
+  const filteredEvents = useMemo(() => {
+    let filtered = [...events];
+    
+    if (selectedDjId !== 'all' && (userDetails?.role === 'admin' || userDetails?.role === 'partner')) {
+      filtered = filtered.filter(event => event.dj_id === selectedDjId);
+    }
+    
+    if (dateRange?.from) {
+      const fromDate = startOfDay(dateRange.from); 
+      const toDate = dateRange.to ? new Date(dateRange.to) : new Date(8640000000000000); // Far future
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(event => event.data_evento >= fromDate && event.data_evento <= toDate);
+    }
+    
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(event => 
+        event.nome_evento.toLowerCase().includes(lowerSearchTerm) ||
+        event.contratante_nome.toLowerCase().includes(lowerSearchTerm) ||
+        event.local.toLowerCase().includes(lowerSearchTerm)
+      );
+    }
+
+    return filtered;
+  }, [events, selectedDjId, dateRange, searchTerm, userDetails?.role]);
 
 
   const handleOpenCreateForm = () => {
@@ -136,7 +208,6 @@ const EventsPage: NextPage = () => {
     const eventToView = events.find(e => e.id === eventId);
     if (!eventToView) return;
 
-    // If the event is linked, fetch the linked event's name for display
     if (eventToView.linkedEventId && !eventToView.linkedEventName) {
         try {
             const linkedEventRef = doc(db, 'events', eventToView.linkedEventId);
@@ -161,13 +232,13 @@ const EventsPage: NextPage = () => {
   const handleDuplicateEvent = (originalEvent: Event) => {
     const duplicatedEventData = {
         ...originalEvent,
-        id: '', // Remove ID to indicate it's a new event
-        linkedEventId: null, // Don't carry over the link
+        id: '',
+        linkedEventId: null,
         linkedEventName: null,
     };
-    setSelectedEvent(duplicatedEventData as Event); // Cast because we know what we are doing
-    setIsViewOpen(false); // Close the view dialog
-    setIsFormOpen(true); // Open the form dialog with duplicated data
+    setSelectedEvent(duplicatedEventData as Event);
+    setIsViewOpen(false);
+    setIsFormOpen(true);
   }
 
 
@@ -188,14 +259,11 @@ const EventsPage: NextPage = () => {
     };
     
     try {
-      if (selectedEvent && selectedEvent.id) { // This is an edit
+      if (selectedEvent && selectedEvent.id) {
         const eventRef = doc(db, 'events', selectedEvent.id);
-        await updateDoc(eventRef, {
-          ...eventData,
-          updated_at: serverTimestamp(),
-        });
+        await updateDoc(eventRef, { ...eventData, updated_at: serverTimestamp() });
         toast({ title: 'Evento atualizado!', description: `"${values.nome_evento}" foi atualizado com sucesso.` });
-      } else { // This is a create (either from new or from duplicate)
+      } else {
         await addDoc(collection(db, 'events'), {
           ...eventData,
           dj_id: userDetails.role === 'dj' ? user.uid : values.dj_id,
@@ -209,7 +277,7 @@ const EventsPage: NextPage = () => {
         toast({ title: 'Evento criado!', description: `"${values.nome_evento}" foi criado com sucesso.` });
       }
       setIsFormOpen(false);
-      fetchEvents(); 
+      fetchEventsAndDjs(); 
     } catch (error) {
       console.error("Error saving event: ", error);
       toast({ variant: 'destructive', title: 'Erro ao salvar evento', description: (error as Error).message });
@@ -223,11 +291,9 @@ const EventsPage: NextPage = () => {
     
     setIsSubmitting(true);
     try {
-      // ✅ Delete using the real document path
       await deleteDoc(doc(db, selectedEvent.path));
-
       toast({ title: 'Evento excluído!', description: `"${selectedEvent.nome_evento}" foi excluído.` });
-      fetchEvents(); 
+      fetchEventsAndDjs(); 
       setIsDeleteConfirmOpen(false);
       setSelectedEvent(null);
     } catch (error) {
@@ -268,13 +334,90 @@ const EventsPage: NextPage = () => {
           )}
         </CardHeader>
         <CardContent>
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+            <Input 
+              placeholder="Buscar por evento, contratante, local..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="lg:col-span-2"
+            />
+             <div className="flex items-center gap-1 lg:col-span-1">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      id="date"
+                      variant={"outline"}
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "LLL dd, y")} -{" "}
+                            {format(dateRange.to, "LLL dd, y")}
+                          </>
+                        ) : (
+                          `A partir de ${format(dateRange.from, "LLL dd, y")}`
+                        )
+                      ) : (
+                        <span>Todo o período</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={setDateRange}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {dateRange && (
+                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDateRange(undefined)}>
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 lg:col-span-1">
+                  <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!selectedYear}>
+                      <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
+                      <SelectContent>
+                          {[{ value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' }, { value: '2', label: 'Março' }, { value: '3', label: 'Abril' }, { value: '4', label: 'Maio' }, { value: '5', label: 'Junho' }, { value: '6', label: 'Julho' }, { value: '7', label: 'Agosto' }, { value: '8', label: 'Setembro' }, { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }].map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                      </SelectContent>
+                  </Select>
+                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                      <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
+                      <SelectContent>
+                          {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                      </SelectContent>
+                  </Select>
+              </div>
+            {(userDetails?.role === 'admin' || userDetails?.role === 'partner') && (
+              <Select value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoading}>
+                <SelectTrigger className="lg:col-span-1">
+                  <SelectValue placeholder={isLoading ? "Carregando..." : "Filtrar por DJ"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os DJs</SelectItem>
+                  {allDjs.map(dj => (
+                    <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName || dj.email}</SelectItem>
+                  ))}
+                   {!isLoading && allDjs.length === 0 && <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+          
           {isLoading ? (
              <div className="flex justify-center items-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="ml-2">Carregando eventos...</p>
              </div>
-          ) : events.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">Nenhum evento encontrado.</p>
+          ) : filteredEvents.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">Nenhum evento encontrado para os filtros selecionados.</p>
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -292,7 +435,7 @@ const EventsPage: NextPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {events.map((event) => (
+                  {filteredEvents.map((event) => (
                     <TableRow key={event.id} onClick={() => handleOpenView(event.id)} className="cursor-pointer">
                       <TableCell>
                         <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
