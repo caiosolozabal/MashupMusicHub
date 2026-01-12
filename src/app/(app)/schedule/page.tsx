@@ -425,21 +425,23 @@ export default function SchedulePage() {
                     <Button
                       id="date"
                       variant={"outline"}
-                      className="w-full justify-start text-left font-normal"
+                      className="w-full justify-start text-left font-normal overflow-hidden"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "LLL dd, y")} -{" "}
-                            {format(dateRange.to, "LLL dd, y")}
-                          </>
+                      <span className='truncate'>
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, "LLL dd, y")} -{" "}
+                              {format(dateRange.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            `A partir de ${format(dateRange.from, "LLL dd, y")}`
+                          )
                         ) : (
-                          `A partir de ${format(dateRange.from, "LLL dd, y")}`
-                        )
-                      ) : (
-                        <span>Selecione o período</span>
-                      )}
+                          <span>Selecione o período</span>
+                        )}
+                      </span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
