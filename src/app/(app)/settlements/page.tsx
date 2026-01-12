@@ -212,27 +212,21 @@ export default function SettlementsPage() {
       const month = parseInt(selectedMonth, 10);
       const newFrom = startOfMonth(new Date(year, month));
       const newTo = endOfMonth(new Date(year, month));
-      setDateRange({ from: newFrom, to: newTo });
+
+      // Only update dateRange if it's different to prevent loops
+      if (!dateRange || !isEqual(dateRange.from || 0, newFrom) || !isEqual(dateRange.to || 0, newTo)) {
+        setDateRange({ from: newFrom, to: newTo });
+      }
     }
   }, [selectedMonth, selectedYear]);
 
-  // Sync month/year dropdowns when dateRange is changed manually by the calendar picker
-  useEffect(() => {
-    if (dateRange?.from) {
-      const fromDate = dateRange.from;
-      const currentMonth = getMonth(fromDate).toString();
-      const currentYear = getYear(fromDate).toString();
-
-      // Only update if they are different to prevent loops
-      if (selectedMonth !== currentMonth) {
-        setSelectedMonth(currentMonth);
-      }
-      if (selectedYear !== currentYear) {
-        setSelectedYear(currentYear);
-      }
-    }
-  }, [dateRange?.from, dateRange?.to]); // Depend on from/to to detect calendar changes
-
+  // When dateRange is changed MANUALLY (e.g., by calendar picker),
+  // clear month/year dropdowns to indicate a custom range is active.
+  const handleDateRangeChange = (newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+    setSelectedMonth(undefined);
+    setSelectedYear(undefined);
+  }
 
   // Filter logic
   const { filteredEvents, djSettlements } = useMemo(() => {
@@ -567,13 +561,13 @@ export default function SettlementsPage() {
                           mode="range"
                           defaultMonth={dateRange?.from}
                           selected={dateRange}
-                          onSelect={setDateRange}
+                          onSelect={handleDateRangeChange}
                           numberOfMonths={2}
                         />
                     </PopoverContent>
                 </Popover>
                 {dateRange && (
-                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDateRange(undefined)}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleDateRangeChange(undefined)}>
                         <X className="h-4 w-4" />
                     </Button>
                 )}
