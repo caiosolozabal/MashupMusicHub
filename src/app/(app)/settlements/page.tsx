@@ -217,14 +217,16 @@ export default function SettlementsPage() {
   }, [selectedMonth, selectedYear]);
 
   useEffect(() => {
-      // When dateRange is changed manually, reset month/year selectors
-      if (dateRange) {
-        const from = dateRange.from;
-        if(from) {
-          if (!selectedYear || !selectedMonth || getYear(from) !== parseInt(selectedYear, 10) || getMonth(from) !== parseInt(selectedMonth, 10)) {
-              setSelectedYear(undefined);
-              setSelectedMonth(undefined);
-          }
+      if (dateRange?.from) {
+        const fromDate = dateRange.from;
+        const currentMonth = getMonth(fromDate).toString();
+        const currentYear = getYear(fromDate).toString();
+
+        if (selectedMonth !== currentMonth) {
+            setSelectedMonth(currentMonth);
+        }
+        if (selectedYear !== currentYear) {
+            setSelectedYear(currentYear);
         }
       }
   }, [dateRange, selectedMonth, selectedYear]);
@@ -515,7 +517,7 @@ export default function SettlementsPage() {
             )}
              <div className="space-y-2 xl:col-span-1">
                 <Label>Mês</Label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!selectedYear}>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                     <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
                     <SelectContent>
                         {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
@@ -681,7 +683,7 @@ export default function SettlementsPage() {
                         <TableHead className="w-[50px]">
                         {(isActionAllowed || isDj) && (
                             <Checkbox
-                            checked={selectedEventIds.length === filteredEvents.filter(e => !e.settlementId).length && filteredEvents.filter(e => !e.settlementId).length > 0}
+                            checked={selectedEventIds.length > 0 && selectedEventIds.length === filteredEvents.filter(e => !e.settlementId).length}
                             onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
                             aria-label="Selecionar todos"
                             />
@@ -787,4 +789,5 @@ export default function SettlementsPage() {
   );
 }
 
+    
     
