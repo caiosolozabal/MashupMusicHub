@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { format, startOfDay, getYear, getMonth, startOfMonth, endOfMonth, subDays } from 'date-fns';
+import { format, startOfDay, getYear, getMonth, startOfMonth, endOfMonth, subDays, isEqual } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -205,30 +205,35 @@ export default function SettlementsPage() {
     }
   }, [selectedDjId, fetchDjData]);
 
-  
+  // Unified effect to sync date pickers
   useEffect(() => {
     if (selectedYear && selectedMonth) {
-        const year = parseInt(selectedYear, 10);
-        const month = parseInt(selectedMonth, 10);
-        const start = startOfMonth(new Date(year, month));
-        const end = endOfMonth(new Date(year, month));
-        setDateRange({ from: start, to: end });
-    }
-  }, [selectedMonth, selectedYear]);
-
-  useEffect(() => {
-      if (dateRange?.from) {
-        const fromDate = dateRange.from;
-        const currentMonth = getMonth(fromDate).toString();
-        const currentYear = getYear(fromDate).toString();
-
-        if (selectedMonth !== currentMonth) {
-            setSelectedMonth(currentMonth);
-        }
-        if (selectedYear !== currentYear) {
-            setSelectedYear(currentYear);
-        }
+      const year = parseInt(selectedYear, 10);
+      const month = parseInt(selectedMonth, 10);
+      const newFrom = startOfMonth(new Date(year, month));
+      const newTo = endOfMonth(new Date(year, month));
+      
+      // Only update dateRange if it's different to prevent loops
+      if (!dateRange?.from || !dateRange.to || !isEqual(dateRange.from, newFrom) || !isEqual(dateRange.to, newTo)) {
+        setDateRange({ from: newFrom, to: newTo });
       }
+    }
+  }, [selectedMonth, selectedYear, dateRange]);
+
+  // Effect to sync month/year dropdowns when dateRange is changed manually
+  useEffect(() => {
+    if (dateRange?.from) {
+      const fromDate = dateRange.from;
+      const currentMonth = getMonth(fromDate).toString();
+      const currentYear = getYear(fromDate).toString();
+
+      if (selectedMonth !== currentMonth) {
+          setSelectedMonth(currentMonth);
+      }
+      if (selectedYear !== currentYear) {
+          setSelectedYear(currentYear);
+      }
+    }
   }, [dateRange, selectedMonth, selectedYear]);
 
   // Filter logic
@@ -790,4 +795,6 @@ export default function SettlementsPage() {
 }
 
     
+    
+
     
