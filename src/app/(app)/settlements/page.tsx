@@ -439,7 +439,7 @@ export default function SettlementsPage() {
 
   const handleReturnToSettlementMode = () => {
     setSelectedSettlement(null);
-    setViewMode('detail');
+    setViewMode('settlement');
   };
 
 
@@ -466,6 +466,7 @@ export default function SettlementsPage() {
   }
 
   const isActionAllowed = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+  const isDj = userDetails?.role === 'dj';
   const selectedDjName = allDjs.find(dj => dj.uid === selectedDjId)?.displayName;
 
   if (viewMode === 'detail' && selectedSettlement) {
@@ -488,7 +489,7 @@ export default function SettlementsPage() {
                 <CardDescription>
                   {isActionAllowed
                     ? 'Selecione um DJ, o período e os eventos para gerar um novo fechamento ou consultar o histórico.'
-                    : 'Visualize seus eventos, fechamentos e resumos financeiros.'
+                    : 'Visualize seus eventos, simule fechamentos e consulte o histórico.'
                   }
                 </CardDescription>
             </div>
@@ -678,7 +679,7 @@ export default function SettlementsPage() {
                     <TableHeader>
                     <TableRow>
                         <TableHead className="w-[50px]">
-                        {isActionAllowed && (
+                        {(isActionAllowed || isDj) && (
                             <Checkbox
                             checked={selectedEventIds.length === filteredEvents.filter(e => !e.settlementId).length && filteredEvents.filter(e => !e.settlementId).length > 0}
                             onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
@@ -705,7 +706,7 @@ export default function SettlementsPage() {
                         return(
                         <TableRow key={event.id} data-state={selectedEventIds.includes(event.id) ? 'selected' : ''} className={isSettled ? 'bg-muted/30' : ''}>
                             <TableCell>
-                            {isActionAllowed && !isSettled && (
+                            {(isActionAllowed || isDj) && !isSettled && (
                                 <Checkbox
                                 checked={selectedEventIds.includes(event.id)}
                                 onCheckedChange={() => handleSelectEvent(event.id)}
@@ -785,3 +786,5 @@ export default function SettlementsPage() {
     </div>
   );
 }
+
+    
