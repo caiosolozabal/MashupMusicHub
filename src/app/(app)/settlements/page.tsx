@@ -205,36 +205,34 @@ export default function SettlementsPage() {
     }
   }, [selectedDjId, fetchDjData]);
 
-  // Unified effect to sync date pickers
+  // Sync dateRange when month/year dropdowns are used
   useEffect(() => {
     if (selectedYear && selectedMonth) {
       const year = parseInt(selectedYear, 10);
       const month = parseInt(selectedMonth, 10);
       const newFrom = startOfMonth(new Date(year, month));
       const newTo = endOfMonth(new Date(year, month));
-      
-      // Only update dateRange if it's different to prevent loops
-      if (!dateRange?.from || !dateRange.to || !isEqual(dateRange.from, newFrom) || !isEqual(dateRange.to, newTo)) {
-        setDateRange({ from: newFrom, to: newTo });
-      }
+      setDateRange({ from: newFrom, to: newTo });
     }
-  }, [selectedMonth, selectedYear, dateRange]);
+  }, [selectedMonth, selectedYear]);
 
-  // Effect to sync month/year dropdowns when dateRange is changed manually
+  // Sync month/year dropdowns when dateRange is changed manually by the calendar picker
   useEffect(() => {
     if (dateRange?.from) {
       const fromDate = dateRange.from;
       const currentMonth = getMonth(fromDate).toString();
       const currentYear = getYear(fromDate).toString();
 
+      // Only update if they are different to prevent loops
       if (selectedMonth !== currentMonth) {
-          setSelectedMonth(currentMonth);
+        setSelectedMonth(currentMonth);
       }
       if (selectedYear !== currentYear) {
-          setSelectedYear(currentYear);
+        setSelectedYear(currentYear);
       }
     }
-  }, [dateRange, selectedMonth, selectedYear]);
+  }, [dateRange?.from, dateRange?.to]); // Depend on from/to to detect calendar changes
+
 
   // Filter logic
   const { filteredEvents, djSettlements } = useMemo(() => {
@@ -793,8 +791,3 @@ export default function SettlementsPage() {
     </div>
   );
 }
-
-    
-    
-
-    
