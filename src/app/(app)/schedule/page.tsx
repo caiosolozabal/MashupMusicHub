@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarIcon, X } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
-import { format, parseISO, startOfDay, getYear, getMonth, startOfMonth, endOfMonth } from 'date-fns';
+import { format, parseISO, startOfDay, getYear, getMonth, startOfMonth, endOfMonth, isEqual } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as FormDialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -35,6 +35,21 @@ const getDayOfWeek = (date: Date | undefined): string => {
   return days[date.getDay()];
 };
 
+const months = [
+  { value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' }, { value: '2', label: 'Março' },
+  { value: '3', label: 'Abril' }, { value: '4', label: 'Maio' }, { value: '5', label: 'Junho' },
+  { value: '6', label: 'Julho' }, { value: '7', label: 'Agosto' }, { value: '8', label: 'Setembro' },
+  { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
+];
+
+const getYears = () => {
+    const currentYear = getYear(new Date());
+    const years = [];
+    for (let i = currentYear + 1; i >= currentYear - 5; i--) {
+        years.push(i.toString());
+    }
+    return years;
+};
 
 export default function SchedulePage() {
   const { user, userDetails, loading: authLoading } = useAuth();
@@ -60,16 +75,9 @@ export default function SchedulePage() {
     to: endOfMonth(new Date()),
   });
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState<string>(getMonth(new Date()).toString());
-  const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
-  const availableYears = useMemo(() => {
-    const currentYear = getYear(new Date());
-    const years = [];
-    for (let i = currentYear + 1; i >= currentYear - 5; i--) {
-        years.push(i.toString());
-    }
-    return years;
-  }, []);
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>(getMonth(new Date()).toString());
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(getYear(new Date()).toString());
+  const availableYears = useMemo(() => getYears(), []);
 
   const fetchAllData = useCallback(async () => {
     if (authLoading || !user || !userDetails) {
@@ -152,27 +160,29 @@ export default function SchedulePage() {
     }
   }, [authLoading, user, userDetails, fetchAllData]);
   
+  // Sync dateRange when month/year dropdowns are used
   useEffect(() => {
+    // Only run if both month and year are selected
     if (selectedYear && selectedMonth) {
         const year = parseInt(selectedYear, 10);
         const month = parseInt(selectedMonth, 10);
-        const start = startOfMonth(new Date(year, month));
-        const end = endOfMonth(new Date(year, month));
-        setDateRange({ from: start, to: end });
+        const newFrom = startOfMonth(new Date(year, month));
+        const newTo = endOfMonth(new Date(year, month));
+        
+        // Only update if the new range is different from the current one
+        if (!dateRange || !dateRange.from || !dateRange.to || !isEqual(dateRange.from, newFrom) || !isEqual(dateRange.to, newTo)) {
+            setDateRange({ from: newFrom, to: newTo });
+        }
     }
   }, [selectedMonth, selectedYear]);
 
-  useEffect(() => {
-      if (dateRange) {
-        const from = dateRange.from;
-        if(from) {
-          if (!selectedYear || !selectedMonth || getYear(from) !== parseInt(selectedYear, 10) || getMonth(from) !== parseInt(selectedMonth, 10)) {
-              setSelectedYear(undefined);
-              setSelectedMonth(undefined);
-          }
-        }
-      }
-  }, [dateRange, selectedMonth, selectedYear]);
+  // When dateRange is changed MANUALLY (e.g., by calendar picker),
+  // clear month/year dropdowns to indicate a custom range is active.
+  const handleDateRangeChange = (newRange: DateRange | undefined) => {
+    setDateRange(newRange);
+    setSelectedMonth(undefined);
+    setSelectedYear(undefined);
+  }
 
 
   const filteredAndGroupedEvents = useMemo(() => {
@@ -425,7 +435,7 @@ export default function SchedulePage() {
                     <Button
                       id="date"
                       variant={"outline"}
-                      className="w-full justify-start text-left font-normal overflow-hidden"
+                      className="w-full justify-start text-left font-normal overflow-hidden whitespace-nowrap"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       <span className='truncate'>
@@ -450,25 +460,25 @@ export default function SchedulePage() {
                       mode="range"
                       defaultMonth={dateRange?.from}
                       selected={dateRange}
-                      onSelect={setDateRange}
+                      onSelect={handleDateRangeChange}
                       numberOfMonths={2}
                     />
                   </PopoverContent>
                 </Popover>
                 {dateRange && (
-                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setDateRange(undefined)}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => handleDateRangeChange(undefined)}>
                         <X className="h-4 w-4" />
                     </Button>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-2 lg:col-span-1">
-                  <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={!selectedYear}>
+                  <Select value={selectedMonth || ''} onValueChange={setSelectedMonth}>
                       <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
                       <SelectContent>
-                          {[{ value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' }, { value: '2', label: 'Março' }, { value: '3', label: 'Abril' }, { value: '4', label: 'Maio' }, { value: '5', label: 'Junho' }, { value: '6', label: 'Julho' }, { value: '7', label: 'Agosto' }, { value: '8', label: 'Setembro' }, { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }].map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                          {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                       </SelectContent>
                   </Select>
-                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                  <Select value={selectedYear || ''} onValueChange={setSelectedYear}>
                       <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
                       <SelectContent>
                           {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
