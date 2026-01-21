@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -26,6 +25,11 @@ const sidebarNavItems = [
   {
     title: 'Marca (Logo & PIX)',
     href: '/settings/branding',
+    roles: ['admin', 'partner'],
+  },
+  {
+    title: 'Itens de Locação',
+    href: '/settings/rental-items',
     roles: ['admin', 'partner'],
   },
 ];
