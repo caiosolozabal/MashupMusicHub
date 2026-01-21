@@ -253,21 +253,21 @@ export default function RentalPage() {
     
     const quoteData = {
       clientName: values.clientName,
-      clientContact: values.clientContact,
-      eventName: values.eventName,
+      clientContact: values.clientContact || null,
+      eventName: values.eventName || null,
       eventDate: values.eventDate ? Timestamp.fromDate(values.eventDate) : null,
-      eventLocation: values.eventLocation,
-      kitName: values.kitName,
+      eventLocation: values.eventLocation || null,
+      kitName: values.kitName || null,
       items: values.items.map(item => ({ ...item, lineTotal: item.qty * item.unitPrice })),
       fees: {
         frete: values.fees.frete || 0,
         montagem: values.fees.montagem || 0,
         outros: values.fees.outros || 0,
       },
-      discount: values.discount,
+      discount: values.discount || 0,
       totals,
-      capacitySummary: capacitySummary,
-      notes: values.notes,
+      capacitySummary: capacitySummary || null,
+      notes: values.notes || null,
     };
     
     try {
