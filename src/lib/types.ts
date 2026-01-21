@@ -211,7 +211,6 @@ export interface RentalQuote {
   fees: {
     frete: number;
     montagem: number;
-    tecnico: number;
     outros: number;
   };
   discount: number;

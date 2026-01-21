@@ -1,3 +1,4 @@
+
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import type { RentalQuote, AppConfig } from '@/lib/types';
@@ -153,8 +154,7 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
     ];
 
     if (quote.fees.frete > 0) totalsBodyRows.push(['+ Frete:', quote.fees.frete.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
-    if (quote.fees.montagem > 0) totalsBodyRows.push(['+ Montagem:', quote.fees.montagem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
-    if (quote.fees.tecnico > 0) totalsBodyRows.push(['+ Técnico:', quote.fees.tecnico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
+    if (quote.fees.montagem > 0) totalsBodyRows.push(['+ Montagem e Desmontagem:', quote.fees.montagem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
     if (quote.fees.outros > 0) totalsBodyRows.push(['+ Outros:', quote.fees.outros.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
     if (quote.discount > 0) totalsBodyRows.push(['Desconto:', `- ${quote.discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`]);
 

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -219,8 +220,7 @@ export default function RentalQuoteDetailPage() {
                             <div className="space-y-2 text-right">
                                 <p>Subtotal Itens: <span className="font-semibold">{totals.itemsSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
                                 {fees.frete > 0 && <p>+ Frete: <span className="font-semibold">{fees.frete.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
-                                {fees.montagem > 0 && <p>+ Montagem: <span className="font-semibold">{fees.montagem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
-                                {fees.tecnico > 0 && <p>+ Técnico: <span className="font-semibold">{fees.tecnico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
+                                {fees.montagem > 0 && <p>+ Montagem e Desmontagem: <span className="font-semibold">{fees.montagem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
                                 {fees.outros > 0 && <p>+ Outros: <span className="font-semibold">{fees.outros.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
                                 {discount > 0 && <p className="text-green-600">- Desconto: <span className="font-semibold">{discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
                                 <Separator className="my-2"/>

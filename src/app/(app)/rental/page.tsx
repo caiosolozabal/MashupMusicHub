@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -53,7 +54,6 @@ const rentalQuoteFormSchema = z.object({
   fees: z.object({
     frete: z.coerce.number().min(0).default(0),
     montagem: z.coerce.number().min(0).default(0),
-    tecnico: z.coerce.number().min(0).default(0),
     outros: z.coerce.number().min(0).default(0),
   }),
   discount: z.coerce.number().min(0).default(0),
@@ -89,7 +89,7 @@ export default function RentalPage() {
     defaultValues: {
       clientName: '',
       items: [],
-      fees: { frete: 0, montagem: 0, tecnico: 0, outros: 0 },
+      fees: { frete: 0, montagem: 0, outros: 0 },
       discount: 0,
     },
   });
@@ -160,7 +160,7 @@ export default function RentalPage() {
       fetchQuote();
     } else {
       // Clear form if we navigate away from editing
-      form.reset({ clientName: '', items: [], fees: { frete: 0, montagem: 0, tecnico: 0, outros: 0 }, discount: 0 });
+      form.reset({ clientName: '', items: [], fees: { frete: 0, montagem: 0, outros: 0 }, discount: 0 });
       setEditingQuoteId(null);
     }
   }, [searchParams, form, router, toast]);
@@ -209,16 +209,15 @@ export default function RentalPage() {
   const watchedDiscount = form.watch('discount');
   const frete = form.watch('fees.frete');
   const montagem = form.watch('fees.montagem');
-  const tecnico = form.watch('fees.tecnico');
   const outros = form.watch('fees.outros');
 
   const totals = useMemo(() => {
     const itemsSubtotal = watchedItems.reduce((sum, item) => sum + (Number(item.qty) * Number(item.unitPrice)), 0);
-    const feesTotal = Number(frete || 0) + Number(montagem || 0) + Number(tecnico || 0) + Number(outros || 0);
+    const feesTotal = Number(frete || 0) + Number(montagem || 0) + Number(outros || 0);
     const discountTotal = Number(watchedDiscount || 0);
     const grandTotal = itemsSubtotal + feesTotal - discountTotal;
     return { itemsSubtotal, feesTotal, discountTotal, grandTotal };
-  }, [watchedItems, watchedDiscount, frete, montagem, tecnico, outros]);
+  }, [watchedItems, watchedDiscount, frete, montagem, outros]);
 
 
   const capacitySummary = useMemo(() => {
@@ -498,12 +497,8 @@ export default function RentalPage() {
                           <Input id="frete" type="number" placeholder="0.00" {...form.register('fees.frete')} />
                         </div>
                         <div className="space-y-1">
-                          <Label htmlFor="montagem">Montagem</Label>
+                          <Label htmlFor="montagem">Montagem e Desmontagem</Label>
                           <Input id="montagem" type="number" placeholder="0.00" {...form.register('fees.montagem')} />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="tecnico">Técnico</Label>
-                          <Input id="tecnico" type="number" placeholder="0.00" {...form.register('fees.tecnico')} />
                         </div>
                         <div className="space-y-1">
                           <Label htmlFor="outros">Outros</Label>
@@ -521,14 +516,16 @@ export default function RentalPage() {
                     <Separator />
                     <div className="space-y-2 text-right">
                       <p>Subtotal Itens: <span className="font-semibold">{totals.itemsSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
-                      <p>Total Taxas: <span className="font-semibold">{totals.feesTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
+                      {frete > 0 && <p>+ Frete: <span className="font-semibold">{Number(frete).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
+                      {montagem > 0 && <p>+ Montagem e Desmontagem: <span className="font-semibold">{Number(montagem).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
+                      {outros > 0 && <p>+ Outros: <span className="font-semibold">{Number(outros).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
                       {totals.discountTotal > 0 && <p className="text-green-600">Desconto: <span className="font-semibold">-{totals.discountTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
                       <Separator className="my-2"/>
                       <p className="text-xl font-bold">Total Final: <span className="text-primary">{totals.grandTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
                     </div>
 
                     <div className="flex justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => form.reset({ clientName: '', items: [], fees: { frete: 0, montagem: 0, tecnico: 0, outros: 0 }, discount: 0 })} disabled={isSavingQuote}>Limpar Tudo</Button>
+                        <Button type="button" variant="outline" onClick={() => form.reset({ clientName: '', items: [], fees: { frete: 0, montagem: 0, outros: 0 }, discount: 0 })} disabled={isSavingQuote}>Limpar Tudo</Button>
                         <Button type="button" onClick={() => handleSave('draft')} disabled={isSavingQuote}>
                             {isSavingQuote ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
                             Salvar Rascunho
