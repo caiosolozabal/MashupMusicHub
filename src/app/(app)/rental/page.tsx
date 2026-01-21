@@ -1,12 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, addDoc, serverTimestamp, orderBy, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, serverTimestamp, orderBy, updateDoc, deleteDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -66,10 +66,12 @@ export default function RentalPage() {
   const { user, userDetails } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // --- MERGED STATE ---
   const [catalogItems, setCatalogItems] = useState<RentalItem[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
 
   // --- QUOTE CREATION STATE ---
   const [isSavingQuote, setIsSavingQuote] = useState(false);
@@ -97,36 +99,70 @@ export default function RentalPage() {
     name: 'items',
   });
 
-  // --- MERGED DATA FETCHING ---
-  const fetchItems = async () => {
-    setIsLoadingCatalog(true);
-    if (userDetails?.role !== 'admin' && userDetails?.role !== 'partner') {
+  // --- FETCH DATA ---
+  useEffect(() => {
+    const fetchItems = async () => {
+      if (userDetails?.role !== 'admin' && userDetails?.role !== 'partner') {
         toast({ variant: 'destructive', title: 'Acesso Negado' });
         router.push('/dashboard');
         return;
-    }
-    try {
-      if (!db) throw new Error('Firestore not initialized');
-      const itemsCollection = collection(db, 'rental_items');
-      const q = query(itemsCollection, orderBy('category'), orderBy('name'));
-      const itemsSnapshot = await getDocs(q);
-      const itemsList = itemsSnapshot.docs.map(docSnapshot => ({
-        id: docSnapshot.id,
-        ...docSnapshot.data(),
-      } as RentalItem));
-      setCatalogItems(itemsList);
-    } catch (error) {
-      console.error('Error fetching rental items:', error);
-      toast({ variant: 'destructive', title: 'Erro ao buscar itens', description: (error as Error).message });
-    } finally {
-      setIsLoadingCatalog(false);
-    }
-  };
+      }
+      setIsLoadingCatalog(true);
+      try {
+        const itemsCollection = collection(db, 'rental_items');
+        const q = query(itemsCollection, orderBy('category'), orderBy('name'));
+        const itemsSnapshot = await getDocs(q);
+        const itemsList = itemsSnapshot.docs.map(docSnapshot => ({
+          id: docSnapshot.id,
+          ...docSnapshot.data(),
+        } as RentalItem));
+        setCatalogItems(itemsList);
+      } catch (error) {
+        console.error('Error fetching rental items:', error);
+        toast({ variant: 'destructive', title: 'Erro ao buscar itens', description: (error as Error).message });
+      } finally {
+        setIsLoadingCatalog(false);
+      }
+    };
 
+    if (userDetails) fetchItems();
+  }, [userDetails, router, toast]);
+
+  // --- EDITING LOGIC ---
   useEffect(() => {
-    if(userDetails) fetchItems();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userDetails]);
+    const quoteIdToEdit = searchParams.get('edit');
+    if (quoteIdToEdit) {
+      const fetchQuote = async () => {
+        setIsSavingQuote(true); // Use saving loader while fetching
+        try {
+          const quoteRef = doc(db, 'rental_quotes', quoteIdToEdit);
+          const quoteSnap = await getDoc(quoteRef);
+          if (quoteSnap.exists()) {
+            const quoteData = quoteSnap.data() as RentalQuote;
+            form.reset({
+              ...quoteData,
+              eventDate: quoteData.eventDate ? quoteData.eventDate.toDate() : null,
+            });
+            setEditingQuoteId(quoteIdToEdit);
+          } else {
+            toast({ variant: 'destructive', title: 'Orçamento não encontrado' });
+            router.push('/rental');
+          }
+        } catch (error) {
+          console.error("Error fetching quote for editing:", error);
+          toast({ variant: 'destructive', title: 'Erro ao carregar orçamento', description: (error as Error).message });
+          router.push('/rental');
+        } finally {
+          setIsSavingQuote(false);
+        }
+      };
+      fetchQuote();
+    } else {
+      // Clear form if we navigate away from editing
+      form.reset({ clientName: '', items: [], fees: { frete: 0, montagem: 0, tecnico: 0, outros: 0 }, discount: 0 });
+      setEditingQuoteId(null);
+    }
+  }, [searchParams, form, router, toast]);
   
   // --- QUOTE CREATION LOGIC ---
   const categories = useMemo(() => {
@@ -169,20 +205,16 @@ export default function RentalPage() {
   };
   
   const watchedItems = form.watch('items');
+  const watchedFees = form.watch('fees');
   const watchedDiscount = form.watch('discount');
-  const watchedFrete = form.watch('fees.frete');
-  const watchedMontagem = form.watch('fees.montagem');
-  const watchedTecnico = form.watch('fees.tecnico');
-  const watchedOutros = form.watch('fees.outros');
-
 
   const totals = useMemo(() => {
     const itemsSubtotal = watchedItems.reduce((sum, item) => sum + (Number(item.qty) * Number(item.unitPrice)), 0);
-    const feesTotal = Number(watchedFrete || 0) + Number(watchedMontagem || 0) + Number(watchedTecnico || 0) + Number(watchedOutros || 0);
+    const feesTotal = Object.values(watchedFees).reduce((sum, fee) => sum + Number(fee || 0), 0);
     const discountTotal = Number(watchedDiscount || 0);
     const grandTotal = itemsSubtotal + feesTotal - discountTotal;
     return { itemsSubtotal, feesTotal, discountTotal, grandTotal };
-  }, [watchedItems, watchedFrete, watchedMontagem, watchedTecnico, watchedOutros, watchedDiscount]);
+  }, [watchedItems, watchedFees, watchedDiscount]);
 
 
   const capacitySummary = useMemo(() => {
@@ -205,7 +237,7 @@ export default function RentalPage() {
     return 'ℹ️ Não há informações suficientes para uma sugestão de capacidade.';
   }, [watchedItems, catalogItems]);
 
-  const handleSaveQuote = async (status: RentalQuoteStatus) => {
+  const handleSave = async (status: RentalQuoteStatus) => {
     const result = await form.trigger();
     if (!result) {
       toast({ variant: 'destructive', title: 'Verifique os campos', description: 'Preencha as informações obrigatórias para salvar.' });
@@ -214,10 +246,8 @@ export default function RentalPage() {
     
     setIsSavingQuote(true);
     const values = form.getValues();
-    const quoteData: Omit<RentalQuote, 'id'| 'createdAt' | 'updatedAt'> = {
-      createdBy: user?.uid!,
-      createdByName: userDetails?.displayName || user?.email || 'N/A',
-      status: status,
+    
+    const quoteData = {
       clientName: values.clientName,
       clientContact: values.clientContact,
       eventName: values.eventName,
@@ -231,10 +261,25 @@ export default function RentalPage() {
       capacitySummary: capacitySummary,
       notes: values.notes,
     };
+    
     try {
-      const docRef = await addDoc(collection(db, 'rental_quotes'), { ...quoteData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      toast({ title: 'Orçamento Salvo!', description: `O orçamento para ${values.clientName} foi salvo com sucesso.`});
-      router.push(`/rental/${docRef.id}`);
+      if (editingQuoteId) {
+        const quoteRef = doc(db, 'rental_quotes', editingQuoteId);
+        await updateDoc(quoteRef, { ...quoteData, status, updatedAt: serverTimestamp() });
+        toast({ title: 'Orçamento Atualizado!', description: `O orçamento para ${values.clientName} foi atualizado.`});
+        router.push(`/rental/${editingQuoteId}`);
+      } else {
+        const docRef = await addDoc(collection(db, 'rental_quotes'), { 
+            ...quoteData, 
+            status: status,
+            createdBy: user?.uid!,
+            createdByName: userDetails?.displayName || user?.email || 'N/A',
+            createdAt: serverTimestamp(), 
+            updatedAt: serverTimestamp() 
+        });
+        toast({ title: 'Orçamento Salvo!', description: `O orçamento para ${values.clientName} foi salvo.`});
+        router.push(`/rental/${docRef.id}`);
+      }
     } catch (error) {
       console.error("Error saving quote:", error);
       toast({ variant: 'destructive', title: 'Erro ao salvar', description: (error as Error).message });
@@ -312,7 +357,7 @@ export default function RentalPage() {
           <CardHeader className="flex-row items-center justify-between">
               <div>
                 <CardTitle>Locação de Equipamentos</CardTitle>
-                <CardDescription>Crie orçamentos ou gerencie seu catálogo de itens.</CardDescription>
+                <CardDescription>Crie ou edite orçamentos e gerencie seu catálogo de itens.</CardDescription>
               </div>
               <Button asChild variant="outline">
                 <Link href="/rental/history">
@@ -324,7 +369,7 @@ export default function RentalPage() {
       </Card>
       <Tabs defaultValue="quote">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="quote">Criar Orçamento</TabsTrigger>
+          <TabsTrigger value="quote">{editingQuoteId ? 'Editar Orçamento' : 'Criar Orçamento'}</TabsTrigger>
           <TabsTrigger value="catalog">Catálogo de Itens</TabsTrigger>
         </TabsList>
         <TabsContent value="quote" className="mt-4">
@@ -373,7 +418,7 @@ export default function RentalPage() {
               <div className="lg:col-span-2">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Montagem do Orçamento</CardTitle>
+                    <CardTitle>{editingQuoteId ? 'Editando Orçamento' : 'Montagem do Orçamento'}</CardTitle>
                     <CardDescription>Adicione itens do catálogo e preencha os detalhes abaixo.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -473,20 +518,20 @@ export default function RentalPage() {
                     <div className="space-y-2 text-right">
                       <p>Subtotal Itens: <span className="font-semibold">{totals.itemsSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
                       <p>Total Taxas: <span className="font-semibold">{totals.feesTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
-                      <p className="text-green-600">Desconto: <span className="font-semibold">-{totals.discountTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
+                      {totals.discountTotal > 0 && <p className="text-green-600">Desconto: <span className="font-semibold">-{totals.discountTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>}
                       <Separator className="my-2"/>
                       <p className="text-xl font-bold">Total Final: <span className="text-primary">{totals.grandTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></p>
                     </div>
 
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={() => form.reset({ clientName: '', items: [], fees: { frete: 0, montagem: 0, tecnico: 0, outros: 0 }, discount: 0 })} disabled={isSavingQuote}>Limpar Tudo</Button>
-                        <Button type="button" onClick={() => handleSaveQuote('draft')} disabled={isSavingQuote}>
+                        <Button type="button" onClick={() => handleSave('draft')} disabled={isSavingQuote}>
                             {isSavingQuote ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
                             Salvar Rascunho
                         </Button>
-                        <Button type="button" onClick={() => handleSaveQuote('sent')} disabled={isSavingQuote} className="bg-primary">
+                        <Button type="button" onClick={() => handleSave('sent')} disabled={isSavingQuote} className="bg-primary">
                             {isSavingQuote ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
-                            Salvar e Ver Detalhes
+                            {editingQuoteId ? 'Atualizar e Ver Detalhes' : 'Salvar e Ver Detalhes'}
                         </Button>
                     </div>
                     {form.formState.errors.items && (

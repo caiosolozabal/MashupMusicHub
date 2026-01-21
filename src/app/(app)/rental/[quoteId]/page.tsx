@@ -139,6 +139,12 @@ export default function RentalQuoteDetailPage() {
                             <CardDescription>Criado por {createdByName} em {format(createdAt.toDate(), 'dd/MM/yyyy')}</CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
+                            <Button asChild variant="outline">
+                                <Link href={`/rental?edit=${quote.id}`}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar Orçamento
+                                </Link>
+                            </Button>
                              <Select value={status} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Alterar status" />

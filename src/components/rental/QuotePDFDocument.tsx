@@ -147,17 +147,28 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         doc.text(config.pixKey, 15, yPos);
     }
     
+    // Build totals table body dynamically
+    const totalsBodyRows = [
+      ['Subtotal Itens:', quote.totals.itemsSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })],
+    ];
+
+    if (quote.fees.frete > 0) totalsBodyRows.push(['+ Frete:', quote.fees.frete.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
+    if (quote.fees.montagem > 0) totalsBodyRows.push(['+ Montagem:', quote.fees.montagem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
+    if (quote.fees.tecnico > 0) totalsBodyRows.push(['+ Técnico:', quote.fees.tecnico.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
+    if (quote.fees.outros > 0) totalsBodyRows.push(['+ Outros:', quote.fees.outros.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
+    if (quote.discount > 0) totalsBodyRows.push(['Desconto:', `- ${quote.discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`]);
+
+
     // Totals on the right
     doc.autoTable({
         startY: totalsY,
-        body: [
-            ['Subtotal Itens:', quote.totals.itemsSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })],
-            ['Taxas Adicionais:', quote.totals.feesTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })],
-            ['Desconto:', `- ${quote.totals.discountTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}`],
-        ],
+        body: totalsBodyRows,
         theme: 'plain',
         styles: { fontSize: 10, cellPadding: 1.5, halign: 'right' },
-        columnStyles: { 0: { fontStyle: 'bold' } },
+        columnStyles: { 
+            0: { fontStyle: 'bold' },
+            1: { cellStyle: { fontStyle: 'normal' }}
+        },
         margin: { left: totalsX }
     });
     
