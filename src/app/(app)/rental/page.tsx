@@ -99,33 +99,34 @@ export default function RentalPage() {
     name: 'items',
   });
 
+  const fetchItems = async () => {
+    if (userDetails?.role !== 'admin' && userDetails?.role !== 'partner') {
+      toast({ variant: 'destructive', title: 'Acesso Negado' });
+      router.push('/dashboard');
+      return;
+    }
+    setIsLoadingCatalog(true);
+    try {
+      const itemsCollection = collection(db, 'rental_items');
+      const q = query(itemsCollection, orderBy('category'), orderBy('name'));
+      const itemsSnapshot = await getDocs(q);
+      const itemsList = itemsSnapshot.docs.map(docSnapshot => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+      } as RentalItem));
+      setCatalogItems(itemsList);
+    } catch (error) {
+      console.error('Error fetching rental items:', error);
+      toast({ variant: 'destructive', title: 'Erro ao buscar itens', description: (error as Error).message });
+    } finally {
+      setIsLoadingCatalog(false);
+    }
+  };
+
   // --- FETCH DATA ---
   useEffect(() => {
-    const fetchItems = async () => {
-      if (userDetails?.role !== 'admin' && userDetails?.role !== 'partner') {
-        toast({ variant: 'destructive', title: 'Acesso Negado' });
-        router.push('/dashboard');
-        return;
-      }
-      setIsLoadingCatalog(true);
-      try {
-        const itemsCollection = collection(db, 'rental_items');
-        const q = query(itemsCollection, orderBy('category'), orderBy('name'));
-        const itemsSnapshot = await getDocs(q);
-        const itemsList = itemsSnapshot.docs.map(docSnapshot => ({
-          id: docSnapshot.id,
-          ...docSnapshot.data(),
-        } as RentalItem));
-        setCatalogItems(itemsList);
-      } catch (error) {
-        console.error('Error fetching rental items:', error);
-        toast({ variant: 'destructive', title: 'Erro ao buscar itens', description: (error as Error).message });
-      } finally {
-        setIsLoadingCatalog(false);
-      }
-    };
-
     if (userDetails) fetchItems();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userDetails, router, toast]);
 
   // --- EDITING LOGIC ---
@@ -205,16 +206,19 @@ export default function RentalPage() {
   };
   
   const watchedItems = form.watch('items');
-  const watchedFees = form.watch('fees');
   const watchedDiscount = form.watch('discount');
+  const frete = form.watch('fees.frete');
+  const montagem = form.watch('fees.montagem');
+  const tecnico = form.watch('fees.tecnico');
+  const outros = form.watch('fees.outros');
 
   const totals = useMemo(() => {
     const itemsSubtotal = watchedItems.reduce((sum, item) => sum + (Number(item.qty) * Number(item.unitPrice)), 0);
-    const feesTotal = Object.values(watchedFees).reduce((sum, fee) => sum + Number(fee || 0), 0);
+    const feesTotal = Number(frete || 0) + Number(montagem || 0) + Number(tecnico || 0) + Number(outros || 0);
     const discountTotal = Number(watchedDiscount || 0);
     const grandTotal = itemsSubtotal + feesTotal - discountTotal;
     return { itemsSubtotal, feesTotal, discountTotal, grandTotal };
-  }, [watchedItems, watchedFees, watchedDiscount]);
+  }, [watchedItems, watchedDiscount, frete, montagem, tecnico, outros]);
 
 
   const capacitySummary = useMemo(() => {
