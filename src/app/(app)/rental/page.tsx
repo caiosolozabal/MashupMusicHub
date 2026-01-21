@@ -6,7 +6,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, addDoc, serverTimestamp, orderBy, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, serverTimestamp, orderBy, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -215,7 +215,7 @@ export default function RentalPage() {
       clientName: values.clientName,
       clientContact: values.clientContact,
       eventName: values.eventName,
-      eventDate: values.eventDate ? serverTimestamp.fromDate(values.eventDate) : null,
+      eventDate: values.eventDate ? Timestamp.fromDate(values.eventDate) : null,
       eventLocation: values.eventLocation,
       kitName: values.kitName,
       items: values.items.map(item => ({ ...item, lineTotal: item.qty * item.unitPrice })),
