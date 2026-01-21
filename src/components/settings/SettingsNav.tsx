@@ -32,12 +32,6 @@ const sidebarNavItems = [
     exact: true,
   },
   {
-    title: 'Itens de Locação',
-    href: '/settings/rental-items',
-    roles: ['admin', 'partner'],
-    exact: true,
-  },
-  {
     title: 'Ferramentas de Migração',
     href: '/settings/migration',
     roles: ['admin', 'partner'],
