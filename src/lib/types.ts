@@ -157,4 +157,70 @@ export interface Guest {
   addedAt: Date; // or Timestamp
 }
 
-// Add other types as needed
+// RENTAL MODULE TYPES
+export interface AppConfig {
+  logoUrl?: string | null;
+  pixKey?: string | null;
+  companyName?: string | null;
+  rentalTerms?: string | null;
+}
+
+export interface RentalItem {
+  id: string;
+  name: string;
+  category: string;
+  photoUrl?: string | null;
+  description?: string | null;
+  basePrice: number;
+  tags?: string[];
+  soundScore?: number | null;
+  recommendedPeople?: number | null;
+  isActive: boolean;
+  stockQty?: number | null;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface RentalQuoteItem {
+  itemId: string;
+  nameSnapshot: string;
+  categorySnapshot?: string;
+  photoUrlSnapshot?: string | null;
+  qty: number;
+  basePriceSnapshot: number;
+  unitPrice: number; // Editable
+  lineTotal: number;
+}
+
+export type RentalQuoteStatus = 'draft' | 'sent' | 'approved' | 'cancelled';
+
+export interface RentalQuote {
+  id: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  status: RentalQuoteStatus;
+  clientName: string;
+  clientContact?: string | null;
+  eventName?: string | null;
+  eventDate?: Timestamp | null;
+  eventLocation?: string | null;
+  kitName?: string | null;
+  items: RentalQuoteItem[];
+  fees: {
+    frete: number;
+    montagem: number;
+    tecnico: number;
+    outros: number;
+  };
+  discount: number;
+  totals: {
+    itemsSubtotal: number;
+    feesTotal: number;
+    discountTotal: number;
+    grandTotal: number;
+  };
+  capacitySummary?: string | null;
+  notes?: string | null;
+}

@@ -26,8 +26,7 @@ service cloud.firestore {
     }
     
     match /agency_accounts/{accountId} {
-       allow read, list: if isAdmin() || isPartner();
-       allow create, update, delete: if isAdmin() || isPartner();
+       allow read, list, create, update, delete: if isAdmin() || isPartner();
     }
 
     match /events/{eventId} {
@@ -44,6 +43,20 @@ service cloud.firestore {
         allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.djId == request.auth.uid);
         // Apenas Admins e Sócios podem criar, atualizar ou deletar fechamentos.
         allow create, update, delete: if isAdmin() || isPartner();
+    }
+
+    // Rental Module Rules
+    match /rental_items/{itemId} {
+      allow read, list, create, update, delete: if isAdmin() || isPartner();
+    }
+
+    match /rental_quotes/{quoteId} {
+      allow read, list, create, update, delete: if isAdmin() || isPartner();
+    }
+
+    match /app_config/{configId} {
+       // Admins/Partners can manage branding config
+      allow read, list, create, update, delete: if isAdmin() || isPartner();
     }
 
     // Regra de fallback mais segura: nega todas as outras leituras/escritas.

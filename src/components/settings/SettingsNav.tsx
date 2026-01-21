@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -20,6 +21,11 @@ const sidebarNavItems = [
   {
     title: 'Contas da Agência',
     href: '/settings/accounts',
+    roles: ['admin', 'partner'],
+  },
+  {
+    title: 'Marca (Logo & PIX)',
+    href: '/settings/branding',
     roles: ['admin', 'partner'],
   },
 ];

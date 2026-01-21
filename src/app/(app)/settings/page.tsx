@@ -1,3 +1,4 @@
+
 import { redirect } from 'next/navigation';
 
 // This page will redirect to the profile page by default.

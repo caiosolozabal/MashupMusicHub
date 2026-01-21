@@ -8,7 +8,7 @@ import {
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, CalendarDays, Settings, DollarSign, Loader2, User } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, DollarSign, Loader2, User, Package } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -24,7 +24,8 @@ const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Painel', icon: LayoutDashboard, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
-  { href: '/settings/profile', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'], exact: false },
+  { href: '/rental', label: 'Locação', icon: Package, roles: ['admin', 'partner'], exact: false },
+  { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'], exact: false },
 ];
 
 export default function SidebarNav() {
@@ -57,9 +58,6 @@ export default function SidebarNav() {
         const isActive = item.exact === false 
           ? pathname.startsWith(item.href) 
           : pathname === item.href;
-        
-        // Handle the special case for settings
-        const finalIsActive = item.href === '/settings/profile' ? pathname.startsWith('/settings') : isActive;
 
         if (canView(item.roles)) {
           return (
@@ -67,7 +65,7 @@ export default function SidebarNav() {
               <Link href={item.href} legacyBehavior passHref>
                 <SidebarMenuButton
                   asChild
-                  isActive={finalIsActive}
+                  isActive={isActive}
                   tooltip={{ children: item.label, side: 'right', align: 'center' }}
                   aria-label={item.label}
                 >
