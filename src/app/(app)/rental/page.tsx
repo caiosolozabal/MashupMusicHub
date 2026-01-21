@@ -21,7 +21,6 @@ import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,6 +30,7 @@ import RentalItemFormDialog, { type RentalItemFormValues } from '@/components/se
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Label } from '@/components/ui/label';
+import { format } from 'date-fns';
 
 
 const quoteItemSchema = z.object({
@@ -46,11 +46,11 @@ const quoteItemSchema = z.object({
 
 const rentalQuoteFormSchema = z.object({
   clientName: z.string().min(1, 'Nome do cliente é obrigatório.'),
-  clientContact: z.string().optional(),
-  eventName: z.string().optional(),
+  clientContact: z.string().optional().nullable(),
+  eventName: z.string().optional().nullable(),
   eventDate: z.date().optional().nullable(),
-  eventLocation: z.string().optional(),
-  kitName: z.string().optional(),
+  eventLocation: z.string().optional().nullable(),
+  kitName: z.string().optional().nullable(),
   items: z.array(quoteItemSchema).min(1, 'O orçamento deve ter pelo menos um item.'),
   fees: z.object({
     frete: z.coerce.number().min(0).default(0),
@@ -58,7 +58,7 @@ const rentalQuoteFormSchema = z.object({
     outros: z.coerce.number().min(0).default(0),
   }),
   discount: z.coerce.number().min(0).default(0),
-  notes: z.string().optional(),
+  notes: z.string().optional().nullable(),
 });
 
 type RentalQuoteFormValues = z.infer<typeof rentalQuoteFormSchema>;
@@ -100,7 +100,6 @@ export default function RentalPage() {
 
   const form = useForm<RentalQuoteFormValues>({
     resolver: zodResolver(rentalQuoteFormSchema),
-    defaultValues: defaultFormValues,
   });
 
   const { fields, append, remove, update } = useFieldArray({
