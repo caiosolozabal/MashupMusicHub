@@ -20,7 +20,6 @@ import Image from 'next/image';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,6 +28,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import RentalItemFormDialog, { type RentalItemFormValues } from '@/components/settings/RentalItemFormDialog';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { Label } from '@/components/ui/label';
 
 
 const quoteItemSchema = z.object({
@@ -173,9 +173,9 @@ export default function RentalPage() {
   const watchedDiscount = form.watch('discount');
 
   const totals = useMemo(() => {
-    const itemsSubtotal = watchedItems.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0);
-    const feesTotal = Object.values(watchedFees).reduce((sum, fee) => sum + fee, 0);
-    const discountTotal = watchedDiscount;
+    const itemsSubtotal = watchedItems.reduce((sum, item) => sum + (Number(item.qty) * Number(item.unitPrice)), 0);
+    const feesTotal = Object.values(watchedFees).reduce((sum, fee) => sum + Number(fee || 0), 0);
+    const discountTotal = Number(watchedDiscount || 0);
     const grandTotal = itemsSubtotal + feesTotal - discountTotal;
     return { itemsSubtotal, feesTotal, discountTotal, grandTotal };
   }, [watchedItems, watchedFees, watchedDiscount]);
@@ -438,12 +438,27 @@ export default function RentalPage() {
 
                     <div className="space-y-4 p-4 border rounded-md">
                       <h3 className="font-semibold">Taxas e Descontos</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                            <Input type="number" placeholder="Frete" {...form.register('fees.frete')} />
-                            <Input type="number" placeholder="Montagem" {...form.register('fees.montagem')} />
-                            <Input type="number" placeholder="Técnico" {...form.register('fees.tecnico')} />
-                            <Input type="number" placeholder="Outros" {...form.register('fees.outros')} />
-                            <Input type="number" placeholder="Desconto (-)" {...form.register('discount')} className="border-green-500" />
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <Label htmlFor="frete">Frete</Label>
+                          <Input id="frete" type="number" placeholder="0.00" {...form.register('fees.frete')} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="montagem">Montagem</Label>
+                          <Input id="montagem" type="number" placeholder="0.00" {...form.register('fees.montagem')} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="tecnico">Técnico</Label>
+                          <Input id="tecnico" type="number" placeholder="0.00" {...form.register('fees.tecnico')} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="outros">Outros</Label>
+                          <Input id="outros" type="number" placeholder="0.00" {...form.register('fees.outros')} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="discount">Desconto (-)</Label>
+                          <Input id="discount" type="number" placeholder="0.00" {...form.register('discount')} className="border-green-500" />
+                        </div>
                       </div>
                     </div>
 
