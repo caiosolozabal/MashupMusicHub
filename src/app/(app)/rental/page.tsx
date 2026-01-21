@@ -258,7 +258,11 @@ export default function RentalPage() {
       eventLocation: values.eventLocation,
       kitName: values.kitName,
       items: values.items.map(item => ({ ...item, lineTotal: item.qty * item.unitPrice })),
-      fees: values.fees,
+      fees: {
+        frete: values.fees.frete || 0,
+        montagem: values.fees.montagem || 0,
+        outros: values.fees.outros || 0,
+      },
       discount: values.discount,
       totals,
       capacitySummary: capacitySummary,
