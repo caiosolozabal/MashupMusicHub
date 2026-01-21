@@ -11,26 +11,37 @@ const sidebarNavItems = [
     title: 'Meu Perfil',
     href: '/settings/profile',
     roles: ['admin', 'partner', 'dj'],
+    exact: true,
   },
   {
     title: 'Gerenciar Usuários',
     href: '/settings/users',
     roles: ['admin', 'partner'],
+    exact: true,
   },
   {
     title: 'Contas da Agência',
     href: '/settings/accounts',
     roles: ['admin', 'partner'],
+    exact: true,
   },
   {
     title: 'Marca (Logo & PIX)',
     href: '/settings/branding',
     roles: ['admin', 'partner'],
+    exact: true,
   },
   {
     title: 'Itens de Locação',
     href: '/settings/rental-items',
     roles: ['admin', 'partner'],
+    exact: true,
+  },
+  {
+    title: 'Ferramentas de Migração',
+    href: '/settings/migration',
+    roles: ['admin', 'partner'],
+    exact: false,
   },
 ];
 
@@ -44,13 +55,18 @@ export function SettingsNav() {
         if (!userDetails?.role || !item.roles.includes(userDetails.role)) {
             return null;
         }
+        
+        const isActive = item.exact === false 
+          ? pathname.startsWith(item.href) 
+          : pathname === item.href;
+
         return (
           <Link
             key={item.href}
             href={item.href}
             className={cn(
               buttonVariants({ variant: 'ghost' }),
-              pathname === item.href
+              isActive
                 ? 'bg-primary/10 text-primary hover:bg-primary/20'
                 : 'hover:bg-transparent hover:underline',
               'justify-start'
