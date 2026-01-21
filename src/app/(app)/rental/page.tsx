@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, PlusCircle, Trash2, Save, X, Sparkles, Edit, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, PlusCircle, Trash2, Save, X, Sparkles, Edit, CheckCircle2, XCircle, History } from 'lucide-react';
 import type { RentalItem, RentalQuote, RentalQuoteItem, RentalQuoteStatus } from '@/lib/types';
 import { Textarea } from '@/components/ui/textarea';
 import Image from 'next/image';
@@ -28,6 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import RentalItemFormDialog, { type RentalItemFormValues } from '@/components/settings/RentalItemFormDialog';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 
 
 const quoteItemSchema = z.object({
@@ -303,9 +304,17 @@ export default function RentalPage() {
   return (
     <div className="space-y-4">
       <Card>
-          <CardHeader>
-              <CardTitle>Locação de Equipamentos</CardTitle>
-              <CardDescription>Crie orçamentos ou gerencie seu catálogo de itens.</CardDescription>
+          <CardHeader className="flex-row items-center justify-between">
+              <div>
+                <CardTitle>Locação de Equipamentos</CardTitle>
+                <CardDescription>Crie orçamentos ou gerencie seu catálogo de itens.</CardDescription>
+              </div>
+              <Button asChild variant="outline">
+                <Link href="/rental/history">
+                    <History className="mr-2 h-4 w-4" />
+                    Ver Histórico
+                </Link>
+              </Button>
           </CardHeader>
       </Card>
       <Tabs defaultValue="quote">
@@ -380,7 +389,7 @@ export default function RentalPage() {
                                     {field.value ? format(field.value, 'dd/MM/yyyy') : <span>Data do Evento</span>}
                                   </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
+                                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={field.value || undefined} onSelect={field.onChange} initialFocus /></PopoverContent>
                               </Popover>
                             )}
                           />
