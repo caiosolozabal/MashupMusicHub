@@ -7,7 +7,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, addDoc, serverTimestamp, orderBy, updateDoc, deleteDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, addDoc, serverTimestamp, orderBy, updateDoc, deleteDoc, doc, Timestamp, getDoc } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -220,7 +220,7 @@ export default function RentalPage() {
   const outros = form.watch('fees.outros');
 
   const totals = useMemo(() => {
-    const itemsSubtotal = watchedItems.reduce((sum, item) => sum + (Number(item.qty) * Number(item.unitPrice)), 0);
+    const itemsSubtotal = (watchedItems || []).reduce((sum, item) => sum + (Number(item.qty) * Number(item.unitPrice)), 0);
     const feesTotal = Number(frete || 0) + Number(montagem || 0) + Number(outros || 0);
     const discountTotal = Number(watchedDiscount || 0);
     const grandTotal = itemsSubtotal + feesTotal - discountTotal;
