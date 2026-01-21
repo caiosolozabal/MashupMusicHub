@@ -169,16 +169,21 @@ export default function RentalPage() {
   };
   
   const watchedItems = form.watch('items');
-  const watchedFees = form.watch('fees');
   const watchedDiscount = form.watch('discount');
+  const watchedFrete = form.watch('fees.frete');
+  const watchedMontagem = form.watch('fees.montagem');
+  const watchedTecnico = form.watch('fees.tecnico');
+  const watchedOutros = form.watch('fees.outros');
+
 
   const totals = useMemo(() => {
     const itemsSubtotal = watchedItems.reduce((sum, item) => sum + (Number(item.qty) * Number(item.unitPrice)), 0);
-    const feesTotal = Object.values(watchedFees).reduce((sum, fee) => sum + Number(fee || 0), 0);
+    const feesTotal = Number(watchedFrete || 0) + Number(watchedMontagem || 0) + Number(watchedTecnico || 0) + Number(watchedOutros || 0);
     const discountTotal = Number(watchedDiscount || 0);
     const grandTotal = itemsSubtotal + feesTotal - discountTotal;
     return { itemsSubtotal, feesTotal, discountTotal, grandTotal };
-  }, [watchedItems, watchedFees, watchedDiscount]);
+  }, [watchedItems, watchedFrete, watchedMontagem, watchedTecnico, watchedOutros, watchedDiscount]);
+
 
   const capacitySummary = useMemo(() => {
     if (!watchedItems || watchedItems.length === 0) return null;
