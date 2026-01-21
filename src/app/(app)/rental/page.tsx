@@ -63,6 +63,19 @@ const rentalQuoteFormSchema = z.object({
 
 type RentalQuoteFormValues = z.infer<typeof rentalQuoteFormSchema>;
 
+const defaultFormValues: RentalQuoteFormValues = {
+  clientName: '',
+  clientContact: '',
+  eventName: '',
+  eventDate: null,
+  eventLocation: '',
+  kitName: '',
+  items: [],
+  fees: { frete: 0, montagem: 0, outros: 0 },
+  discount: 0,
+  notes: '',
+};
+
 export default function RentalPage() {
   const { user, userDetails } = useAuth();
   const { toast } = useToast();
@@ -87,12 +100,7 @@ export default function RentalPage() {
 
   const form = useForm<RentalQuoteFormValues>({
     resolver: zodResolver(rentalQuoteFormSchema),
-    defaultValues: {
-      clientName: '',
-      items: [],
-      fees: { frete: 0, montagem: 0, outros: 0 },
-      discount: 0,
-    },
+    defaultValues: defaultFormValues,
   });
 
   const { fields, append, remove, update } = useFieldArray({
@@ -161,7 +169,7 @@ export default function RentalPage() {
       fetchQuote();
     } else {
       // Clear form if we navigate away from editing
-      form.reset({ clientName: '', items: [], fees: { frete: 0, montagem: 0, outros: 0 }, discount: 0 });
+      form.reset(defaultFormValues);
       setEditingQuoteId(null);
     }
   }, [searchParams, form, router, toast]);
@@ -530,7 +538,7 @@ export default function RentalPage() {
                     </div>
 
                     <div className="flex justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => form.reset({ clientName: '', items: [], fees: { frete: 0, montagem: 0, outros: 0 }, discount: 0 })} disabled={isSavingQuote}>Limpar Tudo</Button>
+                        <Button type="button" variant="outline" onClick={() => form.reset(defaultFormValues)} disabled={isSavingQuote}>Limpar Tudo</Button>
                         <Button type="button" onClick={() => handleSave('draft')} disabled={isSavingQuote}>
                             {isSavingQuote ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4" />}
                             Salvar Rascunho
