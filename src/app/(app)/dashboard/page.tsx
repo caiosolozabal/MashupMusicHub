@@ -3,11 +3,11 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap, UploadCloud } from 'lucide-react';
+import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap, UploadCloud, FileText, Package } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy, limit, Timestamp, doc, setDoc } from 'firebase/firestore';
-import type { Event, UserDetails } from '@/lib/types';
+import type { Event, UserDetails, RentalQuote } from '@/lib/types';
 import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -110,7 +110,7 @@ export default function DashboardPage() {
        
 
         let newStats: StatCardData[] = [];
-
+        
         if (userDetails.role === 'dj') {
           const completedLastMonthCount = fetchedEvents.filter(event => 
             isWithinInterval(event.data_evento, { start: lastMonthStart, end: lastMonthEnd }) && 
@@ -123,18 +123,53 @@ export default function DashboardPage() {
             { title: 'Seus Próximos Agendamentos', value: upcomingGigsCount, icon: ListChecks, color: 'text-green-500' },
             { title: `Sua Receita Bruta (Mês ${format(now, 'MM/yy')})`, value: monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: BarChart, color: 'text-blue-500' },
           ];
-        } else { 
+        } else { // Admin or Partner
           const usersCollectionRef = collection(db, 'users');
           const djsQuery = query(usersCollectionRef, where('role', '==', 'dj'));
           const djsSnapshot = await getDocs(djsQuery);
           const totalDjsCount = djsSnapshot.size;
 
-          newStats = [
+          const eventStats = [
             { title: 'Eventos Ativos (Total)', value: activeEventsCount, icon: CalendarClock, color: 'text-primary' },
             { title: 'Total de DJs Cadastrados', value: totalDjsCount, icon: Users, color: 'text-accent' },
             { title: 'Próximos Agendamentos (Total)', value: upcomingGigsCount, icon: ListChecks, color: 'text-green-500' },
             { title: `Faturamento Bruto (Mês ${format(now, 'MM/yy')})`, value: monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: BarChart, color: 'text-blue-500' },
           ];
+          
+          // Rental Stats for Admins/Partners
+          const quotesCollectionRef = collection(db, 'rental_quotes');
+          const itemsCollectionRef = collection(db, 'rental_items');
+          
+          const [quotesSnapshot, itemsSnapshot] = await Promise.all([
+              getDocs(quotesCollectionRef),
+              getDocs(itemsCollectionRef)
+          ]);
+      
+          const quotes = quotesSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as RentalQuote));
+          
+          const quotesThisMonth = quotes.filter(q => 
+              isWithinInterval(q.createdAt.toDate(), { start: currentMonthStart, end: currentMonthEnd })
+          ).length;
+      
+          const approvedRevenueThisMonth = quotes
+              .filter(q => 
+                  q.status === 'approved' &&
+                  isWithinInterval(q.createdAt.toDate(), { start: currentMonthStart, end: currentMonthEnd })
+              )
+              .reduce((sum, q) => sum + q.totals.grandTotal, 0);
+      
+          const pendingQuotesCount = quotes.filter(q => q.status === 'draft' || q.status === 'sent').length;
+      
+          const totalItems = itemsSnapshot.size;
+      
+          const rentalStats = [
+              { title: 'Orçamentos Locação (Mês)', value: quotesThisMonth, icon: FileText, color: 'text-orange-500' },
+              { title: `Faturamento Locação (${format(now, 'MM/yy')})`, value: approvedRevenueThisMonth.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: DatabaseZap, color: 'text-green-600' },
+              { title: 'Orçamentos Pendentes', value: pendingQuotesCount, icon: Loader2, color: 'text-yellow-500' },
+              { title: 'Itens no Catálogo', value: totalItems, icon: Package, color: 'text-indigo-500' },
+          ];
+
+          newStats = [...eventStats, ...rentalStats];
         }
         setStats(newStats);
 
