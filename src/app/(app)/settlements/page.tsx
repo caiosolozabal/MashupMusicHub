@@ -2,11 +2,11 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Loader2, Info, X, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Input }from '@/components/ui/input';
@@ -27,6 +27,9 @@ import { calculateDjCut } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import SettlementDetailView from '@/components/settlements/SettlementDetailView';
 import { Label } from '@/components/ui/label';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+
 
 type ViewMode = 'settlement' | 'detail';
 
@@ -39,6 +42,17 @@ const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<type
     case 'cancelado': return 'destructive';
     default: return 'outline';
   }
+};
+
+const getButtonStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof buttonVariants>['variant'] => {
+    switch (status) {
+        case 'pago': return 'default';
+        case 'parcial': return 'secondary';
+        case 'pendente': return 'outline';
+        case 'vencido': return 'destructive';
+        case 'cancelado': return 'destructive';
+        default: return 'outline';
+    }
 };
 
 const getStatusText = (status?: Event['status_pagamento']): string => {
@@ -124,6 +138,8 @@ export default function SettlementsPage() {
   const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
   const [showClosedEvents, setShowClosedEvents] = useState(false);
   const availableYears = useMemo(() => getYears(), []);
+
+  const isActionAllowed = userDetails?.role === 'admin' || userDetails?.role === 'partner';
   
   // Fetch only the list of DJs on initial load for Admins/Partners
   useEffect(() => {
@@ -309,6 +325,38 @@ export default function SettlementsPage() {
       setSelectedEventIds([]);
     }
   };
+  
+  const handleStatusUpdate = async (eventId: string, newStatus: Event['status_pagamento']) => {
+    if (!isActionAllowed) {
+        toast({ variant: 'destructive', title: 'Acesso Negado', description: "Você não tem permissão para alterar o status." });
+        return;
+    }
+
+    const originalEvents = [...allEvents];
+    const eventToUpdate = originalEvents.find(e => e.id === eventId);
+    
+    if (!eventToUpdate) return;
+
+    // Optimistic UI Update
+    setAllEvents(prev => prev.map(e => e.id === eventId ? { ...e, status_pagamento: newStatus } : e));
+
+    try {
+        const eventRef = doc(db, 'events', eventId);
+        await updateDoc(eventRef, {
+            status_pagamento: newStatus,
+            updated_at: serverTimestamp(),
+        });
+        toast({
+            title: 'Status Atualizado!',
+            description: `O evento "${eventToUpdate.nome_evento}" foi atualizado para "${getStatusText(newStatus)}".`
+        });
+    } catch (error) {
+        // Revert on error
+        setAllEvents(originalEvents);
+        console.error("Error updating status: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao atualizar', description: (error as Error).message });
+    }
+  };
 
   const financialSummary = useMemo<FinancialSummary | null>(() => {
     if (!selectedDjId || eventsForCalculation.length === 0) return null;
@@ -464,7 +512,6 @@ export default function SettlementsPage() {
      )
   }
 
-  const isActionAllowed = userDetails?.role === 'admin' || userDetails?.role === 'partner';
   const isDj = userDetails?.role === 'dj';
   const selectedDjName = allDjs.find(dj => dj.uid === selectedDjId)?.displayName;
 
@@ -721,9 +768,28 @@ export default function SettlementsPage() {
                             <Badge variant="secondary" className="text-xs whitespace-nowrap">{getServiceTypeText(event.tipo_servico)}</Badge>
                             </TableCell>
                             <TableCell>
-                            <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
-                                {getStatusText(event.status_pagamento)}
-                            </Badge>
+                                {isActionAllowed ? (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant={getButtonStatusVariant(event.status_pagamento)} className="capitalize text-xs h-7 px-2 py-1">
+                                                {getStatusText(event.status_pagamento)}
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Alterar Status</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'pendente')}>Pendente</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'parcial')}>Parcial</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'pago')}>Pago</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'vencido')}>Vencido</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'cancelado')} className="text-destructive focus:text-destructive">Cancelado</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                ) : (
+                                    <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
+                                        {getStatusText(event.status_pagamento)}
+                                    </Badge>
+                                )}
                             </TableCell>
                             <TableCell className="capitalize">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</TableCell>
                             <TableCell>
