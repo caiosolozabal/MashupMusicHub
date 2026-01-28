@@ -1,7 +1,5 @@
 {
   "projects": {
-    "listeiro": "listeiro-cf302"
-  },
-  "targets": {},
-  "etags": {}
+    "default": "mashup-music-hub"
+  }
 }
