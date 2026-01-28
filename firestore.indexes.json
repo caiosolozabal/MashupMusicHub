@@ -42,16 +42,6 @@
           "order": "ASCENDING"
         }
       ]
-    },
-    {
-      "collectionGroup": "events",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "nome_evento",
-          "order": "ASCENDING"
-        }
-      ]
     }
   ],
   "fieldOverrides": []
