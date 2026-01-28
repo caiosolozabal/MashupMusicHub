@@ -1,6 +1,6 @@
 # Mashup Music Hub 🎧
 
-Este é o manual do seu projeto! Ele ajuda você, o ChatGPT e outras pessoas a entenderem como tudo funciona.
+Este é o manual do seu castelo! Aqui explicamos como ele funciona e como você pode guardá-lo na internet (GitHub).
 
 ## 🌟 O que o projeto faz?
 É um sistema para cuidar de uma agência de DJs. Ele ajuda a:
@@ -9,48 +9,40 @@ Este é o manual do seu projeto! Ele ajuda você, o ChatGPT e outras pessoas a e
 - Calcular quanto cada DJ deve ganhar.
 
 ## 🏗️ Como o castelo foi montado? (Para o ChatGPT ler)
-- **Frente (Frontend):** Next.js e React (é a parte bonita que você clica).
-- **Cores e Estilo:** Tailwind CSS e Shadcn/UI (deixam tudo organizado).
-- **Cérebro e Memória (Backend):** Firebase (guarda as informações e cuida dos usuários).
+- **Frente (Frontend):** Next.js e React.
+- **Estilo:** Tailwind CSS e Shadcn/UI.
+- **Cérebro e Memória (Backend):** Firebase (Firestore para dados, Auth para usuários, Storage para arquivos).
+- **Lógica de Banco de Dados:** Veja o arquivo `docs/backend.json`.
 
 ---
 
-## 📦 Como colocar seu projeto na estante (GitHub)
-Siga estes passos na **Janela Mágica (Terminal)** que fica na parte de baixo da sua tela:
+## 📦 Como guardar seu projeto no GitHub (Passo a Passo)
 
-### 1. Entre na Janela Mágica
-Lá embaixo, clique na aba escrita **Terminal**. Você vai ver uma tela preta com um cursor piscando.
+Siga estes passos na **Janela Mágica (Terminal)** que fica na parte de baixo da sua tela. 
 
-### 2. Diga "Oi" para o Git
-Cole este comando e aperte **Enter**:
-```bash
+**Atenção:** Copie apenas o texto da linha. Não copie as aspas nem os pontinhos.
+
+### Passo 1: Preparar o terreno
+Copie e cole este comando e aperte a tecla **Enter**:
 git init
-```
 
-### 3. Junte as pecinhas
-Cole este comando para o computador carregar todas as pastas:
-```bash
+### Passo 2: Juntar as pecinhas
+Copie e cole este comando e aperte **Enter**:
 git add .
-```
 
-### 4. Dê um nome para a sua criação
-Diga ao computador que você terminou essa parte:
-```bash
-git commit -m "Meu projeto está pronto!"
-```
+### Passo 3: Dar um nome para a sua criação
+Copie e cole este comando e aperte **Enter**:
+git commit -m "Meu projeto está pronto"
 
-### 5. Conecte com a sua estante
-*(Você precisa criar um repositório no site github.com primeiro e pegar o link de lá)*
-Troque o link abaixo pelo seu e aperte **Enter**:
-```bash
+### Passo 4: Conectar com a sua estante na internet
+*Antes deste passo, você precisa criar um repositório no site github.com e copiar o link que termina em .git*
+
+Troque o link abaixo pelo seu link do GitHub e aperte **Enter**:
 git remote add origin https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
-```
 
-### 6. Mande para a estante!
-Este é o passo final da mágica:
-```bash
+### Passo 5: Mandar para a estante!
+Este é o último passo. Copie e aperte **Enter**:
 git push -u origin main
-```
 
 ---
 *Dica para o ChatGPT: Analise o arquivo `docs/backend.json` para entender como o banco de dados foi planejado!*
