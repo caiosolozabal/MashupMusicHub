@@ -1,9 +1,31 @@
-# Pastas que não devem ir para o GitHub (lixo/arquivos temporários)
-node_modules
-.next
-.env
-.env.local
-.cache
-build
-dist
-*.log
+# Dependências
+/node_modules
+/.pnp
+.pnp.js
+
+# Testes
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Produção
+/build
+
+# Arquivos do Sistema
+.DS_Store
+*.pem
+
+# Logs de Erro
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variáveis de Ambiente (Segredos)
+.env*.local
+
+# Configurações do Editor
+.vscode/*
+!.vscode/settings.json
+.idea/

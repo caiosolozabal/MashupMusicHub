@@ -1,46 +1,25 @@
 # Mashup Music Hub 🎧
 
-Este é o manual do seu castelo! Aqui explicamos como ele funciona e como você pode guardá-lo na internet (GitHub).
+Este projeto é um sistema completo para gestão de agências de DJs e locação de equipamentos.
 
-## 🌟 O que o projeto faz?
-É um sistema para cuidar de uma agência de DJs. Ele ajuda a:
-- Marcar festas na agenda.
-- Fazer orçamentos para alugar equipamentos de som.
-- Calcular quanto cada DJ deve ganhar.
+## 🌟 Funcionalidades Principais
+- **Agenda de Eventos:** Controle total de datas, locais e status de pagamento.
+- **Módulo de Locação:** Criação de orçamentos profissionais com catálogo de itens e geração de PDF.
+- **Fechamentos Financeiros:** Cálculo automático de cachês de DJs e comissões de locação.
+- **Gestão de Usuários:** Níveis de acesso para Administradores, Sócios e DJs.
 
-## 🏗️ Estrutura para o ChatGPT ler
-- **Tecnologias:** Next.js, React, Tailwind CSS, Shadcn/UI.
-- **Banco de Dados:** Firebase (Firestore e Auth).
-- **Lógica:** Veja o arquivo `docs/backend.json` para entender as tabelas e regras.
-
----
-
-## 📦 Como guardar seu projeto no GitHub (Passo a Passo)
-
-Siga estes passos na **Janela Mágica (Terminal)** que fica na parte de baixo da sua tela. 
-
-**Atenção:** Digite apenas as letras. Não precisa digitar aspas ou símbolos estranhos. Aperte a tecla **Enter** depois de cada linha.
-
-### Passo 1: Preparar o terreno
-git init
-
-### Passo 2: Juntar as pecinhas
-git add .
-
-### Passo 3: Dar um nome para o seu trabalho
-git commit -m "Meu projeto de DJs"
-
-### Passo 4: Conectar com o site
-*Antes deste passo, crie um repositório no site github.com e copie o link (ex: https://github.com/voce/projeto.git)*
-
-**Se aparecer o erro "remote origin already exists", use este comando:**
-git remote set-url origin COLOQUE_O_SEU_LINK_AQUI
-
-**Se for a primeira vez e não der erro, use este:**
-git remote add origin COLOQUE_O_SEU_LINK_AQUI
-
-### Passo 5: Mandar para a estante!
-git push -u origin main
+## 🏗️ Estrutura Técnica (Para o ChatGPT)
+- **Frontend:** Next.js (App Router), React, Tailwind CSS.
+- **Componentes:** Shadcn/UI e Lucide React para ícones.
+- **Backend/Banco de Dados:** Firebase (Firestore e Authentication).
+- **Lógica de Dados:** Ver arquivo `docs/backend.json` para o esquema completo das coleções.
 
 ---
-*Dica: Se o computador pedir seu nome ou senha do GitHub, é só digitar e apertar Enter!*
+
+## 📦 Como rodar o projeto localmente
+1. Instale as dependências: `npm install`
+2. Inicie o servidor de desenvolvimento: `npm run dev`
+3. Acesse em: `http://localhost:9002`
+
+---
+*Desenvolvido com carinho para a Mashup Music.*
