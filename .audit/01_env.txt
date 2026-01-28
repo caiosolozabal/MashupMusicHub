@@ -1,0 +1,6 @@
+=== ENV ===
+pwd: /workspace
+node -v: v20.11.0 (ambiente Firebase Studio)
+npm -v: 10.2.4
+firebase --version: 13.30.0
+firebase use: Active project: mashup-music-hub (default)

@@ -1,0 +1,9 @@
+=== QUERIES SCAN ===
+--- collection/query/getDocs/onSnapshot occurrences ---
+src/app/(app)/dashboard/page.tsx:54: const eventsCollectionRef = collection(db, 'events');
+src/app/(app)/dashboard/page.tsx:63: eventsQuery = query(eventsCollectionRef, where('status_pagamento', '!=', 'cancelado'));
+src/app/(app)/schedule/page.tsx:85: eventsQuery = query(collection(db, 'events'), orderBy('data_evento', 'asc'));
+src/app/(app)/settlements/page.tsx:155: const eventsQuery = query(collection(db, 'events'), where('dj_id', '==', djIdToFetch), orderBy('data_evento', 'asc'));
+src/components/settings/UserManagementTab.tsx:32: const usersCollection = collection(db, 'users');
+src/context/AuthContext.tsx:64: const unsubscribeFirestore = onSnapshot(userDocRef, async (docSnap) => {
+... (truncado para brevidade)

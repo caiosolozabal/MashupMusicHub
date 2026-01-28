@@ -1,0 +1,36 @@
+=== FIREBASE CONFIG ===
+--- .firebaserc ---
+{
+  "projects": {
+    "default": "mashup-music-hub"
+  }
+}
+
+--- firebase.json ---
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}
+
+--- firestore.rules ---
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() { ... }
+    function isPartner() { ... }
+    function isDj() { ... }
+    ...
+  }
+}
+
+--- firestore.indexes.json ---
+{
+  "indexes": [
+    { "collectionGroup": "events", "fields": [{ "fieldPath": "dj_id", "order": "ASCENDING" }, { "fieldPath": "data_evento", "order": "DESCENDING" }] },
+    { "collectionGroup": "settlements", "fields": [{ "fieldPath": "djId", "order": "ASCENDING" }, { "fieldPath": "generatedAt", "order": "DESCENDING" }] },
+    { "collectionGroup": "users", "fields": [{ "fieldPath": "role", "order": "ASCENDING" }, { "fieldPath": "displayName", "order": "ASCENDING" }] }
+  ],
+  "fieldOverrides": []
+}

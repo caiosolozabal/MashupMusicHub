@@ -1,0 +1,36 @@
+=== TREE (TOP) ===
+total 124
+drwxr-xr-x 1 user group   4096 Feb 12 10:00 .
+drwxr-xr-x 1 user group   4096 Feb 12 10:00 ..
+-rw-r--r-- 1 user group     62 .firebaserc
+-rw-r--r-- 1 user group    421 .gitignore
+-rw-r--r-- 1 user group    102 firebase.json
+-rw-r--r-- 1 user group    654 firestore.indexes.json
+-rw-r--r-- 1 user group   2145 firestore.rules
+-rw-r--r-- 1 user group    512 next.config.js
+-rw-r--r-- 1 user group   1842 package.json
+-rw-r--r-- 1 user group   3241 README.md
+drwxr-xr-x 1 user group   4096 src
+
+src/app pages:
+src/app/(app)/dashboard/page.tsx
+src/app/(app)/layout.tsx
+src/app/(app)/rental/[quoteId]/page.tsx
+src/app/(app)/rental/history/page.tsx
+src/app/(app)/rental/page.tsx
+src/app/(app)/schedule/page.tsx
+src/app/(app)/settings/accounts/page.tsx
+src/app/(app)/settings/branding/page.tsx
+src/app/(app)/settings/layout.tsx
+src/app/(app)/settings/migration/events/page.tsx
+src/app/(app)/settings/migration/items/page.tsx
+src/app/(app)/settings/migration/page.tsx
+src/app/(app)/settings/page.tsx
+src/app/(app)/settings/profile/page.tsx
+src/app/(app)/settings/rental-items/page.tsx
+src/app/(app)/settings/users/page.tsx
+src/app/(app)/settlements/page.tsx
+src/app/layout.tsx
+src/app/login/layout.tsx
+src/app/login/page.tsx
+src/app/page.tsx

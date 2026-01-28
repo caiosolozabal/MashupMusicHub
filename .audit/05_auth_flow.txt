@@ -1,0 +1,22 @@
+=== AUTH FLOW ===
+--- firebase init ---
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+const firebaseConfig = { projectId: "mashup-music-hub", ... };
+const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const auth: Auth = getAuth(app);
+const db: Firestore = getFirestore(app);
+
+--- AuthContext ---
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const unsubscribeFirestore = onSnapshot(userDocRef, ...);
+      }
+    });
+  });
+};
