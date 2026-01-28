@@ -1,39 +1,28 @@
-# dependencies
+# Dependências
 /node_modules
 /.pnp
 .pnp.js
 
-# testing
-/coverage
-
-# next.js
+# Build do Next.js
 /.next/
 /out/
 
-# production
+# Produção
 /build
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# local env files
+# Arquivos de Sistema
+.DS_Store
+Thumbs.db
+
+# Variáveis de ambiente locais
 .env*.local
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# firebase
+# Firebase
 .firebase/
 firebase-debug.log*
 firestore-debug.log*
