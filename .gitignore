@@ -1,29 +1,14 @@
-# Dependências
-/node_modules
-/.pnp
-.pnp.js
+# Pastas que o computador não deve levar para o GitHub
+node_modules/
+.next/
+out/
+build/
 
-# Build do Next.js
-/.next/
-/out/
-
-# Produção
-/build
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Arquivos de Sistema
+# Arquivos de sistema
 .DS_Store
 Thumbs.db
 
-# Variáveis de ambiente locais
-.env*.local
-
-# Firebase
+# Configurações do Firebase que são só daqui
 .firebase/
 firebase-debug.log*
-firestore-debug.log*
-ui-debug.log*
+.firebaserc
