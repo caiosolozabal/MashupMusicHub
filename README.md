@@ -8,11 +8,10 @@ Este é o manual do seu castelo! Aqui explicamos como ele funciona e como você 
 - Fazer orçamentos para alugar equipamentos de som.
 - Calcular quanto cada DJ deve ganhar.
 
-## 🏗️ Como o castelo foi montado? (Para o ChatGPT ler)
-- **Frente (Frontend):** Next.js e React.
-- **Estilo:** Tailwind CSS e Shadcn/UI.
-- **Cérebro e Memória (Backend):** Firebase (Firestore para dados, Auth para usuários, Storage para arquivos).
-- **Lógica de Banco de Dados:** Veja o arquivo `docs/backend.json`.
+## 🏗️ Estrutura para o ChatGPT ler
+- **Tecnologias:** Next.js, React, Tailwind CSS, Shadcn/UI.
+- **Banco de Dados:** Firebase (Firestore e Auth).
+- **Lógica:** Veja o arquivo `docs/backend.json` para entender as tabelas e regras.
 
 ---
 
@@ -20,29 +19,28 @@ Este é o manual do seu castelo! Aqui explicamos como ele funciona e como você 
 
 Siga estes passos na **Janela Mágica (Terminal)** que fica na parte de baixo da sua tela. 
 
-**Atenção:** Copie apenas o texto da linha. Não copie as aspas nem os pontinhos.
+**Atenção:** Digite apenas as letras. Não precisa digitar aspas ou símbolos estranhos. Aperte a tecla **Enter** depois de cada linha.
 
 ### Passo 1: Preparar o terreno
-Copie e cole este comando e aperte a tecla **Enter**:
 git init
 
 ### Passo 2: Juntar as pecinhas
-Copie e cole este comando e aperte **Enter**:
 git add .
 
-### Passo 3: Dar um nome para a sua criação
-Copie e cole este comando e aperte **Enter**:
-git commit -m "Meu projeto está pronto"
+### Passo 3: Dar um nome para o seu trabalho
+git commit -m "Meu projeto de DJs"
 
-### Passo 4: Conectar com a sua estante na internet
-*Antes deste passo, você precisa criar um repositório no site github.com e copiar o link que termina em .git*
+### Passo 4: Conectar com o site
+*Antes deste passo, crie um repositório no site github.com e copie o link (ex: https://github.com/voce/projeto.git)*
 
-Troque o link abaixo pelo seu link do GitHub e aperte **Enter**:
-git remote add origin https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
+**Se aparecer o erro "remote origin already exists", use este comando:**
+git remote set-url origin COLOQUE_O_SEU_LINK_AQUI
+
+**Se for a primeira vez e não der erro, use este:**
+git remote add origin COLOQUE_O_SEU_LINK_AQUI
 
 ### Passo 5: Mandar para a estante!
-Este é o último passo. Copie e aperte **Enter**:
 git push -u origin main
 
 ---
-*Dica para o ChatGPT: Analise o arquivo `docs/backend.json` para entender como o banco de dados foi planejado!*
+*Dica: Se o computador pedir seu nome ou senha do GitHub, é só digitar e apertar Enter!*
