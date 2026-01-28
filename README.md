@@ -16,24 +16,25 @@ Este projeto é um sistema completo para gestão de agências de DJs e locação
 
 ---
 
-## 📦 Como baixar o projeto (Zip)
-Se você quiser baixar todo o código para o seu computador, siga estes passos na **Janela Mágica (Terminal)**:
-
-1. Digite este comando e aperte Enter:
+## 📦 Como baixar o projeto (Zip Completo)
+Para baixar tudo para o seu computador:
+1. Digite este comando no Terminal:
    `zip -r projeto.zip . -x "node_modules/*" ".next/*" ".git/*"`
-2. Espere terminar.
-3. Olhe para a lista de arquivos na esquerda. Vai aparecer um arquivo chamado `projeto.zip`.
-4. Clique com o botão direito nele e escolha **Download**.
+2. Clique com o botão direito em `projeto.zip` na esquerda e escolha **Download**.
+
+## 🔍 Zip para Revisão Técnica (Leve)
+Para criar um arquivo apenas com código e configurações (ideal para análise do ChatGPT ou revisores):
+1. Digite este comando no Terminal:
+   `zip -r project-review.zip . -x "node_modules/*" ".next/*" ".firebase/*" "dist/*" "build/*" "coverage/*" "public/uploads/*" "public/images/*" ".git/*"`
+2. O arquivo `project-review.zip` será criado.
 
 ---
 
 ## 🚀 Como enviar para o GitHub
-Se você já criou seu repositório no GitHub, use estes comandos um por um no Terminal:
-
 1. `git add .`
 2. `git commit -m "Minha atualização"`
 3. `git branch -M main`
-4. `git remote add origin https://github.com/caiosolozabal/MashupGPT` (Só se ainda não tiver feito)
+4. `git remote add origin https://github.com/caiosolozabal/MashupGPT`
 5. `git push -u origin main`
 
 ---
