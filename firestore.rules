@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -30,24 +29,23 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      // Todos os usuários autenticados podem ler/listar eventos para a funcionalidade principal da agenda.
-      allow read, list: if isSignedIn();
-      // Apenas Admins, Sócios podem criar/atualizar. DJs podem criar/atualizar SE o dj_id for o seu próprio.
+      // Regra de Listagem Protegida: DJs listam apenas seus próprios eventos. Admins listam tudo.
+      allow list: if isAdmin() || isPartner() || (isDj() && request.query.limit <= 500 && (request.query.filters.dj_id == request.auth.uid || request.query.filters.size() == 0));
+      // Regra de Leitura: Qualquer logado pode ver detalhes (necessário para a visualização da agenda global se permitido).
+      allow read: if isSignedIn();
+      
       allow create, update: if isAdmin() || isPartner() || (isDj() && request.resource.data.dj_id == request.auth.uid);
-      // Apenas Admins e Sócios podem deletar eventos. DJs podem deletar seus próprios eventos.
       allow delete: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
     }
     
     match /settlements/{settlementId} {
-        // DJs podem ler seus próprios fechamentos, Admins e Sócios podem ler todos.
         allow read, list: if isAdmin() || isPartner() || (isDj() && resource.data.djId == request.auth.uid);
-        // Apenas Admins e Sócios podem criar, atualizar ou deletar fechamentos.
         allow create, update, delete: if isAdmin() || isPartner();
     }
 
-    // Rental Module Rules
     match /rental_items/{itemId} {
-      allow read, list, create, update, delete: if isAdmin() || isPartner();
+      allow read, list: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isPartner();
     }
 
     match /rental_quotes/{quoteId} {
@@ -55,11 +53,9 @@ service cloud.firestore {
     }
 
     match /app_config/{configId} {
-       // Admins/Partners can manage branding config
       allow read, list, create, update, delete: if isAdmin() || isPartner();
     }
 
-    // Regra de fallback mais segura: nega todas as outras leituras/escritas.
     match /{document=**} {
       allow read, write: if false;
     }

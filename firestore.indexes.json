@@ -1,46 +1,35 @@
-
 {
   "indexes": [
     {
       "collectionGroup": "events",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "dj_id",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "data_evento",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "dj_id", "order": "ASCENDING" },
+        { "fieldPath": "data_evento", "order": "ASCENDING" }
       ]
     },
     {
       "collectionGroup": "settlements",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "djId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "generatedAt",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "djId", "order": "ASCENDING" },
+        { "fieldPath": "generatedAt", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "role",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "displayName",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "role", "order": "ASCENDING" },
+        { "fieldPath": "displayName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "rental_items",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "category", "order": "ASCENDING" },
+        { "fieldPath": "name", "order": "ASCENDING" }
       ]
     }
   ],
