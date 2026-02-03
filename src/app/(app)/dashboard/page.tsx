@@ -2,14 +2,15 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap, FileText, Package } from 'lucide-react';
+import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap, FileText, Package, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, doc } from 'firebase/firestore';
-import type { Event, RentalQuote } from '@/lib/types';
-import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
+import { collection, getDocs, query, where, Timestamp, doc, documentId } from 'firebase/firestore';
+import type { Event, RentalQuote, FinancialSettlement } from '@/lib/types';
+import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths } from 'date-fns';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import { getEventOperationalState } from '@/lib/utils';
 
 
 interface StatCardData {
@@ -20,24 +21,13 @@ interface StatCardData {
   description?: string;
 }
 
-interface DashboardEvent {
-  id: string;
-  nome_evento: string;
-  local: string;
-  data_evento: Date;
-  horario_inicio?: string | null;
-  status_pagamento?: Event['status_pagamento'];
-  created_at?: Date;
-  updated_at?: Date;
-}
-
 export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<StatCardData[]>([]);
-  const [recentActivities, setRecentActivities] = useState<DashboardEvent[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<DashboardEvent[]>([]);
+  const [recentActivities, setRecentActivities] = useState<Event[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -50,102 +40,111 @@ export default function DashboardPage() {
       try {
         const eventsCollectionRef = collection(db, 'events');
         const now = new Date();
-        const currentMonthStart = startOfMonth(now);
-        const currentMonthEnd = endOfMonth(now);
-        const lastMonthStart = startOfMonth(subMonths(now, 1));
-        const lastMonthEnd = endOfMonth(subMonths(now, 1));
-
-        let fetchedEvents: Event[] = [];
-        let eventsQuery;
         
-        // Usamos 'in' em vez de '!=' para evitar a necessidade de orderBy específico e garantir compatibilidade
+        // Estratégia de Janela Temporal: Últimos 6 meses até 3 meses no futuro
+        const windowStart = startOfMonth(subMonths(now, 6));
+        const windowEnd = endOfMonth(addMonths(now, 3));
+
+        let eventsQuery;
         const activeStatuses = ['pago', 'parcial', 'pendente', 'vencido'];
 
         if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-            eventsQuery = query(eventsCollectionRef, where('status_pagamento', 'in', activeStatuses));
+            eventsQuery = query(
+              eventsCollectionRef, 
+              where('status_pagamento', 'in', activeStatuses),
+              where('data_evento', '>=', Timestamp.fromDate(windowStart)),
+              where('data_evento', '<=', Timestamp.fromDate(windowEnd))
+            );
         } else if (userDetails.role === 'dj') {
-            eventsQuery = query(eventsCollectionRef, where('dj_id', '==', user.uid), where('status_pagamento', 'in', activeStatuses));
+            eventsQuery = query(
+              eventsCollectionRef, 
+              where('dj_id', '==', user.uid), 
+              where('status_pagamento', 'in', activeStatuses),
+              where('data_evento', '>=', Timestamp.fromDate(windowStart)),
+              where('data_evento', '<=', Timestamp.fromDate(windowEnd))
+            );
         } else {
             eventsQuery = null;
         }
 
+        let fetchedEvents: Event[] = [];
         if (eventsQuery) {
             const eventsSnapshot = await getDocs(eventsQuery);
-            if (!eventsSnapshot.empty) {
-                fetchedEvents = eventsSnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        ...data,
-                        data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
-                        created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : (data.created_at ? new Date(data.created_at) : new Date()),
-                        updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate() : (data.updated_at ? new Date(data.updated_at) : new Date()),
-                        dj_costs: data.dj_costs ?? 0,
-                    } as Event;
-                });
-            }
+            fetchedEvents = eventsSnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
+                    created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(),
+                    updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate() : new Date(),
+                } as Event;
+            });
         }
+
+        // Buscar Settlements necessários para calcular estado operacional
+        const settlementIds = Array.from(new Set(fetchedEvents.map(e => e.settlementId).filter(id => !!id))) as string[];
+        let settlementsMap: Record<string, FinancialSettlement> = {};
         
-        const activeEventsCount = fetchedEvents.length;
-        const upcomingGigsCount = fetchedEvents.filter(event => event.data_evento > now).length;
+        if (settlementIds.length > 0) {
+          // Firestore 'in' limit is 30
+          const chunks = [];
+          for (let i = 0; i < settlementIds.length; i += 30) {
+            chunks.push(settlementIds.slice(i, i + 30));
+          }
+          
+          const settlementPromises = chunks.map(chunk => 
+            getDocs(query(collection(db, 'settlements'), where(documentId(), 'in', chunk)))
+          );
+          
+          const settlementSnapshots = await Promise.all(settlementPromises);
+          settlementSnapshots.forEach(snap => {
+            snap.docs.forEach(doc => {
+              settlementsMap[doc.id] = { id: doc.id, ...doc.data() } as FinancialSettlement;
+            });
+          });
+        }
+
+        // Calcular estatísticas baseadas no Estado Operacional
+        const operationalActiveEvents = fetchedEvents.filter(event => {
+          const state = getEventOperationalState(event, settlementsMap[event.settlementId || '']);
+          return state === 'active' || state === 'overdue';
+        });
+
+        const overdueCount = fetchedEvents.filter(event => {
+          return getEventOperationalState(event, settlementsMap[event.settlementId || '']) === 'overdue';
+        }).length;
+
+        const upcomingGigs = fetchedEvents.filter(event => event.data_evento > now);
         
+        const currentMonthStart = startOfMonth(now);
+        const currentMonthEnd = endOfMonth(now);
         const monthlyRevenue = fetchedEvents
-          .filter(event => 
-            isWithinInterval(event.data_evento, { start: currentMonthStart, end: currentMonthEnd })
-          )
+          .filter(event => isWithinInterval(event.data_evento, { start: currentMonthStart, end: currentMonthEnd }))
           .reduce((sum, event) => sum + (event.valor_total || 0), 0);
-       
 
         let newStats: StatCardData[] = [];
         
         if (userDetails.role === 'dj') {
-          const completedLastMonthCount = fetchedEvents.filter(event => 
-            isWithinInterval(event.data_evento, { start: lastMonthStart, end: lastMonthEnd }) && 
-            (event.status_pagamento === 'pago' || event.status_pagamento === 'parcial')
-          ).length;
-
           newStats = [
-            { title: 'Seus Eventos Ativos', value: activeEventsCount, icon: CalendarClock, color: 'text-primary' },
-            { title: 'Concluídos (Mês Anterior)', value: completedLastMonthCount, icon: CheckCircle2, color: 'text-accent' },
-            { title: 'Próximos Agendamentos', value: upcomingGigsCount, icon: ListChecks, color: 'text-green-500' },
-            { title: `Sua Receita (${format(now, 'MM/yy')})`, value: monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: BarChart, color: 'text-blue-500' },
+            { title: 'Pendências Operacionais', value: operationalActiveEvents.length, icon: CalendarClock, color: 'text-primary' },
+            { title: 'Pagamentos em Atraso', value: overdueCount, icon: AlertCircle, color: 'text-destructive' },
+            { title: 'Próximos Agendamentos', value: upcomingGigs.length, icon: ListChecks, color: 'text-green-500' },
+            { title: `Receita (${format(now, 'MM/yy')})`, value: monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: BarChart, color: 'text-blue-500' },
           ];
         } else {
-          const usersCollectionRef = collection(db, 'users');
-          const djsSnapshot = await getDocs(query(usersCollectionRef, where('role', '==', 'dj')));
-          
-          const eventStats = [
-            { title: 'Eventos Ativos', value: activeEventsCount, icon: CalendarClock, color: 'text-primary' },
+          const djsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'dj')));
+          newStats = [
+            { title: 'Eventos em Aberto', value: operationalActiveEvents.length, icon: CalendarClock, color: 'text-primary' },
             { title: 'DJs Cadastrados', value: djsSnapshot.size, icon: Users, color: 'text-accent' },
-            { title: 'Agendamentos Futuros', value: upcomingGigsCount, icon: ListChecks, color: 'text-green-500' },
+            { title: 'Pendências de Cobrança', value: overdueCount, icon: AlertCircle, color: 'text-destructive' },
             { title: `Faturamento (${format(now, 'MM/yy')})`, value: monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: BarChart, color: 'text-blue-500' },
           ];
-          
-          const quotesSnapshot = await getDocs(collection(db, 'rental_quotes'));
-          const itemsSnapshot = await getDocs(collection(db, 'rental_items'));
-          
-          const quotes = quotesSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as RentalQuote));
-          const approvedRevenue = quotes
-              .filter(q => q.status === 'approved' && isWithinInterval(q.createdAt.toDate(), { start: currentMonthStart, end: currentMonthEnd }))
-              .reduce((sum, q) => sum + q.totals.grandTotal, 0);
-      
-          const rentalStats = [
-              { title: 'Orçamentos (Mês)', value: quotes.length, icon: FileText, color: 'text-orange-500' },
-              { title: `Receita Locação (${format(now, 'MM/yy')})`, value: approvedRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: DatabaseZap, color: 'text-green-600' },
-              { title: 'Itens no Catálogo', value: itemsSnapshot.size, icon: Package, color: 'text-indigo-500' },
-          ];
-
-          newStats = [...eventStats, ...rentalStats];
         }
         setStats(newStats);
 
-        const sortedRecent = [...fetchedEvents].sort((a, b) => (b.updated_at?.getTime() || 0) - (a.updated_at?.getTime() || 0));
-        setRecentActivities(sortedRecent.slice(0, 3));
-
-        const sortedUpcoming = fetchedEvents
-            .filter(event => event.data_evento > now)
-            .sort((a, b) => a.data_evento.getTime() - b.data_evento.getTime());
-        setUpcomingEvents(sortedUpcoming.slice(0, 3));
+        setRecentActivities(fetchedEvents.sort((a, b) => b.updated_at!.getTime() - a.updated_at!.getTime()).slice(0, 3));
+        setUpcomingEvents(upcomingGigs.sort((a, b) => a.data_evento.getTime() - b.data_evento.getTime()).slice(0, 3));
 
       } catch (error: any) {
         console.error("Dashboard error:", error);
@@ -170,10 +169,8 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight font-headline">
-          Olá, {userDetails?.displayName || 'Usuário'}!
-        </h1>
-        <p className="text-muted-foreground">Visão geral das suas atividades e da agência.</p>
+        <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
+        <p className="text-muted-foreground">Foco nas pendências operacionais e próximos agendamentos.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -191,10 +188,8 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="font-headline">Atividade Recente</CardTitle>
-          </CardHeader>
+        <Card>
+          <CardHeader><CardTitle className="font-headline">Atividade Recente</CardTitle></CardHeader>
           <CardContent>
             {recentActivities.length > 0 ? (
               <div className="space-y-3">
@@ -214,10 +209,8 @@ export default function DashboardPage() {
             ) : <p className="text-muted-foreground text-sm">Nenhuma atividade recente.</p>}
           </CardContent>
         </Card>
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="font-headline">Próximos Eventos</CardTitle>
-          </CardHeader>
+        <Card>
+          <CardHeader><CardTitle className="font-headline">Próximos Eventos</CardTitle></CardHeader>
           <CardContent>
              {upcomingEvents.length > 0 ? (
               <div className="space-y-3">
@@ -225,7 +218,7 @@ export default function DashboardPage() {
                   <div key={event.id} className="flex items-center justify-between p-2 bg-secondary/30 rounded-md">
                     <div className="text-sm truncate">
                       <p className="font-semibold truncate">{event.nome_evento}</p>
-                      <p className="text-xs text-muted-foreground">{format(event.data_evento, 'dd/MM/yy')}{event.horario_inicio ? ` às ${event.horario_inicio}` : ''}</p>
+                      <p className="text-xs text-muted-foreground">{format(event.data_evento, 'dd/MM/yy')}</p>
                     </div>
                     <Button variant="outline" size="sm" asChild>
                         <Link href={`/schedule?view=${event.id}`}>Ver</Link>

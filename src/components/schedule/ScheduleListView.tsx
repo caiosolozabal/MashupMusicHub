@@ -1,87 +1,40 @@
 'use client';
 
-import type { Event, UserDetails } from '@/lib/types';
+import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge, badgeVariants } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import type { VariantProps } from 'class-variance-authority';
-import { Eye, Edit, Trash2, Link as LinkIcon, Disc, Truck } from 'lucide-react';
+import { Eye, Edit, Trash2, Link as LinkIcon, Disc, Truck, Lock, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
-import { cn } from '@/lib/utils';
+import { cn, calculateDjCut, getEventOperationalState } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ScheduleListViewProps {
   events: Event[];
   allDjs: UserDetails[];
+  settlements: Record<string, FinancialSettlement>;
   onView: (event: Event) => void;
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
-  showServiceTypeColumn: boolean;
-  calculateDjCut: (event: Event, dj: UserDetails | undefined) => number;
   isDjView: boolean;
 }
-
-const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
-  switch (status) {
-    case 'pago': return 'default';
-    case 'parcial': return 'secondary';
-    case 'pendente': return 'outline';
-    case 'vencido': return 'destructive';
-    case 'cancelado': return 'destructive';
-    default: return 'outline';
-  }
-};
-
-const getStatusText = (status?: Event['status_pagamento']): string => {
-  switch (status) {
-    case 'pago': return 'Pago';
-    case 'parcial': return 'Parcial';
-    case 'pendente': return 'Pendente';
-    case 'vencido': return 'Vencido';
-    case 'cancelado': return 'Cancelado';
-    default: return status || 'N/A';
-  }
-};
-
-const getServiceTypeText = (type: Event['tipo_servico']): string => {
-  switch (type) {
-    case 'locacao_equipamento': return 'Locação';
-    case 'servico_dj': // Fallthrough
-    default: return 'Serviço DJ';
-  }
-}
-
-const getRowStyle = (color: string | null | undefined, isLinked: boolean): React.CSSProperties => {
-    if (!color) return {};
-    const baseOpacity = isLinked ? 0.25 : 0.15;
-    const bgColor = color.replace('hsl(', 'hsla(').replace(')', `, ${baseOpacity})`);
-    const borderStyle = isLinked ? `2px solid ${color.replace('hsl(', 'hsla(').replace(')', ', 0.5)')}` : '';
-    return { 
-        backgroundColor: bgColor,
-        borderLeft: borderStyle,
-        borderRight: borderStyle,
-    };
-};
-
 
 export default function ScheduleListView({
   events,
   allDjs,
+  settlements,
   onView,
   onEdit,
   onDelete,
-  showServiceTypeColumn,
-  calculateDjCut,
   isDjView,
 }: ScheduleListViewProps) {
   
   const { user, userDetails } = useAuth();
   
-  const canEditDeleteEvent = (event: Event) => {
-    if (!event || !user || !userDetails) return false;
-    if (userDetails.role === 'admin' || userDetails.role === 'partner') return true;
-    if (userDetails.role === 'dj' && event.dj_id === user.uid) return true;
-    return false;
+  const canEditDelete = (event: Event, state: string) => {
+    if (state === 'closed') return false;
+    if (userDetails?.role === 'admin' || userDetails?.role === 'partner') return true;
+    return user?.uid === event.dj_id;
   };
   
   return (
@@ -89,86 +42,64 @@ export default function ScheduleListView({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="px-3 py-1.5">Data</TableHead>
-            <TableHead className="px-3 py-1.5">Horário</TableHead>
-            <TableHead className="px-3 py-1.5">Evento</TableHead>
-            {showServiceTypeColumn && <TableHead className="px-3 py-1.5">Tipo</TableHead>}
-            <TableHead className="px-3 py-1.5">Local</TableHead>
-            <TableHead className="px-3 py-1.5">Contratante</TableHead>
-            <TableHead className="px-3 py-1.5">Status Pag.</TableHead>
-            <TableHead className="px-3 py-1.5">Valor Total</TableHead>
-            {isDjView && <TableHead className="px-3 py-1.5">Seu Cachê (Est.)</TableHead>}
-            <TableHead className="px-3 py-1.5">DJ</TableHead>
-            <TableHead className="text-right px-3 py-1.5">Ações</TableHead>
+            <TableHead>Data</TableHead>
+            <TableHead>Evento</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Pagamento</TableHead>
+            <TableHead>Total</TableHead>
+            <TableHead>DJ</TableHead>
+            <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {events.map((event, index) => {
-             const djForEvent = allDjs.find(dj => dj.uid === event.dj_id);
-             const djColor = djForEvent?.dj_color;
-             const isLinked = !!event.linkedEventId;
-             const nextEventIsLinked = index + 1 < events.length && events[index + 1].linkedEventId === event.id;
-             const estimatedCut = calculateDjCut(event, djForEvent);
+          {events.map((event) => {
+             const dj = allDjs.find(d => d.uid === event.dj_id);
+             const state = getEventOperationalState(event, settlements[event.settlementId || '']);
+             const isClosed = state === 'closed';
+             const isOverdue = state === 'overdue';
 
             return(
-            <TableRow 
-                key={event.id} 
-                style={getRowStyle(djColor, isLinked)} 
-                className={cn(isLinked && !nextEventIsLinked && "border-b-2 border-b-primary/50")}
-            >
-              <TableCell className="p-1.5">
+            <TableRow key={event.id} className={cn(isClosed && "opacity-60 bg-muted/20", isOverdue && "bg-destructive/5")}>
+              <TableCell>
                 <div className="font-medium text-sm">{format(event.data_evento, 'dd/MM/yyyy')}</div>
                 <div className="text-xs text-muted-foreground">{event.dia_da_semana}</div>
               </TableCell>
-              <TableCell className="p-1.5 text-sm">
-                  {event.horario_inicio ? `${event.horario_inicio}${event.horario_fim ? ` - ${event.horario_fim}` : ''}` : 'N/A'}
-              </TableCell>
-              <TableCell className="font-medium p-1.5 text-sm">
+              <TableCell className="font-medium text-sm">
                 <div className='flex items-center gap-2'>
-                    {event.tipo_servico === 'locacao_equipamento' ? <Truck className="h-4 w-4 text-muted-foreground" /> : <Disc className="h-4 w-4 text-muted-foreground" />}
+                    {event.tipo_servico === 'locacao_equipamento' ? <Truck className="h-4 w-4" /> : <Disc className="h-4 w-4" />}
                     {event.nome_evento}
-                    {isLinked && <LinkIcon className="h-4 w-4 text-primary" title={`Vinculado a outro evento`} />}
+                    {isClosed && <Lock className="h-3 w-3 text-muted-foreground" title="Evento Encerrado" />}
                 </div>
               </TableCell>
-              {showServiceTypeColumn && (
-                <TableCell className="p-1.5">
-                   <Badge variant="secondary" className="text-xs whitespace-nowrap">{getServiceTypeText(event.tipo_servico)}</Badge>
-                </TableCell>
-              )}
-              <TableCell className="p-1.5 text-sm">{event.local}</TableCell>
-              <TableCell className="p-1.5 text-sm">{event.contratante_nome}</TableCell>
-              <TableCell className="p-1.5">
-                <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
-                  {getStatusText(event.status_pagamento)}
+              <TableCell>
+                {state === 'closed' && <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Encerrado</Badge>}
+                {state === 'overdue' && <Badge variant="destructive" className="animate-pulse flex gap-1"><AlertTriangle className="h-3 w-3" />Em Atraso</Badge>}
+                {state === 'active' && <Badge variant="secondary">Ativo</Badge>}
+                {state === 'cancelled' && <Badge variant="outline">Cancelado</Badge>}
+              </TableCell>
+              <TableCell>
+                <Badge variant={event.status_pagamento === 'pago' ? 'default' : 'outline'} className="capitalize">
+                  {event.status_pagamento}
                 </Badge>
               </TableCell>
-              <TableCell className="p-1.5 text-sm">
-                {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+              <TableCell className="text-sm">
+                {event.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </TableCell>
-              {isDjView && (
-                <TableCell className="p-1.5 text-sm">
-                  {estimatedCut.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </TableCell>
-              )}
-              <TableCell className="p-1.5 text-sm">
+              <TableCell className="text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full border" style={{ backgroundColor: djColor || 'transparent' }}></span>
-                  <span>{event.dj_nome}</span>
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dj?.dj_color || '#ccc' }}></span>
+                  {event.dj_nome}
                 </div>
               </TableCell>
-              <TableCell className="text-right space-x-1 p-1.5">
-                <Button variant="outline" size="icon" aria-label="Visualizar Evento" onClick={() => onView(event)}>
-                  <Eye className="h-4 w-4" />
-                </Button>
-                {canEditDeleteEvent(event) && (
+              <TableCell className="text-right space-x-1">
+                <Button variant="outline" size="icon" onClick={() => onView(event)}><Eye className="h-4 w-4" /></Button>
+                {canEditDelete(event, state) ? (
                   <>
-                  <Button variant="outline" size="icon" aria-label="Editar Evento" onClick={() => onEdit(event)}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button variant="destructive" size="icon" aria-label="Excluir Evento" onClick={() => onDelete(event)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    <Button variant="outline" size="icon" onClick={() => onEdit(event)}><Edit className="h-4 w-4" /></Button>
+                    <Button variant="destructive" size="icon" onClick={() => onDelete(event)}><Trash2 className="h-4 w-4" /></Button>
                   </>
+                ) : isClosed && (
+                  <Button variant="ghost" size="icon" disabled><Lock className="h-4 w-4" /></Button>
                 )}
               </TableCell>
             </TableRow>

@@ -1,13 +1,13 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import type { Event, UserDetails } from './types';
+import type { Event, UserDetails, FinancialSettlement } from './types';
+import { isBefore, subDays, startOfDay } from 'date-fns';
 
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// A predefined palette of distinct and pleasant pastel colors.
 const pastelColors = [
   'hsl(38, 100%, 80%)', // Light Orange
   'hsl(60, 100%, 80%)', // Light Yellow
@@ -23,19 +23,44 @@ const pastelColors = [
 
 
 export function generateRandomPastelColor(): string {
-  // Select a random color from the predefined palette to ensure visual distinction.
   const randomIndex = Math.floor(Math.random() * pastelColors.length);
   return pastelColors[randomIndex];
 }
 
-
 /**
- * Calculates the DJ's cut for a given event, considering the service type and costs.
- * This is the central, authoritative function for this calculation.
- * @param event The event object.
- * @param dj The user details object for the DJ, containing their percentages.
- * @returns The calculated monetary value of the DJ's cut.
+ * Define o estado operacional de um evento baseado em tempo, pagamento e settlement.
  */
+export type EventOperationalState = 'active' | 'closed' | 'overdue' | 'cancelled';
+
+export function getEventOperationalState(
+  event: Event, 
+  settlement?: FinancialSettlement | null
+): EventOperationalState {
+  if (event.status_pagamento === 'cancelado') return 'cancelled';
+
+  const now = new Date();
+  const thresholdDate = startOfDay(subDays(now, 1)); // Margem D+1
+  const eventDate = event.data_evento;
+
+  const isPast = isBefore(eventDate, thresholdDate);
+  const isClientPaid = event.status_pagamento === 'pago';
+  const isSettlementPaid = settlement?.status === 'paid';
+
+  // ENCERRADO: Passado + Pago pelo cliente + Pago ao DJ (via settlement)
+  if (isPast && isClientPaid && isSettlementPaid) {
+    return 'closed';
+  }
+
+  // EM ATRASO: Passado + Cliente não pagou integralmente
+  if (isPast && !isClientPaid) {
+    return 'overdue';
+  }
+
+  // ATIVO: Qualquer outra condição (incluindo futuros ou passados com settlement pendente)
+  return 'active';
+}
+
+
 export const calculateDjCut = (event: Event, dj: UserDetails | undefined): number => {
     if (event.status_pagamento === 'cancelado' || !dj) {
       return 0;
@@ -43,23 +68,18 @@ export const calculateDjCut = (event: Event, dj: UserDetails | undefined): numbe
 
     let applicablePercent: number | null | undefined;
 
-    // 1. Determine which percentage to use based on the service type
     if (event.tipo_servico === 'locacao_equipamento') {
       applicablePercent = dj.rental_percentual;
-    } else { // 'servico_dj' or default
+    } else { 
       applicablePercent = dj.dj_percentual;
     }
 
-    // 2. Validate the percentage. If not valid, only return costs.
     if (typeof applicablePercent !== 'number' || applicablePercent < 0 || applicablePercent > 1) {
        return (event.dj_costs || 0);
     }
 
-    // 3. Apply the correct formula
     const baseValue = event.valor_total - (event.dj_costs || 0);
     const finalCut = (baseValue * applicablePercent) + (event.dj_costs || 0);
     
     return finalCut;
 };
-
-    
