@@ -5,8 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap, FileText, Package, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, doc, documentId } from 'firebase/firestore';
-import type { Event, RentalQuote, FinancialSettlement } from '@/lib/types';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import type { Event } from '@/lib/types';
 import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths } from 'date-fns';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
@@ -82,37 +82,16 @@ export default function DashboardPage() {
             });
         }
 
-        // Buscar Settlements necessários para calcular estado operacional
-        const settlementIds = Array.from(new Set(fetchedEvents.map(e => e.settlementId).filter(id => !!id))) as string[];
-        let settlementsMap: Record<string, FinancialSettlement> = {};
-        
-        if (settlementIds.length > 0) {
-          // Firestore 'in' limit is 30
-          const chunks = [];
-          for (let i = 0; i < settlementIds.length; i += 30) {
-            chunks.push(settlementIds.slice(i, i + 30));
-          }
-          
-          const settlementPromises = chunks.map(chunk => 
-            getDocs(query(collection(db, 'settlements'), where(documentId(), 'in', chunk)))
-          );
-          
-          const settlementSnapshots = await Promise.all(settlementPromises);
-          settlementSnapshots.forEach(snap => {
-            snap.docs.forEach(doc => {
-              settlementsMap[doc.id] = { id: doc.id, ...doc.data() } as FinancialSettlement;
-            });
-          });
-        }
-
-        // Calcular estatísticas baseadas no Estado Operacional
+        // Calcular estatísticas baseadas no Estado Operacional Derivado
+        // Nota: Não precisamos mais buscar Settlements aqui, pois o estado agora 
+        // depende apenas da existência do settlementId no documento do evento.
         const operationalActiveEvents = fetchedEvents.filter(event => {
-          const state = getEventOperationalState(event, settlementsMap[event.settlementId || '']);
+          const state = getEventOperationalState(event);
           return state === 'active' || state === 'overdue';
         });
 
         const overdueCount = fetchedEvents.filter(event => {
-          return getEventOperationalState(event, settlementsMap[event.settlementId || '']) === 'overdue';
+          return getEventOperationalState(event) === 'overdue';
         }).length;
 
         const upcomingGigs = fetchedEvents.filter(event => event.data_evento > now);

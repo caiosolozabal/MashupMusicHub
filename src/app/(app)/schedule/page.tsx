@@ -5,33 +5,23 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CalendarDays, List, Loader2, PlusCircle, X } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp, getDoc, documentId } from 'firebase/firestore';
-import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
+import { collection, query, where, getDocs, orderBy, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
+import type { Event, UserDetails } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import ScheduleCalendarView from '@/components/schedule/ScheduleCalendarView';
 import ScheduleListView from '@/components/schedule/ScheduleListView';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon } from 'lucide-react';
-import { Calendar } from '@/components/ui/calendar';
 import { format, startOfDay, getYear, getMonth, startOfMonth, endOfMonth, isEqual } from 'date-fns';
-import type { DateRange } from 'react-day-picker';
 import { useToast } from '@/hooks/use-toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription as FormDialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import EventForm, { type EventFormValues } from '@/components/events/EventForm';
 import EventView from '@/components/events/EventView';
-import { calculateDjCut, getEventOperationalState } from '@/lib/utils';
+import { getEventOperationalState } from '@/lib/utils';
 
 
 type ViewMode = 'month' | 'list';
-
-const getDayOfWeek = (date: Date | undefined): string => {
-  if (!date) return '';
-  const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-  return days[date.getDay()];
-};
 
 const months = [
   { value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' }, { value: '2', label: 'Março' },
@@ -46,7 +36,6 @@ export default function SchedulePage() {
   
   const [events, setEvents] = useState<Event[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
-  const [settlements, setSettlements] = useState<Record<string, FinancialSettlement>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -57,7 +46,7 @@ export default function SchedulePage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const [selectedDjId, setSelectedDjId] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
@@ -86,17 +75,6 @@ export default function SchedulePage() {
       } as Event));
       setEvents(eventsList);
 
-      // Buscar Settlements para determinar estado operacional
-      const settlementIds = Array.from(new Set(eventsList.map(e => e.settlementId).filter(id => !!id))) as string[];
-      if (settlementIds.length > 0) {
-        const chunks = [];
-        for (let i = 0; i < settlementIds.length; i += 30) chunks.push(settlementIds.slice(i, i + 30));
-        const settlementSnaps = await Promise.all(chunks.map(chunk => getDocs(query(collection(db, 'settlements'), where(documentId(), 'in', chunk)))));
-        const newSettlements: Record<string, FinancialSettlement> = {};
-        settlementSnaps.forEach(snap => snap.docs.forEach(d => { newSettlements[d.id] = { id: d.id, ...d.data() } as FinancialSettlement }));
-        setSettlements(newSettlements);
-      }
-
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
         const djsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName')));
         setAllDjs(djsSnapshot.docs.map(d => ({ ...d.data(), uid: d.id } as UserDetails)));
@@ -111,7 +89,6 @@ export default function SchedulePage() {
 
   useEffect(() => { fetchAllData(); }, [authLoading, user, userDetails, fetchAllData]);
 
-  // Sync dateRange when month/year dropdowns are used
   useEffect(() => {
     if (selectedYear && selectedMonth) {
       const year = parseInt(selectedYear, 10);
@@ -119,14 +96,14 @@ export default function SchedulePage() {
       const newFrom = startOfMonth(new Date(year, month));
       const newTo = endOfMonth(new Date(year, month));
 
-      if (!dateRange || !isEqual(dateRange.from || 0, newFrom) || !isEqual(dateRange.to || 0, newTo)) {
+      if (!dateRange || !isEqual(dateRange.from, newFrom) || !isEqual(dateRange.to, newTo)) {
         setDateRange({ from: newFrom, to: newTo });
       }
     }
   }, [selectedMonth, selectedYear, dateRange]);
 
   const filteredEvents = useMemo(() => {
-    let filtered = events.filter(e => {
+    return events.filter(e => {
       const matchesDj = selectedDjId === 'all' || e.dj_id === selectedDjId;
       const matchesSearch = !searchTerm || e.nome_evento.toLowerCase().includes(searchTerm.toLowerCase()) || e.contratante_nome.toLowerCase().includes(searchTerm.toLowerCase());
       let matchesDate = true;
@@ -135,7 +112,6 @@ export default function SchedulePage() {
       }
       return matchesDj && matchesSearch && matchesDate;
     });
-    return filtered;
   }, [events, selectedDjId, searchTerm, dateRange]);
 
   const handleFormSubmit = async (values: EventFormValues) => {
@@ -186,7 +162,6 @@ export default function SchedulePage() {
             <ScheduleListView 
               events={filteredEvents} 
               allDjs={allDjs} 
-              settlements={settlements}
               onView={e => { setSelectedEvent(e); setIsViewOpen(true); }}
               onEdit={e => { setSelectedEvent(e); setIsFormOpen(true); }}
               onDelete={e => { setSelectedEvent(e); setIsDeleteConfirmOpen(true); }}
@@ -201,7 +176,7 @@ export default function SchedulePage() {
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{selectedEvent ? 'Editar Evento' : 'Novo Evento'}</DialogTitle></DialogHeader>
-          {selectedEvent && getEventOperationalState(selectedEvent, settlements[selectedEvent.settlementId || '']) === 'closed' ? (
+          {selectedEvent && getEventOperationalState(selectedEvent) === 'closed' ? (
             <div className="p-4 bg-muted rounded-md text-sm border-l-4 border-primary">
               Este evento está <strong>Encerrado</strong> operacionalmente e financeiramente. Edições estão desabilitadas para preservar o histórico.
             </div>

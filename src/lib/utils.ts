@@ -33,8 +33,7 @@ export function generateRandomPastelColor(): string {
 export type EventOperationalState = 'active' | 'closed' | 'overdue' | 'cancelled';
 
 export function getEventOperationalState(
-  event: Event, 
-  settlement?: FinancialSettlement | null
+  event: Event
 ): EventOperationalState {
   if (event.status_pagamento === 'cancelado') return 'cancelled';
 
@@ -44,10 +43,10 @@ export function getEventOperationalState(
 
   const isPast = isBefore(eventDate, thresholdDate);
   const isClientPaid = event.status_pagamento === 'pago';
-  const isSettlementPaid = settlement?.status === 'paid';
+  const isSettled = !!event.settlementId; // O vínculo com Settlement é prova irreversível de quitação do DJ
 
-  // ENCERRADO: Passado + Pago pelo cliente + Pago ao DJ (via settlement)
-  if (isPast && isClientPaid && isSettlementPaid) {
+  // ENCERRADO: Passado + Pago pelo cliente + Vinculado a um Settlement
+  if (isPast && isClientPaid && isSettled) {
     return 'closed';
   }
 
@@ -56,7 +55,7 @@ export function getEventOperationalState(
     return 'overdue';
   }
 
-  // ATIVO: Qualquer outra condição (incluindo futuros ou passados com settlement pendente)
+  // ATIVO: Qualquer outra condição (futuros ou passados aguardando settlement ou pagamento)
   return 'active';
 }
 

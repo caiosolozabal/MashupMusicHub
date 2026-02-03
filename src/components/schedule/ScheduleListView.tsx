@@ -1,18 +1,17 @@
 'use client';
 
-import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
+import type { Event, UserDetails } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Eye, Edit, Trash2, Link as LinkIcon, Disc, Truck, Lock, AlertTriangle } from 'lucide-react';
+import { Eye, Edit, Trash2, Disc, Truck, Lock, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
-import { cn, calculateDjCut, getEventOperationalState } from '@/lib/utils';
+import { cn, getEventOperationalState } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ScheduleListViewProps {
   events: Event[];
   allDjs: UserDetails[];
-  settlements: Record<string, FinancialSettlement>;
   onView: (event: Event) => void;
   onEdit: (event: Event) => void;
   onDelete: (event: Event) => void;
@@ -22,11 +21,9 @@ interface ScheduleListViewProps {
 export default function ScheduleListView({
   events,
   allDjs,
-  settlements,
   onView,
   onEdit,
   onDelete,
-  isDjView,
 }: ScheduleListViewProps) {
   
   const { user, userDetails } = useAuth();
@@ -54,7 +51,7 @@ export default function ScheduleListView({
         <TableBody>
           {events.map((event) => {
              const dj = allDjs.find(d => d.uid === event.dj_id);
-             const state = getEventOperationalState(event, settlements[event.settlementId || '']);
+             const state = getEventOperationalState(event);
              const isClosed = state === 'closed';
              const isOverdue = state === 'overdue';
 
