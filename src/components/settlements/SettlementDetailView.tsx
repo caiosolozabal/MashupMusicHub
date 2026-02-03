@@ -4,12 +4,14 @@
 import type { Event, FinancialSettlement } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, FileDown, CheckCircle2, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
 import type { VariantProps } from 'class-variance-authority';
 import { Separator } from '@/components/ui/separator';
+import { generateSettlementPdf } from './SettlementPDFDocument';
+import { useState } from 'react';
 
 interface SettlementDetailViewProps {
   settlement: FinancialSettlement;
@@ -40,68 +42,113 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 };
 
 export default function SettlementDetailView({ settlement, events, onBack }: SettlementDetailViewProps) {
-
-  const { summary, djName, generatedAt, status, periodStart, periodEnd } = settlement;
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const { summary, djName, generatedAt, status, periodStart, periodEnd, notes } = settlement;
+  
   const generatedDate = generatedAt.toDate();
   const periodString = periodStart && periodEnd 
     ? `${format(periodStart.toDate(), 'dd/MM/yy')} a ${format(periodEnd.toDate(), 'dd/MM/yy')}`
     : 'Período aberto';
 
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+        await generateSettlementPdf(settlement, events);
+    } catch (error) {
+        console.error("PDF Error:", error);
+    } finally {
+        setIsGeneratingPdf(false);
+    }
+  };
+
   return (
-    <Card className="shadow-lg">
-        <CardHeader>
-            <div className="flex items-start justify-between">
+    <Card className="shadow-lg border-primary/20">
+        <CardHeader className="bg-primary/5">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                 <div>
                     <Button variant="ghost" size="sm" onClick={onBack} className="mb-2 -ml-3">
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Voltar
+                        Voltar para a Lista
                     </Button>
-                    <CardTitle className="font-headline text-2xl">Detalhes do Fechamento</CardTitle>
+                    <CardTitle className="font-headline text-2xl flex items-center gap-2">
+                        <CheckCircle2 className="h-6 w-6 text-primary" />
+                        Fechamento Concluído
+                    </CardTitle>
                     <CardDescription>
-                        Fechamento para <span className="font-semibold text-primary">{djName}</span> gerado em {format(generatedDate, 'dd/MM/yyyy')}
+                        Referente a <span className="font-semibold text-primary">{djName}</span> • Criado em {format(generatedDate, 'dd/MM/yyyy HH:mm')}
                     </CardDescription>
                 </div>
-                 <Badge variant={status === 'paid' ? 'default' : 'secondary'} className="capitalize text-lg">
-                    {status === 'paid' ? 'Pago' : 'Pendente'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                    <Button onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+                        {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                        Baixar PDF para o DJ
+                    </Button>
+                    <Badge variant="default" className="text-lg px-4">Pago</Badge>
+                </div>
             </div>
         </CardHeader>
-        <CardContent>
-            <Card className="mb-6 bg-secondary/50">
-                <CardHeader>
-                    <CardTitle className="text-xl">Resumo Financeiro</CardTitle>
-                    <CardDescription>Período de referência: {periodString}</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div>
-                        <p className="text-sm text-muted-foreground">Eventos Incluídos</p>
-                        <p className="text-lg font-bold">{summary.totalEvents}</p>
+        <CardContent className="pt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <Card className="lg:col-span-2 bg-secondary/30">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-lg">Resumo Financeiro</CardTitle>
+                        <CardDescription>Período de referência: {periodString}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Eventos</p>
+                            <p className="text-lg font-bold">{summary.totalEvents}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Bruto Total</p>
+                            <p className="text-lg font-bold">{summary.grossRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Valor Calculado</p>
+                            <p className="text-lg font-bold">{summary.finalBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                        </div>
+                        <div className={`p-2 rounded-md bg-primary text-primary-foreground shadow-md`}>
+                            <p className="text-xs font-semibold uppercase tracking-wider">Valor Final Pago</p>
+                            <p className={`text-xl font-black`}>
+                                {summary.finalPaidValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <div className="space-y-4">
+                    <div className="p-4 border rounded-lg bg-background shadow-sm">
+                        <h4 className="text-sm font-semibold mb-2 flex items-center gap-2 text-muted-foreground">
+                            <History className="h-4 w-4" />
+                            Ajuste Manual
+                        </h4>
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm">Variação (Delta):</span>
+                            <span className={`font-bold ${summary.deltaValue === 0 ? 'text-muted-foreground' : summary.deltaValue > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {summary.deltaValue > 0 ? '+' : ''}{summary.deltaValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm text-muted-foreground">Valor Bruto Total</p>
-                        <p className="text-lg font-bold">{summary.grossRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                    </div>
-                    <div>
-                        <p className="text-sm text-muted-foreground">Parcela Líquida do DJ</p>
-                        <p className="text-lg font-bold">{summary.djNetEntitlement.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
-                    </div>
-                    <div className={`p-2 rounded-md ${summary.finalBalance >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
-                        <p className="text-sm font-semibold">{summary.finalBalance >= 0 ? 'Valor PAGO ao DJ' : 'Valor RECEBIDO do DJ'}</p>
-                        <p className={`text-xl font-bold ${summary.finalBalance >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
-                        {Math.abs(summary.finalBalance).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
+                    {notes && (
+                        <div className="p-4 border rounded-lg bg-yellow-50/50 dark:bg-yellow-900/10">
+                            <h4 className="text-sm font-semibold mb-1">Observações:</h4>
+                            <p className="text-sm text-muted-foreground italic">"{notes}"</p>
+                        </div>
+                    )}
+                </div>
+            </div>
 
             <Separator className="my-6"/>
 
             <div>
-                <h3 className="font-headline text-lg mb-4">Eventos Incluídos neste Fechamento</h3>
-                <div className="overflow-x-auto">
+                <h3 className="font-headline text-lg mb-4 flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Detalhamento dos Eventos
+                </h3>
+                <div className="overflow-x-auto border rounded-lg">
                     <Table>
                         <TableHeader>
-                            <TableRow>
+                            <TableRow className="bg-muted/50">
                                 <TableHead>Data</TableHead>
                                 <TableHead>Evento</TableHead>
                                 <TableHead>Status Pag.</TableHead>
@@ -110,24 +157,36 @@ export default function SettlementDetailView({ settlement, events, onBack }: Set
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {events.map(event => (
-                                <TableRow key={event.id}>
-                                    <TableCell>{format(event.data_evento, 'dd/MM/yy')}</TableCell>
-                                    <TableCell className="font-medium">{event.nome_evento}</TableCell>
+                            {events.length > 0 ? events.map(event => (
+                                <TableRow key={event.id} className="hover:bg-muted/30">
+                                    <TableCell className="text-sm font-medium">{format(event.data_evento, 'dd/MM/yy')}</TableCell>
+                                    <TableCell className="font-medium text-sm">{event.nome_evento}</TableCell>
                                     <TableCell>
-                                        <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
+                                        <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs font-normal">
                                             {getStatusText(event.status_pagamento)}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="capitalize">{event.conta_que_recebeu}</TableCell>
-                                    <TableCell className="text-right">{Number(event.valor_total).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}</TableCell>
+                                    <TableCell className="capitalize text-sm">{event.conta_que_recebeu}</TableCell>
+                                    <TableCell className="text-right font-semibold text-sm">
+                                        {Number(event.valor_total).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
+                                    </TableCell>
                                 </TableRow>
-                            ))}
+                            )) : (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                        Dados dos eventos não disponíveis para este fechamento histórico.
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                     </Table>
                 </div>
             </div>
         </CardContent>
+        <CardFooter className="bg-muted/20 text-[10px] text-muted-foreground flex justify-between py-2">
+            <span>ID do Documento: {settlement.id}</span>
+            <span>Gerado por: {settlement.generatedByName || settlement.generatedBy}</span>
+        </CardFooter>
     </Card>
   );
 }

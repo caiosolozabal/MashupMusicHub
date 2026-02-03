@@ -108,11 +108,15 @@ export interface FinancialSettlement {
       grossRevenue: number;
       djNetEntitlement: number;
       totalReceivedByDj: number;
-      finalBalance: number;
+      finalBalance: number; // Calculated original balance
+      finalPaidValue: number; // Actual value paid after adjustment
+      deltaValue: number; // finalPaidValue - finalBalance
   };
+  notes?: string | null;
   status: 'pending' | 'paid' | 'disputed';
   generatedAt: Timestamp;
   generatedBy: string; // UID of admin/partner
+  generatedByName?: string | null;
   paidAt?: Timestamp | null;
   paymentProofUrl?: string | null;
 }

@@ -3,8 +3,8 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Info, X, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Loader2, Info, X, AlertTriangle, ArrowLeft, CheckCircle2, FileDown, Calculator } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
@@ -23,12 +23,15 @@ import type { VariantProps } from 'class-variance-authority';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { calculateDjCut } from '@/lib/utils';
+import { calculateDjCut, cn } from '@/lib/utils';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import SettlementDetailView from '@/components/settlements/SettlementDetailView';
 import { Label } from '@/components/ui/label';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { generateSettlementPdf } from '@/components/settlements/SettlementPDFDocument';
 
 
 type ViewMode = 'settlement' | 'detail';
@@ -138,6 +141,12 @@ export default function SettlementsPage() {
   const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
   const [showClosedEvents, setShowClosedEvents] = useState(false);
   const availableYears = useMemo(() => getYears(), []);
+
+  // Modal State
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [finalPaidValue, setFinalPaidValue] = useState<number>(0);
+  const [settlementNotes, setSettlementNotes] = useState('');
+  const [confirmedManualAjust, setConfirmedManualAjust] = useState(false);
 
   const isActionAllowed = userDetails?.role === 'admin' || userDetails?.role === 'partner';
   
@@ -409,11 +418,27 @@ export default function SettlementsPage() {
     };
   }, [eventsForCalculation, selectedDjId, allDjs, toast, userDetails]);
 
+  // Open confirmation dialog
+  const handleOpenConfirmDialog = () => {
+    if (!financialSummary) return;
+    setFinalPaidValue(financialSummary.saldoFinal);
+    setSettlementNotes('');
+    setConfirmedManualAjust(false);
+    setIsConfirmDialogOpen(true);
+  };
+
   const handleGenerateSettlement = async () => {
     if (!user || !financialSummary || eventsForCalculation.length === 0 || !selectedDjId) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não é possível gerar o fechamento. Verifique os dados.'});
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não é possível gerar o fechamento.'});
       return;
     }
+
+    const isAdjusted = finalPaidValue !== financialSummary.saldoFinal;
+    if (isAdjusted && (!settlementNotes.trim() || !confirmedManualAjust)) {
+        toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Justifique o ajuste manual e marque o checkbox de confirmação.'});
+        return;
+    }
+
     setIsSubmitting(true);
 
     const selectedDj = allDjs.find(dj => dj.uid === selectedDjId);
@@ -425,7 +450,6 @@ export default function SettlementsPage() {
 
     const batch = writeBatch(db);
 
-    // 1. Create the new settlement document
     const settlementRef = doc(collection(db, 'settlements'));
     const newSettlement: Omit<FinancialSettlement, 'id'> = {
       djId: selectedDj.uid,
@@ -447,29 +471,34 @@ export default function SettlementsPage() {
         djNetEntitlement: financialSummary.parcelaDjTotal,
         totalReceivedByDj: financialSummary.totalRecebidoPeloDj,
         finalBalance: financialSummary.saldoFinal,
+        finalPaidValue: finalPaidValue,
+        deltaValue: finalPaidValue - financialSummary.saldoFinal,
       },
-      status: 'pending',
+      notes: settlementNotes || null,
+      status: 'paid', // Irreversible
       generatedAt: Timestamp.now(),
       generatedBy: user.uid,
+      generatedByName: userDetails?.displayName || user.email,
     };
     batch.set(settlementRef, newSettlement);
 
-    // 2. Update each selected event to link it to the new settlement
     for (const event of eventsForCalculation) {
       const eventRef = doc(db, 'events', event.id);
       batch.update(eventRef, { settlementId: settlementRef.id });
     }
 
-    // 3. Commit the batch
     try {
       await batch.commit();
       toast({
-        title: 'Fechamento Gerado!',
-        description: `O fechamento para ${selectedDj.displayName} foi criado com sucesso.`
+        title: 'Fechamento Realizado!',
+        description: `O fechamento para ${selectedDj.displayName} foi concluído.`
       });
-      // Refetch data to show the updated list of "open" events
+      
+      // Automatic PDF Generation option
+      await generateSettlementPdf({ id: settlementRef.id, ...newSettlement } as FinancialSettlement, eventsForCalculation);
+
+      setIsConfirmDialogOpen(false);
       fetchDjData(selectedDjId);
-      // Clear selections after successful generation
       setSelectedEventIds([]);
     } catch (error) {
       console.error("Error generating settlement:", error);
@@ -514,6 +543,8 @@ export default function SettlementsPage() {
 
   const isDj = userDetails?.role === 'dj';
   const selectedDjName = allDjs.find(dj => dj.uid === selectedDjId)?.displayName;
+  const isAdjusted = financialSummary && finalPaidValue !== financialSummary.saldoFinal;
+  const delta = financialSummary ? finalPaidValue - financialSummary.saldoFinal : 0;
 
   if (viewMode === 'detail' && selectedSettlement) {
     return (
@@ -688,7 +719,7 @@ export default function SettlementsPage() {
                  {isActionAllowed && (
                     <div className="flex justify-end pt-4">
                         <Button 
-                          onClick={handleGenerateSettlement}
+                          onClick={handleOpenConfirmDialog}
                           disabled={eventsForCalculation.length === 0 || isSubmitting}
                         >
                             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -848,6 +879,165 @@ export default function SettlementsPage() {
 
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+            <DialogHeader className="p-6 pb-2">
+                <DialogTitle className="text-2xl font-headline">Confirmar Fechamento</DialogTitle>
+                <DialogDescription>
+                    Revise os eventos e ajuste o valor final se necessário. Esta ação é irreversível.
+                </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-hidden p-6 pt-0 space-y-6">
+                {/* DJ & Payment Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg bg-muted/20">
+                    <div className="space-y-1">
+                        <Label className="text-muted-foreground">DJ Responsável</Label>
+                        <p className="font-bold text-lg">{selectedDjName}</p>
+                        <p className="text-sm text-muted-foreground">
+                            Período: {selectedMonth && selectedYear ? `${months.find(m => m.value === selectedMonth)?.label} / ${selectedYear}` : 'Período Manual'}
+                        </p>
+                    </div>
+                    <div className="space-y-1 md:border-l md:pl-4">
+                        <Label className="text-muted-foreground">Dados de Pagamento</Label>
+                        {allDjs.find(d => d.uid === selectedDjId)?.pixKey ? (
+                            <p className="font-medium flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                                PIX: {allDjs.find(d => d.uid === selectedDjId)?.pixKey}
+                            </p>
+                        ) : allDjs.find(d => d.uid === selectedDjId)?.bankName ? (
+                            <div className="text-sm">
+                                <p className="font-medium">{allDjs.find(d => d.uid === selectedDjId)?.bankName}</p>
+                                <p>Ag: {allDjs.find(d => d.uid === selectedDjId)?.bankAgency} Conta: {allDjs.find(d => d.uid === selectedDjId)?.bankAccount}</p>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-destructive font-medium">Dados bancários não cadastrados no perfil.</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Events Read-Only List */}
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <Label className="text-base font-semibold">Eventos Selecionados ({eventsForCalculation.length})</Label>
+                        <Badge variant="outline">{financialSummary?.totalBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} Bruto</Badge>
+                    </div>
+                    <div className="border rounded-md">
+                        <ScrollArea className="h-[200px]">
+                            <Table>
+                                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
+                                    <TableRow>
+                                        <TableHead className="py-2">Data</TableHead>
+                                        <TableHead className="py-2">Evento</TableHead>
+                                        <TableHead className="py-2">Local</TableHead>
+                                        <TableHead className="py-2">Status Cli.</TableHead>
+                                        <TableHead className="py-2 text-right">Cachê DJ</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {eventsForCalculation.map(event => {
+                                        const djData = allDjs.find(dj => dj.uid === event.dj_id);
+                                        const parcelaDj = calculateDjCut(event, djData);
+                                        return (
+                                            <TableRow key={event.id}>
+                                                <TableCell className="py-2 text-xs">{format(event.data_evento, 'dd/MM/yy')}</TableCell>
+                                                <TableCell className="py-2 font-medium text-xs truncate max-w-[150px]">{event.nome_evento}</TableCell>
+                                                <TableCell className="py-2 text-xs truncate max-w-[120px]">{event.local}</TableCell>
+                                                <TableCell className="py-2">
+                                                    <Badge variant={getStatusVariant(event.status_pagamento)} className="text-[10px] px-1.5 h-5">
+                                                        {getStatusText(event.status_pagamento)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="py-2 text-right font-medium text-xs">
+                                                    {parcelaDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </ScrollArea>
+                    </div>
+                </div>
+
+                {/* Adjustments and Notes */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-4 md:col-span-1">
+                        <div className="space-y-2">
+                            <Label htmlFor="calc-val">Valor Calculado pelo Sistema</Label>
+                            <div className="relative">
+                                <Calculator className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input id="calc-val" disabled value={financialSummary?.saldoFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} className="pl-9 bg-muted/50 font-bold" />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="final-val" className={isAdjusted ? "text-primary font-bold" : ""}>Valor Final a Pagar / Receber</Label>
+                            <Input 
+                                id="final-val" 
+                                type="number" 
+                                step="0.01" 
+                                value={finalPaidValue} 
+                                onChange={(e) => setFinalPaidValue(Number(e.target.value))}
+                                className={cn("text-lg font-bold h-12", isAdjusted && "border-primary ring-1 ring-primary")}
+                            />
+                        </div>
+                        {isAdjusted && (
+                            <div className={cn("p-2 rounded-md text-center", delta > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")}>
+                                <p className="text-xs font-semibold">Diferença (Delta)</p>
+                                <p className="text-lg font-bold">{delta.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-4 md:col-span-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="settlement-notes" className={isAdjusted ? "after:content-['*'] after:ml-0.5 after:text-destructive" : ""}>
+                                Observações do Fechamento
+                            </Label>
+                            <Textarea 
+                                id="settlement-notes" 
+                                placeholder={isAdjusted ? "Explique o motivo do ajuste manual (ex: taxa extra, desconto combinado...)" : "Notas opcionais sobre este fechamento..."}
+                                className="min-h-[120px]"
+                                value={settlementNotes}
+                                onChange={(e) => setSettlementNotes(e.target.value)}
+                            />
+                        </div>
+                        {isAdjusted && (
+                            <div className="flex items-center space-x-2 pt-2 bg-primary/5 p-3 rounded-md border border-primary/20">
+                                <Checkbox id="confirm-ajust" checked={confirmedManualAjust} onCheckedChange={(checked) => setConfirmedManualAjust(checked as boolean)} />
+                                <Label htmlFor="confirm-ajust" className="text-xs leading-none cursor-pointer">
+                                    Confirmo que revisei os eventos e o ajuste manual de <span className="font-bold">{Math.abs(delta).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>.
+                                </Label>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <DialogFooter className="p-6 bg-muted/10 border-t gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => setIsConfirmDialogOpen(false)} disabled={isSubmitting}>Cancelar</Button>
+                <Button 
+                    onClick={handleGenerateSettlement} 
+                    disabled={isSubmitting || (isAdjusted && (!settlementNotes.trim() || !confirmedManualAjust))}
+                    className="bg-primary hover:bg-primary/90 min-w-[180px]"
+                >
+                    {isSubmitting ? (
+                        <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Processando...
+                        </>
+                    ) : (
+                        <>
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Confirmar Fechamento
+                        </>
+                    )}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
