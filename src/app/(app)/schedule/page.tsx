@@ -111,6 +111,20 @@ export default function SchedulePage() {
 
   useEffect(() => { fetchAllData(); }, [authLoading, user, userDetails, fetchAllData]);
 
+  // Sync dateRange when month/year dropdowns are used
+  useEffect(() => {
+    if (selectedYear && selectedMonth) {
+      const year = parseInt(selectedYear, 10);
+      const month = parseInt(selectedMonth, 10);
+      const newFrom = startOfMonth(new Date(year, month));
+      const newTo = endOfMonth(new Date(year, month));
+
+      if (!dateRange || !isEqual(dateRange.from || 0, newFrom) || !isEqual(dateRange.to || 0, newTo)) {
+        setDateRange({ from: newFrom, to: newTo });
+      }
+    }
+  }, [selectedMonth, selectedYear, dateRange]);
+
   const filteredEvents = useMemo(() => {
     let filtered = events.filter(e => {
       const matchesDj = selectedDjId === 'all' || e.dj_id === selectedDjId;
@@ -164,7 +178,7 @@ export default function SchedulePage() {
             </Select>
             <div className="col-span-2 flex gap-2">
                <Select value={selectedMonth} onValueChange={setSelectedMonth}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
-               <Select value={selectedYear} onValueChange={setSelectedYear}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['2024','2025'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
+               <Select value={selectedYear} onValueChange={setSelectedYear}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['2025','2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
             </div>
           </div>
 
