@@ -1,8 +1,7 @@
-
 'use client';
 
 import type { Event, FinancialSettlement } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, FileText, FileDown, CheckCircle2, History } from 'lucide-react';
 import { format } from 'date-fns';
