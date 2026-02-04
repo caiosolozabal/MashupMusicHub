@@ -4,7 +4,7 @@
 import type { Event, FinancialSettlement } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText, FileDown, CheckCircle2, History, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileText, FileDown, CheckCircle2, History, Trash2, Loader2, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
@@ -46,7 +46,7 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 export default function SettlementDetailView({ settlement, events, onBack, onDelete, isDeleting }: SettlementDetailViewProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const { summary, djName, generatedAt, status, periodStart, periodEnd, notes } = settlement;
+  const { summary, djName, generatedAt, status, periodStart, periodEnd, notes, generatedByName } = settlement;
   
   const generatedDate = generatedAt.toDate();
   const periodString = periodStart && periodEnd 
@@ -77,9 +77,13 @@ export default function SettlementDetailView({ settlement, events, onBack, onDel
                         <CheckCircle2 className="h-6 w-6 text-primary" />
                         Fechamento Concluído
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="flex items-center gap-2">
                         Referente a <span className="font-semibold text-primary">{djName}</span> • Criado em {format(generatedDate, 'dd/MM/yyyy HH:mm')}
                     </CardDescription>
+                    <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
+                        <UserCheck className="h-4 w-4 text-primary" />
+                        Responsável: <span className="font-medium text-foreground">{generatedByName || 'Administrador'}</span>
+                    </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     {onDelete && (

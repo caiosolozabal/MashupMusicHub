@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, Info, X, AlertTriangle, ArrowLeft, CheckCircle2, FileDown, Calculator, Trash2 } from 'lucide-react';
+import { Loader2, Info, X, AlertTriangle, ArrowLeft, CheckCircle2, FileDown, Calculator, Trash2, UserCheck } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
@@ -940,9 +940,15 @@ export default function SettlementsPage() {
                                 </div>
                             </CardHeader>
                             <CardContent className="p-4 pt-0 mt-auto">
-                                <p className="text-xs font-semibold text-primary">
-                                    {(settlement.summary?.finalPaidValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                </p>
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-xs font-semibold text-primary">
+                                        {(settlement.summary?.finalPaidValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </p>
+                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                                        <UserCheck className="h-2.5 w-2.5" />
+                                        <span className="truncate">{settlement.generatedByName || 'Admin'}</span>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     ))}
