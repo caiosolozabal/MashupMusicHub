@@ -1061,6 +1061,10 @@ export default function SettlementsPage() {
                                 onChange={(e) => setFinalPaidValue(Number(e.target.value))}
                                 className={cn("text-lg font-bold h-12", isAdjusted && "border-primary ring-1 ring-primary")}
                             />
+                            <p className="text-[10px] text-muted-foreground leading-tight">
+                                <strong>Positivo (+):</strong> Agência paga ao DJ. <br/>
+                                <strong>Negativo (-):</strong> DJ paga à agência.
+                            </p>
                         </div>
                         {isAdjusted && (
                             <div className={cn("p-2 rounded-md text-center", delta > 0 ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800")}>
