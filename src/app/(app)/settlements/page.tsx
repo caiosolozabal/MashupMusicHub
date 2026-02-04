@@ -1011,6 +1011,7 @@ export default function SettlementsPage() {
                                         <TableHead className="py-2">Data</TableHead>
                                         <TableHead className="py-2">Evento</TableHead>
                                         <TableHead className="py-2">Local</TableHead>
+                                        <TableHead className="py-2">Recebimento</TableHead>
                                         <TableHead className="py-2">Status Cli.</TableHead>
                                         <TableHead className="py-2 text-right">Cachê DJ</TableHead>
                                     </TableRow>
@@ -1024,6 +1025,7 @@ export default function SettlementsPage() {
                                                 <TableCell className="py-2 text-xs">{format(event.data_evento, 'dd/MM/yy')}</TableCell>
                                                 <TableCell className="py-2 font-medium text-xs truncate max-w-[150px]">{event.nome_evento}</TableCell>
                                                 <TableCell className="py-2 text-xs truncate max-w-[120px]">{event.local}</TableCell>
+                                                <TableCell className="py-2 text-[10px] capitalize">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</TableCell>
                                                 <TableCell className="py-2">
                                                     <Badge variant={getStatusVariant(event.status_pagamento)} className="text-[10px] px-1.5 h-5">
                                                         {getStatusText(event.status_pagamento)}
