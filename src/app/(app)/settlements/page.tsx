@@ -921,27 +921,27 @@ export default function SettlementsPage() {
                     {djSettlements.map(settlement => (
                         <Card 
                             key={settlement.id} 
-                            className="hover:border-primary transition-colors cursor-pointer group shadow-sm"
+                            className="hover:border-primary transition-colors cursor-pointer group shadow-sm flex flex-col"
                             onClick={() => handleViewSettlement(settlement)}
                         >
-                            <CardHeader className="p-4 pb-2">
+                            <CardHeader className="p-4 pb-2 space-y-1">
                                 <div className="flex justify-between items-start gap-2">
-                                    <div className="flex flex-col">
-                                        <span className="text-sm font-bold">
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-bold truncate">
                                             Fechamento {format(settlement.generatedAt.toDate(), 'dd/MM/yy')}
                                         </span>
                                         <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                            {settlement.summary.totalEvents} eventos
+                                            {settlement.summary?.totalEvents || 0} eventos
                                         </span>
                                     </div>
-                                    <Badge variant={settlement.status === 'paid' ? 'default' : 'secondary'} className="capitalize text-[10px] px-1.5 h-5">
+                                    <Badge variant={settlement.status === 'paid' ? 'default' : 'secondary'} className="capitalize text-[10px] px-1.5 h-5 flex-shrink-0">
                                         {settlement.status === 'paid' ? 'Pago' : 'Pendente'}
                                     </Badge>
                                 </div>
                             </CardHeader>
-                            <CardContent className="p-4 pt-0">
+                            <CardContent className="p-4 pt-0 mt-auto">
                                 <p className="text-xs font-semibold text-primary">
-                                    {settlement.summary.finalPaidValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    {(settlement.summary?.finalPaidValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </p>
                             </CardContent>
                         </Card>

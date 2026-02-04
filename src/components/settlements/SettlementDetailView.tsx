@@ -4,7 +4,7 @@
 import type { Event, FinancialSettlement } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText, FileDown, CheckCircle2, History, Trash2 } from 'lucide-react';
+import { ArrowLeft, FileText, FileDown, CheckCircle2, History, Trash2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
@@ -128,20 +128,20 @@ export default function SettlementDetailView({ settlement, events, onBack, onDel
                     <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                         <div>
                             <p className="text-xs text-muted-foreground uppercase tracking-wider">Eventos</p>
-                            <p className="text-lg font-bold">{summary.totalEvents}</p>
+                            <p className="text-lg font-bold">{summary?.totalEvents || 0}</p>
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground uppercase tracking-wider">Bruto Total</p>
-                            <p className="text-lg font-bold">{summary.grossRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            <p className="text-lg font-bold">{(summary?.grossRevenue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                         </div>
                         <div>
                             <p className="text-xs text-muted-foreground uppercase tracking-wider">Valor Calculado</p>
-                            <p className="text-lg font-bold">{summary.finalBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                            <p className="text-lg font-bold">{(summary?.finalBalance || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                         </div>
                         <div className={`p-2 rounded-md bg-primary text-primary-foreground shadow-md`}>
                             <p className="text-xs font-semibold uppercase tracking-wider">Valor Final Pago</p>
                             <p className={`text-xl font-black`}>
-                                {summary.finalPaidValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                {(summary?.finalPaidValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                             </p>
                         </div>
                     </CardContent>
@@ -155,8 +155,8 @@ export default function SettlementDetailView({ settlement, events, onBack, onDel
                         </h4>
                         <div className="flex items-center justify-between">
                             <span className="text-sm">Variação (Delta):</span>
-                            <span className={`font-bold ${summary.deltaValue === 0 ? 'text-muted-foreground' : summary.deltaValue > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {summary.deltaValue > 0 ? '+' : ''}{summary.deltaValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            <span className={`font-bold ${(summary?.deltaValue || 0) === 0 ? 'text-muted-foreground' : (summary?.deltaValue || 0) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {(summary?.deltaValue || 0) > 0 ? '+' : ''}{(summary?.deltaValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                             </span>
                         </div>
                     </div>
@@ -197,7 +197,7 @@ export default function SettlementDetailView({ settlement, events, onBack, onDel
                                             {getStatusText(event.status_pagamento)}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="capitalize text-sm">{event.conta_que_recebeu}</TableCell>
+                                    <TableCell className="capitalize text-sm">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</TableCell>
                                     <TableCell className="text-right font-semibold text-sm">
                                         {Number(event.valor_total).toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'})}
                                     </TableCell>
