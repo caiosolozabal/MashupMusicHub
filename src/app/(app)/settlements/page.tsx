@@ -4,9 +4,9 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, Info, X, AlertTriangle, ArrowLeft, CheckCircle2, FileDown, Calculator } from 'lucide-react';
+import { Loader2, Info, X, AlertTriangle, ArrowLeft, CheckCircle2, FileDown, Calculator, Trash2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, Timestamp, writeBatch, doc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import type { Event, UserDetails, FinancialSettlement } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
 import { Input }from '@/components/ui/input';
@@ -367,6 +367,25 @@ export default function SettlementsPage() {
     }
   };
 
+  const handleAccountUpdate = async (eventId: string, newAccount: 'agencia' | 'dj') => {
+    if (!isActionAllowed) return;
+    
+    setAllEvents(prev => prev.map(e => e.id === eventId ? { ...e, conta_que_recebeu: newAccount } : e));
+
+    try {
+        const eventRef = doc(db, 'events', eventId);
+        await updateDoc(eventRef, {
+            conta_que_recebeu: newAccount,
+            updated_at: serverTimestamp(),
+        });
+        toast({ title: 'Conta de Recebimento Atualizada' });
+    } catch (error) {
+        fetchDjData(selectedDjId);
+        console.error("Error updating account: ", error);
+        toast({ variant: 'destructive', title: 'Erro ao atualizar', description: (error as Error).message });
+    }
+  };
+
   const financialSummary = useMemo<FinancialSummary | null>(() => {
     if (!selectedDjId || eventsForCalculation.length === 0) return null;
 
@@ -518,6 +537,32 @@ export default function SettlementsPage() {
     setViewMode('settlement');
   };
 
+  const handleDeleteSettlement = async (settlement: FinancialSettlement) => {
+    if (!isActionAllowed) return;
+    setIsSubmitting(true);
+    try {
+        const batch = writeBatch(db);
+        
+        // 1. Delete Settlement
+        batch.delete(doc(db, 'settlements', settlement.id));
+        
+        // 2. Unlink events
+        for (const eventId of settlement.events) {
+            batch.update(doc(db, 'events', eventId), { settlementId: null });
+        }
+        
+        await batch.commit();
+        toast({ title: 'Fechamento Excluído', description: 'Os eventos foram liberados para novo fechamento.' });
+        fetchDjData(selectedDjId);
+        handleReturnToSettlementMode();
+    } catch (error) {
+        console.error("Error deleting settlement:", error);
+        toast({ variant: 'destructive', title: 'Erro ao excluir fechamento', description: (error as Error).message });
+    } finally {
+        setIsSubmitting(false);
+    }
+  };
+
 
   if (authLoading) {
     return (
@@ -552,6 +597,8 @@ export default function SettlementsPage() {
             settlement={selectedSettlement}
             events={allEvents.filter(e => selectedSettlement.events.includes(e.id))}
             onBack={handleReturnToSettlementMode}
+            onDelete={() => handleDeleteSettlement(selectedSettlement)}
+            isDeleting={isSubmitting}
         />
     )
   }
@@ -768,7 +815,7 @@ export default function SettlementsPage() {
                         <TableHead>Evento</TableHead>
                         <TableHead>Tipo</TableHead>
                         <TableHead>Status Pag.</TableHead>
-                        <TableHead>Recebido por</TableHead>
+                        <TableHead>Recebimento</TableHead>
                         <TableHead>Valor Total</TableHead>
                         <TableHead>Custos DJ</TableHead>
                         <TableHead>Parcela DJ (Apurado)</TableHead>
@@ -822,7 +869,25 @@ export default function SettlementsPage() {
                                     </Badge>
                                 )}
                             </TableCell>
-                            <TableCell className="capitalize">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</TableCell>
+                            <TableCell>
+                                {isActionAllowed ? (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="sm" className="capitalize text-xs h-7 px-2 py-1">
+                                                {event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuLabel>Alterar Recebimento</DropdownMenuLabel>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onSelect={() => handleAccountUpdate(event.id, 'agencia')}>Agência</DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => handleAccountUpdate(event.id, 'dj')}>DJ</DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                ) : (
+                                    <span className="capitalize text-xs">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</span>
+                                )}
+                            </TableCell>
                             <TableCell>
                             {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                             </TableCell>
@@ -852,26 +917,34 @@ export default function SettlementsPage() {
              ) : djSettlements.length === 0 ? (
                 <p className="text-muted-foreground text-center py-4">Nenhum fechamento encontrado para este DJ.</p>
              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {djSettlements.map(settlement => (
-                        <Button 
+                        <Card 
                             key={settlement.id} 
-                            variant="outline" 
-                            className="justify-between h-auto py-2 px-3"
+                            className="hover:border-primary transition-colors cursor-pointer group shadow-sm"
                             onClick={() => handleViewSettlement(settlement)}
                         >
-                            <div className="flex flex-col items-start">
-                                <span className="text-sm font-semibold">
-                                    Fechamento {format(settlement.generatedAt.toDate(), 'dd/MM/yy')}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                    {settlement.summary.totalEvents} eventos
-                                </span>
-                            </div>
-                             <Badge variant={settlement.status === 'paid' ? 'default' : 'secondary'} className="capitalize text-xs">
-                                {settlement.status === 'paid' ? 'Pago' : 'Pendente'}
-                            </Badge>
-                        </Button>
+                            <CardHeader className="p-4 pb-2">
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-bold">
+                                            Fechamento {format(settlement.generatedAt.toDate(), 'dd/MM/yy')}
+                                        </span>
+                                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                                            {settlement.summary.totalEvents} eventos
+                                        </span>
+                                    </div>
+                                    <Badge variant={settlement.status === 'paid' ? 'default' : 'secondary'} className="capitalize text-[10px] px-1.5 h-5">
+                                        {settlement.status === 'paid' ? 'Pago' : 'Pendente'}
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-0">
+                                <p className="text-xs font-semibold text-primary">
+                                    {settlement.summary.finalPaidValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </p>
+                            </CardContent>
+                        </Card>
                     ))}
                 </div>
              )}

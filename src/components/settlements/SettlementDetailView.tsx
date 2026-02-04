@@ -1,9 +1,10 @@
+
 'use client';
 
 import type { Event, FinancialSettlement } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText, FileDown, CheckCircle2, History } from 'lucide-react';
+import { ArrowLeft, FileText, FileDown, CheckCircle2, History, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge, badgeVariants } from '@/components/ui/badge';
@@ -11,11 +12,14 @@ import type { VariantProps } from 'class-variance-authority';
 import { Separator } from '@/components/ui/separator';
 import { generateSettlementPdf } from './SettlementPDFDocument';
 import { useState } from 'react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface SettlementDetailViewProps {
   settlement: FinancialSettlement;
   events: Event[];
   onBack: () => void;
+  onDelete?: () => Promise<void>;
+  isDeleting?: boolean;
 }
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
@@ -40,7 +44,7 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
     }
 };
 
-export default function SettlementDetailView({ settlement, events, onBack }: SettlementDetailViewProps) {
+export default function SettlementDetailView({ settlement, events, onBack, onDelete, isDeleting }: SettlementDetailViewProps) {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const { summary, djName, generatedAt, status, periodStart, periodEnd, notes } = settlement;
   
@@ -64,7 +68,7 @@ export default function SettlementDetailView({ settlement, events, onBack }: Set
     <Card className="shadow-lg border-primary/20">
         <CardHeader className="bg-primary/5">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div>
+                <div className="flex-1">
                     <Button variant="ghost" size="sm" onClick={onBack} className="mb-2 -ml-3">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Voltar para a Lista
@@ -77,10 +81,38 @@ export default function SettlementDetailView({ settlement, events, onBack }: Set
                         Referente a <span className="font-semibold text-primary">{djName}</span> • Criado em {format(generatedDate, 'dd/MM/yyyy HH:mm')}
                     </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button onClick={handleDownloadPdf} disabled={isGeneratingPdf}>
+                <div className="flex flex-wrap items-center gap-2">
+                    {onDelete && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="text-destructive border-destructive/20 hover:bg-destructive/10">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Excluir Fechamento
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Tem certeza que deseja excluir este fechamento? Os eventos vinculados serão liberados para serem fechados novamente. Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                        onClick={onDelete}
+                                        className="bg-destructive hover:bg-destructive/90"
+                                        disabled={isDeleting}
+                                    >
+                                        {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Excluir Definitivamente'}
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
+                    <Button onClick={handleDownloadPdf} disabled={isGeneratingPdf} variant="outline" size="sm">
                         {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
-                        Baixar PDF para o DJ
+                        Baixar PDF
                     </Button>
                     <Badge variant="default" className="text-lg px-4">Pago</Badge>
                 </div>
@@ -151,7 +183,7 @@ export default function SettlementDetailView({ settlement, events, onBack }: Set
                                 <TableHead>Data</TableHead>
                                 <TableHead>Evento</TableHead>
                                 <TableHead>Status Pag.</TableHead>
-                                <TableHead>Recebido por</TableHead>
+                                <TableHead>Recebimento</TableHead>
                                 <TableHead className="text-right">Valor Total</TableHead>
                             </TableRow>
                         </TableHeader>
