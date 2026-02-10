@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -5,7 +6,8 @@ import Image from 'next/image';
 import { PUBLIC_DJS } from '@/lib/public-djs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Instagram, FileText, ExternalLink } from 'lucide-react';
+import { Instagram, FileText } from 'lucide-react';
+import placeholderImages from '@/app/lib/placeholder-images.json';
 
 /**
  * Página de Catálogo de DJs (Grid).
@@ -33,6 +35,11 @@ export default function DjsGridPage() {
                 height={800}
                 className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                 priority
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = placeholderImages.dj_fallback.url;
+                }}
+                data-ai-hint="dj profile"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-80" />
             </div>

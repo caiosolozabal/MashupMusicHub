@@ -1,3 +1,4 @@
+
 import { PUBLIC_DJS } from '@/lib/public-djs';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
@@ -6,6 +7,7 @@ import { Metadata } from 'next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Instagram, FileText, ArrowLeft, MessageCircle } from 'lucide-react';
+import placeholderImages from '@/app/lib/placeholder-images.json';
 
 interface DjProfilePageProps {
   params: {
@@ -13,9 +15,6 @@ interface DjProfilePageProps {
   };
 }
 
-/**
- * SEO: Geração de Metadata dinâmica para cada DJ.
- */
 export async function generateMetadata({ params }: DjProfilePageProps): Promise<Metadata> {
   const dj = PUBLIC_DJS.find((d) => d.slug === params.slug);
   
@@ -32,9 +31,6 @@ export async function generateMetadata({ params }: DjProfilePageProps): Promise<
   };
 }
 
-/**
- * Performance: Geração estática de todas as rotas de DJs no build.
- */
 export async function generateStaticParams() {
   return PUBLIC_DJS.map((dj) => ({
     slug: dj.slug,
@@ -68,6 +64,7 @@ export default function DjProfilePage({ params }: DjProfilePageProps) {
             fill
             className="object-cover object-center"
             priority
+            data-ai-hint="dj artist"
           />
         </div>
 

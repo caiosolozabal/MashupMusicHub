@@ -1,0 +1,10 @@
+
+{
+  "dj_fallback": {
+    "url": "https://picsum.photos/seed/mashup-dj/800/1200",
+    "width": 800,
+    "height": 1200,
+    "alt": "DJ Mashup Music Hub",
+    "data-ai-hint": "dj music"
+  }
+}
