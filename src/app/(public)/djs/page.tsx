@@ -23,7 +23,7 @@ function DjImage({ dj }: { dj: PublicDj }) {
       src={dj.fotoUrl}
       alt={dj.nome}
       fill
-      className="object-cover transition-transform duration-500 group-hover:scale-105"
+      className="object-cover transition-transform duration-500 group-hover:scale-110"
       unoptimized={true}
       onError={() => setError(true)}
     />
@@ -53,16 +53,19 @@ export default function DjsGridPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
         {PUBLIC_DJS.map((dj) => (
           <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full">
-            {/* Card com Outline Verde */}
-            <div className="aspect-[3/4] w-full overflow-hidden rounded-lg bg-card ring-1 ring-primary/30 transition-all group-hover:ring-primary">
-              <DjImage dj={dj} />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-transparent to-transparent opacity-60 group-hover:opacity-80" />
+            {/* Foto com Outline Verde e Película Fixa */}
+            <div className="aspect-[3/4] w-full overflow-hidden rounded-lg bg-card ring-1 ring-primary/30 transition-all group-hover:ring-primary shadow-lg">
+              <div className="relative h-full w-full overflow-hidden">
+                <DjImage dj={dj} />
+                {/* Película que escala junto com a foto para evitar falha visual */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60 transition-transform duration-500 group-hover:scale-110" />
+              </div>
             </div>
             
-            {/* Informações do DJ */}
-            <div className="mt-3 flex flex-col flex-1 space-y-2">
+            {/* Informações do DJ (Abaixo da Foto) */}
+            <div className="mt-4 flex flex-col flex-1 space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-foreground font-headline truncate pr-2 group-hover:text-primary transition-colors">
+                <h3 className="text-lg font-bold text-foreground font-headline truncate group-hover:text-primary transition-colors">
                   {dj.nome}
                 </h3>
                 <span className="text-muted-foreground hover:text-primary transition-colors">
@@ -71,18 +74,18 @@ export default function DjsGridPage() {
               </div>
               
               {/* Estilos (Chips) */}
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1.5">
                 {dj.estilos.slice(0, 3).map((estilo) => (
                   <span 
                     key={estilo} 
-                    className="text-[9px] px-1.5 py-0.5 rounded-full border border-primary/20 text-primary uppercase font-bold tracking-tighter"
+                    className="text-[9px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary uppercase font-bold tracking-tighter"
                   >
                     {estilo}
                   </span>
                 ))}
               </div>
               
-              {/* Descrição Curta */}
+              {/* Descrição Breve */}
               <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-body">
                 {dj.resumoBooking}
               </p>

@@ -14,6 +14,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
     setIsMounted(true);
   }, []);
 
+  // Prevenção de erro de hidratação: o ano só aparece após a montagem no cliente
   const currentYear = isMounted ? new Date().getFullYear() : '';
 
   return (
