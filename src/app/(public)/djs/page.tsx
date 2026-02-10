@@ -35,6 +35,7 @@ export default function DjsGridPage() {
                 height={800}
                 className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
                 priority
+                unoptimized={true}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
                   target.src = placeholderImages.dj_fallback.url;
