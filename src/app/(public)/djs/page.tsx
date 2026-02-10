@@ -1,13 +1,41 @@
-
 'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { PUBLIC_DJS } from '@/lib/public-djs';
+import { useState } from 'react';
+import { PUBLIC_DJS, type PublicDj } from '@/lib/public-djs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Instagram, FileText } from 'lucide-react';
-import placeholderImages from '@/app/lib/placeholder-images.json';
+
+/**
+ * Componente para renderizar a imagem do DJ com fallback de iniciais.
+ */
+function DjImage({ dj }: { dj: PublicDj }) {
+  const [error, setError] = useState(false);
+
+  if (error) {
+    const initials = dj.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
+        <span className="text-4xl font-bold text-primary/40 font-headline">{initials}</span>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={dj.fotoUrl}
+      alt={dj.nome}
+      width={600}
+      height={800}
+      className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+      priority
+      unoptimized={true}
+      onError={() => setError(true)}
+    />
+  );
+}
 
 /**
  * Página de Catálogo de DJs (Grid).
@@ -28,20 +56,7 @@ export default function DjsGridPage() {
         {PUBLIC_DJS.map((dj) => (
           <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col">
             <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all group-hover:ring-primary/50 group-hover:shadow-2xl group-hover:shadow-primary/10">
-              <Image
-                src={dj.fotoUrl}
-                alt={dj.nome}
-                width={600}
-                height={800}
-                className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                priority
-                unoptimized={true}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = placeholderImages.dj_fallback.url;
-                }}
-                data-ai-hint="dj profile"
-              />
+              <DjImage dj={dj} />
               <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-80" />
             </div>
             

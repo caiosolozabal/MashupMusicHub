@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Base de dados estática dos DJs para a vitrine pública.
  * Estes dados são usados para o Grid de DJs e para as páginas de perfil individuais.

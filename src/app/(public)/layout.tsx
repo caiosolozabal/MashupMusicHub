@@ -12,11 +12,13 @@ import { Instagram, Mail } from 'lucide-react';
  * Independente do AppShell e sem dependências obrigatórias de Auth.
  */
 export default function PublicLayout({ children }: { children: ReactNode }) {
-  const [currentYear, setCurrentYear] = useState<number | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setCurrentYear(new Date().getFullYear());
+    setIsMounted(true);
   }, []);
+
+  const currentYear = new Date().getFullYear();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -34,7 +36,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           
           <div className="flex items-center gap-4">
             <Button asChild variant="default" className="bg-primary hover:bg-primary/90">
-              <Link href="https://wa.me/5521999999999" target="_blank">
+              <Link href="https://wa.me/5521976950231" target="_blank">
                 Contrate agora
               </Link>
             </Button>
@@ -81,7 +83,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           
           <div className="mt-12 border-t pt-8 text-center">
             <p className="text-xs text-muted-foreground">
-              © {currentYear || ''} Mashup Music Hub. Todos os direitos reservados.
+              © {isMounted ? currentYear : ''} Mashup Music Hub. Todos os direitos reservados.
             </p>
           </div>
         </div>

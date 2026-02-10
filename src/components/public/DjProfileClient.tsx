@@ -1,105 +1,109 @@
-
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
-import { PublicDj } from '@/lib/public-djs';
+import Link from 'next/link';
+import { type PublicDj } from '@/lib/public-djs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Instagram, FileText, MessageCircle } from 'lucide-react';
-import placeholderImages from '@/app/lib/placeholder-images.json';
-import Link from 'next/link';
+import { Instagram, FileText, ArrowLeft, MessageCircle } from 'lucide-react';
 
 interface DjProfileClientProps {
   dj: PublicDj;
 }
 
 export default function DjProfileClient({ dj }: DjProfileClientProps) {
-  const whatsappUrl = `https://wa.me/5521976950231?text=Olá! Gostaria de solicitar um orçamento para o DJ ${dj.nome}.`;
+  const [imgError, setImgError] = useState(false);
+  const initials = dj.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative w-full h-[60vh] md:h-[80vh] overflow-hidden">
-        <Image
-          src={dj.fotoUrl}
-          alt={dj.nome}
-          fill
-          className="object-cover object-top"
-          priority
-          unoptimized={true}
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.src = placeholderImages.dj_fallback.url;
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-        
-        <div className="absolute bottom-0 left-0 w-full p-6 sm:p-12">
-          <div className="container mx-auto">
-            <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-foreground font-headline mb-4">
-              {dj.nome}
-            </h1>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {dj.estilos.map((estilo) => (
-                <Badge key={estilo} variant="default" className="px-4 py-1 text-sm uppercase tracking-widest font-bold">
-                  {estilo}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+    <div className="bg-background min-h-screen pb-20">
+      {/* Top Navigation */}
+      <div className="container px-4 py-6">
+        <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground hover:text-primary">
+          <Link href="/djs">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar para o elenco
+          </Link>
+        </Button>
+      </div>
 
-      {/* Content Section */}
-      <section className="container mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Bio Side */}
-          <div className="lg:col-span-2 space-y-8">
+      <div className="container px-4 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+          {/* Foto do DJ */}
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl bg-muted ring-1 ring-border shadow-2xl">
+            {!imgError ? (
+              <Image
+                src={dj.fotoUrl}
+                alt={dj.nome}
+                fill
+                className="object-cover object-center"
+                priority
+                unoptimized={true}
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
+                <span className="text-8xl font-bold text-primary/40 font-headline">{initials}</span>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
+          </div>
+
+          {/* Informações do DJ */}
+          <div className="flex flex-col space-y-8">
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {dj.estilos.map((estilo) => (
+                  <Badge key={estilo} variant="secondary" className="text-xs uppercase tracking-widest bg-primary/10 text-primary border-none">
+                    {estilo}
+                  </Badge>
+                ))}
+              </div>
+              <h1 className="text-5xl font-bold tracking-tight text-foreground font-headline sm:text-6xl">
+                {dj.nome}
+              </h1>
+              <a
+                href={`https://instagram.com/${dj.instagramHandle}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center text-lg text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Instagram className="mr-2 h-5 w-5" />
+                @{dj.instagramHandle}
+              </a>
+            </div>
+
             <div className="prose prose-invert max-w-none">
-              <h2 className="text-3xl font-bold font-headline mb-6 text-primary">Biografia</h2>
+              <p className="text-xl text-primary font-medium leading-relaxed italic">
+                "{dj.resumoBooking}"
+              </p>
+              <div className="h-px w-20 bg-primary/30 my-6" />
               <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-wrap">
                 {dj.bioLonga}
               </p>
             </div>
-          </div>
 
-          {/* Booking Side */}
-          <div className="space-y-6">
-            <div className="p-8 rounded-2xl border bg-card/50 backdrop-blur-sm sticky top-24">
-              <h3 className="text-xl font-bold font-headline mb-6">Booking & Social</h3>
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <Button asChild size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-8 py-7 shadow-xl shadow-primary/20">
+                <Link href="https://wa.me/5521976950231" target="_blank">
+                  <MessageCircle className="mr-2 h-6 w-6" />
+                  Contratar Agora
+                </Link>
+              </Button>
               
-              <div className="flex flex-col gap-4">
-                <Button asChild size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-14 text-lg font-bold">
-                  <Link href={whatsappUrl} target="_blank">
-                    <MessageCircle className="mr-2 h-6 w-6" />
-                    Contrate Agora
-                  </Link>
-                </Button>
-
-                <Button asChild variant="outline" size="lg" className="w-full h-14">
-                  <Link href={`https://instagram.com/${dj.instagramHandle}`} target="_blank">
-                    <Instagram className="mr-2 h-5 w-5" />
-                    Instagram
-                  </Link>
-                </Button>
-
-                <Button asChild variant="ghost" size="lg" className="w-full h-14">
-                  <Link href={dj.presskitUrl} target="_blank">
+              <div className="flex gap-4">
+                <Button variant="outline" size="lg" className="flex-1 py-7" asChild>
+                  <a href={dj.presskitUrl} target="_blank" rel="noreferrer">
                     <FileText className="mr-2 h-5 w-5" />
-                    Baixar Presskit
-                  </Link>
+                    Presskit
+                  </a>
                 </Button>
-              </div>
-
-              <div className="mt-8 pt-8 border-t">
-                <p className="text-sm text-muted-foreground italic text-center">
-                  "{dj.resumoBooking}"
-                </p>
               </div>
             </div>
           </div>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
