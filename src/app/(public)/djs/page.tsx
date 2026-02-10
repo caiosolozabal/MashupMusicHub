@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { PUBLIC_DJS, type PublicDj } from '@/lib/public-djs';
-import { Badge } from '@/components/ui/badge';
 import { Instagram } from 'lucide-react';
 
 function DjImage({ dj }: { dj: PublicDj }) {
@@ -46,22 +45,24 @@ export default function DjsGridPage() {
         <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl font-headline">
           Nosso <span className="text-primary">Elenco</span>
         </h1>
-        <p className="mt-3 text-base text-muted-foreground max-w-xl mx-auto">
+        <p className="mt-3 text-base text-muted-foreground max-w-xl mx-auto font-body">
           Curadoria exclusiva dos melhores DJs do Rio de Janeiro para o seu evento.
         </p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
         {PUBLIC_DJS.map((dj) => (
-          <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col">
-            <div className="aspect-[3/4] w-full overflow-hidden rounded-lg bg-card ring-1 ring-border transition-all group-hover:ring-primary/50">
+          <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full">
+            {/* Card com Outline Verde */}
+            <div className="aspect-[3/4] w-full overflow-hidden rounded-lg bg-card ring-1 ring-primary/30 transition-all group-hover:ring-primary">
               <DjImage dj={dj} />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-40 group-hover:opacity-60" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/95 via-transparent to-transparent opacity-60 group-hover:opacity-80" />
             </div>
             
-            <div className="mt-3 space-y-1">
+            {/* Informações do DJ */}
+            <div className="mt-3 flex flex-col flex-1 space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-foreground font-headline truncate pr-2">
+                <h3 className="text-base font-bold text-foreground font-headline truncate pr-2 group-hover:text-primary transition-colors">
                   {dj.nome}
                 </h3>
                 <span className="text-muted-foreground hover:text-primary transition-colors">
@@ -69,11 +70,20 @@ export default function DjsGridPage() {
                 </span>
               </div>
               
-              <p className="text-[10px] text-primary font-semibold uppercase tracking-tighter line-clamp-1">
-                {dj.estilos.join(' • ')}
-              </p>
+              {/* Estilos (Chips) */}
+              <div className="flex flex-wrap gap-1">
+                {dj.estilos.slice(0, 3).map((estilo) => (
+                  <span 
+                    key={estilo} 
+                    className="text-[9px] px-1.5 py-0.5 rounded-full border border-primary/20 text-primary uppercase font-bold tracking-tighter"
+                  >
+                    {estilo}
+                  </span>
+                ))}
+              </div>
               
-              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+              {/* Descrição Curta */}
+              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-body">
                 {dj.resumoBooking}
               </p>
             </div>
