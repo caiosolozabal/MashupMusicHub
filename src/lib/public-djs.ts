@@ -1,6 +1,6 @@
 /**
  * @fileOverview Base de dados estática dos DJs para a vitrine pública.
- * Atualizado com textos oficiais e caminhos de imagem corrigidos.
+ * Atualizado com os textos oficiais fornecidos.
  */
 
 export interface PublicDj {
