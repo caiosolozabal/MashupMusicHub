@@ -46,13 +46,20 @@ export default function SchedulePage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const [selectedDjId, setSelectedDjId] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  });
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date } | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState<string | undefined>(getMonth(new Date()).toString());
-  const [selectedYear, setSelectedYear] = useState<string | undefined>(getYear(new Date()).toString());
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const now = new Date();
+    setSelectedMonth(getMonth(now).toString());
+    setSelectedYear(getYear(now).toString());
+    setDateRange({
+      from: startOfMonth(now),
+      to: endOfMonth(now),
+    });
+  }, []);
 
   const fetchAllData = useCallback(async () => {
     if (authLoading || !user || !userDetails) return;
@@ -132,7 +139,7 @@ export default function SchedulePage() {
     }
   };
 
-  if (isLoading) return <div className="flex justify-center p-10"><Loader2 className="animate-spin h-8 w-8" /></div>;
+  if (isLoading || !selectedMonth) return <div className="flex justify-center p-10"><Loader2 className="animate-spin h-8 w-8" /></div>;
 
   return (
     <div className="space-y-6">

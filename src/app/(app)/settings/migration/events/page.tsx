@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { NextPage } from 'next';
@@ -11,7 +10,7 @@ import type { DateRange } from 'react-day-picker';
 import { Loader2, Link as LinkIcon, Disc, Truck, Calendar as CalendarIcon, X, ArrowLeft, Download } from 'lucide-react';
 import type { VariantProps } from 'class-variance-authority';
 import { useEffect, useState, useMemo } from 'react';
-import { db_old } from '@/lib/firebase/migration-client'; // <<<====== USANDO O BANCO DE DADOS ANTIGO
+import { db_old } from '@/lib/firebase/migration-client';
 import { collection, getDocs, Timestamp, query, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -60,15 +59,17 @@ const OldEventsPage: NextPage = () => {
   // Filters State
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState<string | undefined>();
-  const [selectedYear, setSelectedYear] = useState<string | undefined>();
-  const availableYears = useMemo(() => {
-    const currentYear = getYear(new Date());
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+
+  useEffect(() => {
+    const currentYear = new Date().getFullYear();
     const years = [];
     for (let i = currentYear + 1; i >= currentYear - 5; i--) {
         years.push(i.toString());
     }
-    return years;
+    setAvailableYears(years);
   }, []);
 
   const fetchOldEvents = async () => {
@@ -337,5 +338,3 @@ const OldEventsPage: NextPage = () => {
 };
 
 export default OldEventsPage;
-
-    

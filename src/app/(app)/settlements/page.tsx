@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -104,7 +103,7 @@ const months = [
 ];
 
 const getYears = () => {
-    const currentYear = getYear(new Date());
+    const currentYear = new Date().getFullYear();
     const years = [];
     for (let i = currentYear + 1; i >= currentYear - 5; i--) {
         years.push(i.toString());
@@ -131,22 +130,25 @@ export default function SettlementsPage() {
 
   // Filters State
   const [selectedDjId, setSelectedDjId] = useState<string>('');
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEventIds, setSelectedEventIds] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>(getMonth(new Date()).toString());
-  const [selectedYear, setSelectedYear] = useState<string>(getYear(new Date()).toString());
+  const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
   const [showClosedEvents, setShowClosedEvents] = useState(false);
-  const availableYears = useMemo(() => getYears(), []);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
 
-  // Modal State
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
-  const [finalPaidValue, setFinalPaidValue] = useState<number>(0);
-  const [settlementNotes, setSettlementNotes] = useState('');
-  const [confirmedManualAjust, setConfirmedManualAjust] = useState(false);
+  // Defer initialization to avoid hydration error
+  useEffect(() => {
+    const now = new Date();
+    setSelectedMonth(getMonth(now).toString());
+    setSelectedYear(getYear(now).toString());
+    setDateRange({
+      from: startOfMonth(now),
+      to: endOfMonth(now),
+    });
+    setAvailableYears(getYears());
+  }, []);
 
   const isActionAllowed = userDetails?.role === 'admin' || userDetails?.role === 'partner';
   
@@ -243,7 +245,7 @@ export default function SettlementsPage() {
         setDateRange({ from: newFrom, to: newTo });
       }
     }
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, dateRange]);
 
   // When dateRange is changed MANUALLY (e.g., by calendar picker),
   // clear month/year dropdowns to indicate a custom range is active.
@@ -437,6 +439,11 @@ export default function SettlementsPage() {
     };
   }, [eventsForCalculation, selectedDjId, allDjs, toast, userDetails]);
 
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [finalPaidValue, setFinalPaidValue] = useState<number>(0);
+  const [settlementNotes, setSettlementNotes] = useState('');
+  const [confirmedManualAjust, setConfirmedManualAjust] = useState(false);
+
   // Open confirmation dialog
   const handleOpenConfirmDialog = () => {
     if (!financialSummary) return;
@@ -564,7 +571,7 @@ export default function SettlementsPage() {
   };
 
 
-  if (authLoading) {
+  if (authLoading || !selectedMonth) {
     return (
         <div className="flex flex-col justify-center items-center h-64 space-y-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
