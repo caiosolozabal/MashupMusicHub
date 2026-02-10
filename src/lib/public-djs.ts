@@ -30,7 +30,7 @@ export const PUBLIC_DJS: PublicDj[] = [
     nome: 'DJ Solô',
     instagramHandle: 'djsolo.rj',
     presskitUrl: 'https://drive.google.com/drive/folders/1OTeDOlDSUyNUSkdarAQSf53pMxJ04fxP',
-    fotoUrl: '/djs/djsolo.jpg',
+    fotoUrl: '/djs/djsolo.jpeg',
     estilos: ['Deep House', 'Nu Disco', 'House'],
     resumoBooking: 'Elegância e grooves sofisticados. Solô é a escolha ideal para eventos que buscam uma atmosfera premium.',
     bioLonga: 'DJ Solô é sinônimo de sofisticação sonora. Especialista em criar atmosferas envolventes, seus sets de Deep House e Nu Disco são cuidadosamente curados para proporcionar uma experiência auditiva única, seja em lounges, casamentos ou eventos corporativos de alto padrão.'
@@ -40,7 +40,7 @@ export const PUBLIC_DJS: PublicDj[] = [
     nome: 'Yuri Hang',
     instagramHandle: 'djyurihang',
     presskitUrl: 'https://drive.google.com/drive/folders/1RbNfPZQYiPZEDTFw3vOuO_ZHMoGPdmiZ',
-    fotoUrl: '/djs/djyurihang.jpg',
+    fotoUrl: '/djs/yurihang.jpeg',
     estilos: ['House', 'Techno', 'Melodic'],
     resumoBooking: 'Energia contagiante e presença de palco. Yuri Hang traz o melhor do House Progressivo e Melódico.',
     bioLonga: 'Yuri Hang destaca-se pela sua energia vibrante e conexão com o público. Com uma pesquisa musical focada nas vertentes melódicas do House e Techno, seus sets são jornadas sonoras que prendem a atenção da pista do início ao fim.'
