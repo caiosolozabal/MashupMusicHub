@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/shared/Logo';
-import { Instagram, Mail, MessageCircle } from 'lucide-react';
+import { Instagram, MessageCircle } from 'lucide-react';
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -46,7 +46,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="space-y-4">
               <Logo className="text-primary font-black" />
-              <p className="text-sm text-muted-foreground max-w-xs">
+              <p className="text-sm text-muted-foreground max-w-xs font-body">
                 A agência que conecta os melhores talentos da música aos eventos mais exclusivos do Brasil.
               </p>
             </div>
@@ -54,25 +54,21 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
             <div className="space-y-4">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Navegação</h4>
               <nav className="flex flex-col gap-2">
-                <Link href="/djs" className="text-sm text-muted-foreground hover:text-primary">DJs</Link>
-                <Link href="/login" className="text-sm text-muted-foreground hover:text-primary">Área Restrita</Link>
+                <Link href="/djs" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">DJs</Link>
+                <Link href="/login" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">Área Restrita</Link>
               </nav>
             </div>
 
             <div className="space-y-4">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Contato</h4>
               <div className="flex flex-col gap-3">
-                <Link href="https://instagram.com/mashuprio" target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link href="https://instagram.com/mashuprio" target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-body">
                   <Instagram className="h-4 w-4" />
                   <span>@mashuprio</span>
                 </Link>
-                <Link href="https://wa.me/5521976950231" target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+                <Link href="https://wa.me/5521976950231" target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-body">
                   <MessageCircle className="h-4 w-4" />
                   <span>Lucas Postigo</span>
-                </Link>
-                <Link href="mailto:contato@mashupmusic.com.br" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
-                  <Mail className="h-4 w-4" />
-                  <span>contato@mashupmusic.com.br</span>
                 </Link>
               </div>
             </div>
