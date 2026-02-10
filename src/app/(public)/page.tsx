@@ -12,28 +12,28 @@ export default function LandingPage() {
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-background py-24 sm:py-32">
-        <div className="container relative z-10 px-4 sm:px-6">
-          <div className="mx-auto max-w-2xl text-center">
+      <section className="relative overflow-hidden bg-background py-24 sm:py-32 flex flex-col items-center justify-center text-center">
+        <div className="container relative z-10 px-4 sm:px-6 flex flex-col items-center">
+          <div className="mx-auto max-w-3xl flex flex-col items-center">
             <div className="mb-8 flex justify-center">
-              <div className="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold leading-6 text-primary ring-1 ring-inset ring-primary/20">
-                A melhor curadoria de DJs do Brasil
+              <div className="rounded-full bg-primary/10 px-4 py-1.5 text-sm font-bold leading-6 text-primary ring-1 ring-inset ring-primary/20 uppercase tracking-widest">
+                Curadoria Premium de DJs
               </div>
             </div>
-            <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl font-headline">
+            <h1 className="text-4xl font-black tracking-tight text-foreground sm:text-7xl font-headline leading-[1.1]">
               Eleve o nível sonoro do seu <span className="text-primary">Evento</span>
             </h1>
-            <p className="mt-6 text-lg leading-8 text-muted-foreground">
-              Conectamos você aos DJs mais talentosos e versáteis do mercado. 
+            <p className="mt-8 text-lg sm:text-xl leading-8 text-muted-foreground max-w-2xl font-body">
+              Conectamos você aos DJs mais talentosos e versáteis do mercado carioca. 
               Da elegância do Deep House à explosão do Open Format.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-x-6">
-              <Button asChild size="lg" className="bg-primary text-primary-foreground">
+            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">
+              <Button asChild size="lg" className="bg-primary text-black font-black hover:bg-primary/90 px-8 py-7 text-lg rounded-full transition-transform hover:scale-105">
                 <Link href="/djs">
-                  Ver nosso elenco <ArrowRight className="ml-2 h-4 w-4" />
+                  Ver nosso elenco <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Link href="/login" className="text-sm font-semibold leading-6 text-muted-foreground hover:text-primary">
+              <Link href="/login" className="text-sm font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors">
                 Acesso Restrito <span aria-hidden="true">→</span>
               </Link>
             </div>
@@ -41,29 +41,41 @@ export default function LandingPage() {
         </div>
         
         {/* Background Blur Decor */}
-        <div className="absolute top-0 -z-10 h-full w-full opacity-20">
-          <div className="absolute left-[50%] top-0 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary blur-[120px]" />
+        <div className="absolute top-0 -z-10 h-full w-full opacity-30">
+          <div className="absolute left-[50%] top-0 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/20 blur-[120px]" />
         </div>
       </section>
 
       {/* Stats/Quick Features */}
-      <section className="border-y bg-card py-16">
+      <section className="border-y border-white/5 bg-card/30 backdrop-blur-sm py-20">
         <div className="container px-4 sm:px-6">
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3 text-center">
-            <div className="flex flex-col items-center">
-              <Star className="h-8 w-8 text-primary mb-2" />
-              <dt className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Curadoria</dt>
-              <dd className="text-3xl font-bold tracking-tight text-foreground">Premium</dd>
+          <div className="grid grid-cols-1 gap-12 sm:grid-cols-3 text-center">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="p-3 rounded-2xl bg-primary/10">
+                <Star className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <dt className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Curadoria</dt>
+                <dd className="text-3xl font-black text-foreground font-headline">Premium</dd>
+              </div>
             </div>
-            <div className="flex flex-col items-center">
-              <Star className="h-8 w-8 text-primary mb-2" />
-              <dt className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Eventos Realizados</dt>
-              <dd className="text-3xl font-bold tracking-tight text-foreground">+500</dd>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="p-3 rounded-2xl bg-primary/10">
+                <Star className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <dt className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Eventos Realizados</dt>
+                <dd className="text-3xl font-black text-foreground font-headline">+500</dd>
+              </div>
             </div>
-            <div className="flex flex-col items-center">
-              <Star className="h-8 w-8 text-primary mb-2" />
-              <dt className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Atendimento</dt>
-              <dd className="text-3xl font-bold tracking-tight text-foreground">Exclusivo</dd>
+            <div className="flex flex-col items-center space-y-4">
+              <div className="p-3 rounded-2xl bg-primary/10">
+                <Star className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <dt className="text-xs font-black text-muted-foreground uppercase tracking-[0.2em] mb-1">Atendimento</dt>
+                <dd className="text-3xl font-black text-foreground font-headline">Exclusivo</dd>
+              </div>
             </div>
           </div>
         </div>
