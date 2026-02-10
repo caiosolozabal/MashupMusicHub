@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import type { Event, UserDetails } from '@/lib/types';
 import { format, isSameDay } from 'date-fns';
@@ -31,9 +30,16 @@ const getStatusText = (status?: Event['status_pagamento']): string => {
 
 
 export default function ScheduleCalendarView({ events, allDjs }: ScheduleCalendarViewProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedEventForView, setSelectedEventForView] = useState<Event | null>(null);
+  const [today, setToday] = useState<Date | null>(null);
+
+  useEffect(() => {
+    const now = new Date();
+    setSelectedDate(now);
+    setToday(now);
+  }, []);
 
   const handleEventClick = (event: Event) => {
     setSelectedEventForView(event);
@@ -45,7 +51,7 @@ export default function ScheduleCalendarView({ events, allDjs }: ScheduleCalenda
     const MAX_VISIBLE_EVENTS = 2; 
     
     const renderDateNumber = () => (
-      <span className={`absolute top-1 left-1 text-xs ${isSameDay(props.date, new Date()) ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
+      <span className={`absolute top-1 left-1 text-xs ${today && isSameDay(props.date, today) ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
         {format(props.date, 'd')}
       </span>
     );
@@ -102,8 +108,8 @@ export default function ScheduleCalendarView({ events, allDjs }: ScheduleCalenda
       </TooltipProvider>
     );
   };
-  
-  const today = new Date();
+
+  if (!selectedDate) return null;
 
   return (
     <>
@@ -119,7 +125,7 @@ export default function ScheduleCalendarView({ events, allDjs }: ScheduleCalenda
             DayContent: DayContent,
           }}
           modifiers={{
-              today: today,
+              today: today || undefined,
           }}
           modifiersClassNames={{
               today: 'border-2 border-primary rounded-md', 

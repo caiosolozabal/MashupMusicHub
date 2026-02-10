@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/shared/Logo';
@@ -11,7 +12,11 @@ import { Instagram, Mail } from 'lucide-react';
  * Independente do AppShell e sem dependências obrigatórias de Auth.
  */
 export default function PublicLayout({ children }: { children: ReactNode }) {
-  const currentYear = new Date().getFullYear();
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -76,7 +81,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           
           <div className="mt-12 border-t pt-8 text-center">
             <p className="text-xs text-muted-foreground">
-              © {currentYear} Mashup Music Hub. Todos os direitos reservados.
+              © {currentYear || ''} Mashup Music Hub. Todos os direitos reservados.
             </p>
           </div>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import {
   SidebarProvider,
   Sidebar,
@@ -14,6 +15,12 @@ import SidebarNav from '@/components/layout/SidebarNav';
 import Logo from '@/components/shared/Logo';
 
 export default function AppShell({ children }: { children: ReactNode }) {
+  const [currentYear, setCurrentYear] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCurrentYear(new Date().getFullYear());
+  }, []);
+
   return (
     <SidebarProvider defaultOpen>
       <Sidebar side="left" variant="sidebar" collapsible="icon">
@@ -30,7 +37,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </SidebarContent>
         <SidebarFooter className="p-4 mt-auto border-t border-sidebar-border">
           <p className="text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
-            © {new Date().getFullYear()} Mashup Music
+            © {currentYear || ''} Mashup Music
           </p>
         </SidebarFooter>
       </Sidebar>
