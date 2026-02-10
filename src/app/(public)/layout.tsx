@@ -14,11 +14,10 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
     setIsMounted(true);
   }, []);
 
-  // Prevenção de erro de hidratação: o ano só aparece após a montagem no cliente
   const currentYear = isMounted ? new Date().getFullYear() : '';
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="theme-neon flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
       <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md">
         <div className="container flex h-16 items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-8">

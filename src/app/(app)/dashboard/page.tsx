@@ -1,8 +1,8 @@
 'use client';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart, CalendarClock, ListChecks, Users, Loader2, CheckCircle2, DatabaseZap, FileText, Package, AlertCircle } from 'lucide-react';
+import { BarChart, CalendarClock, ListChecks, Users, Loader2, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
@@ -33,7 +33,7 @@ export default function DashboardPage() {
     const fetchData = async () => {
       setIsLoading(true);
       if (!db || !user || !userDetails) {
-        if (!authLoading) setIsLoading(false);
+        setIsLoading(false);
         return;
       }
 
@@ -41,7 +41,6 @@ export default function DashboardPage() {
         const eventsCollectionRef = collection(db, 'events');
         const now = new Date();
         
-        // Estratégia de Janela Temporal: Últimos 6 meses até 3 meses no futuro
         const windowStart = startOfMonth(subMonths(now, 6));
         const windowEnd = endOfMonth(addMonths(now, 3));
 
@@ -82,9 +81,6 @@ export default function DashboardPage() {
             });
         }
 
-        // Calcular estatísticas baseadas no Estado Operacional Derivado
-        // Nota: Não precisamos mais buscar Settlements aqui, pois o estado agora 
-        // depende apenas da existência do settlementId no documento do evento.
         const operationalActiveEvents = fetchedEvents.filter(event => {
           const state = getEventOperationalState(event);
           return state === 'active' || state === 'overdue';
@@ -115,7 +111,7 @@ export default function DashboardPage() {
           const djsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'dj')));
           newStats = [
             { title: 'Eventos em Aberto', value: operationalActiveEvents.length, icon: CalendarClock, color: 'text-primary' },
-            { title: 'DJs Cadastrados', value: djsSnapshot.size, icon: Users, color: 'text-accent' },
+            { title: 'DJs Cadastrados', value: djsSnapshot.size, icon: Users, color: 'text-primary' },
             { title: 'Pendências de Cobrança', value: overdueCount, icon: AlertCircle, color: 'text-destructive' },
             { title: `Faturamento (${format(now, 'MM/yy')})`, value: monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: BarChart, color: 'text-blue-500' },
           ];
