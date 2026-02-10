@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/shared/Logo';
-import { Instagram, Mail } from 'lucide-react';
+import { Instagram, Mail, MessageCircle } from 'lucide-react';
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -13,8 +13,6 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  const currentYear = isMounted ? new Date().getFullYear() : '';
 
   return (
     <div className="theme-neon flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
@@ -63,12 +61,18 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
 
             <div className="space-y-4">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Contato</h4>
-              <div className="flex gap-4">
-                <Link href="https://instagram.com/mashupmusichub" target="_blank" className="text-muted-foreground hover:text-primary">
-                  <Instagram className="h-5 w-5" />
+              <div className="flex flex-col gap-3">
+                <Link href="https://instagram.com/mashuprio" target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+                  <Instagram className="h-4 w-4" />
+                  <span>@mashuprio</span>
                 </Link>
-                <Link href="mailto:contato@mashupmusic.com.br" className="text-muted-foreground hover:text-primary">
-                  <Mail className="h-5 w-5" />
+                <Link href="https://wa.me/5521976950231" target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Lucas Postigo</span>
+                </Link>
+                <Link href="mailto:contato@mashupmusic.com.br" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+                  <Mail className="h-4 w-4" />
+                  <span>contato@mashupmusic.com.br</span>
                 </Link>
               </div>
             </div>
@@ -76,7 +80,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           
           <div className="mt-12 border-t border-white/5 pt-8 text-center">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">
-              © {currentYear} Mashup Music Hub. Todos os direitos reservados.
+              © {isMounted ? new Date().getFullYear() : ''} Mashup Music Hub. Todos os direitos reservados.
             </p>
           </div>
         </div>
