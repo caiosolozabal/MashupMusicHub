@@ -2,23 +2,19 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PUBLIC_DJS, type PublicDj } from '@/lib/public-djs';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Instagram, FileText } from 'lucide-react';
+import { Instagram } from 'lucide-react';
 
-/**
- * Componente para renderizar a imagem do DJ com fallback de iniciais.
- */
 function DjImage({ dj }: { dj: PublicDj }) {
   const [error, setError] = useState(false);
 
   if (error) {
     const initials = dj.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     return (
-      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
-        <span className="text-4xl font-bold text-primary/40 font-headline">{initials}</span>
+      <div className="flex h-full w-full items-center justify-center bg-secondary">
+        <span className="text-2xl font-bold text-primary font-headline">{initials}</span>
       </div>
     );
   }
@@ -27,86 +23,59 @@ function DjImage({ dj }: { dj: PublicDj }) {
     <Image
       src={dj.fotoUrl}
       alt={dj.nome}
-      width={600}
-      height={800}
-      className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-      priority
+      fill
+      className="object-cover transition-transform duration-500 group-hover:scale-105"
       unoptimized={true}
       onError={() => setError(true)}
     />
   );
 }
 
-/**
- * Página de Catálogo de DJs (Grid).
- */
 export default function DjsGridPage() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) return null;
+
   return (
-    <div className="container px-4 py-16 sm:px-6 sm:py-24">
-      <div className="mb-12 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl font-headline">
+    <div className="container px-4 py-12 sm:py-20">
+      <div className="mb-10 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl font-headline">
           Nosso <span className="text-primary">Elenco</span>
         </h1>
-        <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-          DJs selecionados para transformar a atmosfera do seu evento com técnica e identidade sonora.
+        <p className="mt-3 text-base text-muted-foreground max-w-xl mx-auto">
+          Curadoria exclusiva dos melhores DJs do Rio de Janeiro para o seu evento.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:gap-x-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
         {PUBLIC_DJS.map((dj) => (
           <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col">
-            <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-muted ring-1 ring-border transition-all group-hover:ring-primary/50 group-hover:shadow-2xl group-hover:shadow-primary/10">
+            <div className="aspect-[3/4] w-full overflow-hidden rounded-lg bg-card ring-1 ring-border transition-all group-hover:ring-primary/50">
               <DjImage dj={dj} />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-80" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-40 group-hover:opacity-60" />
             </div>
             
-            <div className="mt-4 space-y-2">
+            <div className="mt-3 space-y-1">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-foreground font-headline group-hover:text-primary transition-colors">
+                <h3 className="text-base font-bold text-foreground font-headline truncate pr-2">
                   {dj.nome}
                 </h3>
-                <div className="flex gap-2">
-                  <a
-                    href={`https://instagram.com/${dj.instagramHandle}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-muted-foreground hover:text-primary transition-colors"
-                    title="Instagram"
-                  >
-                    <Instagram className="h-5 w-5" />
-                  </a>
-                </div>
+                <span className="text-muted-foreground hover:text-primary transition-colors">
+                  <Instagram className="h-4 w-4" />
+                </span>
               </div>
               
-              <div className="flex flex-wrap gap-1">
-                {dj.estilos.map((estilo) => (
-                  <Badge key={estilo} variant="secondary" className="text-[10px] uppercase tracking-wider">
-                    {estilo}
-                  </Badge>
-                ))}
-              </div>
+              <p className="text-[10px] text-primary font-semibold uppercase tracking-tighter line-clamp-1">
+                {dj.estilos.join(' • ')}
+              </p>
               
-              <p className="text-sm text-muted-foreground line-clamp-2">
+              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                 {dj.resumoBooking}
               </p>
-
-              <div className="pt-2 flex gap-2">
-                <Button variant="outline" size="sm" className="w-full text-xs" asChild>
-                  <span>Ver perfil completo</span>
-                </Button>
-                <Button variant="ghost" size="sm" className="px-2" asChild>
-                  <a
-                    href={dj.presskitUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Presskit"
-                  >
-                    <FileText className="h-4 w-4" />
-                  </a>
-                </Button>
-              </div>
             </div>
           </Link>
         ))}

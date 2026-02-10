@@ -2,96 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  /* Default body font will be set by tailwind.config.ts via .font-body class */
-}
-
 @layer base {
   :root {
-    --background: 0 0% 94.1%; /* #F0F0F0 Light Grey */
-    --foreground: 0 0% 20%; /* Dark Grey for readability on light grey */
+    --background: 0 0% 3.9%; /* Preto/Cinza Escuro */
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 100%; /* White */
-    --card-foreground: 0 0% 20%; /* Dark Grey */
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 100%; /* White */
-    --popover-foreground: 0 0% 20%; /* Dark Grey */
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 277 74% 61.4%; /* #9D4EDD Vibrant Purple */
-    --primary-foreground: 0 0% 100%; /* White */
+    --primary: 84 100% 59%; /* Verde Neon */
+    --primary-foreground: 0 0% 0%;
 
-    --secondary: 0 0% 98%; /* Lighter grey for secondary elements */
-    --secondary-foreground: 0 0% 9%; /* Darker grey for secondary text */
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 0% 90%; /* Slightly darker grey for muted elements */
-    --muted-foreground: 0 0% 45.1%; /* Grey for muted text */
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 275 87.1% 28.2%; /* #560A86 Electric Blue */
-    --accent-foreground: 0 0% 100%; /* White */
+    --accent: 84 100% 59%;
+    --accent-foreground: 0 0% 0%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 87%; /* Adjusted border for light theme */
-    --input: 0 0% 92%; /* Adjusted input background for light theme */
-    --ring: 277 74% 61.4%; /* Primary color for ring */
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 84 100% 59%;
 
     --radius: 0.5rem;
-
-    /* Sidebar specific colors for light theme */
-    --sidebar-background: 0 0% 100%; /* White sidebar */
-    --sidebar-foreground: 0 0% 25%; /* Dark grey text for sidebar */
-    --sidebar-primary: 277 74% 61.4%; /* Purple for active/primary elements in sidebar */
-    --sidebar-primary-foreground: 0 0% 100%; /* White text on primary elements */
-    --sidebar-accent: 0 0% 94.1%; /* Light grey for hover/accent in sidebar */
-    --sidebar-accent-foreground: 0 0% 20%; /* Dark text on sidebar accent */
-    --sidebar-border: 0 0% 90%; /* Border color for sidebar */
-    --sidebar-ring: 277 74% 61.4%; /* Ring color for sidebar focus */
-
-     /* Chart colors (can be adjusted) */
-    --chart-1: 277 74% 61.4%; /* Primary */
-    --chart-2: 275 87.1% 28.2%; /* Accent */
-    --chart-3: 197 37% 44%; /* A teal */
-    --chart-4: 43 74% 66%; /* An orange */
-    --chart-5: 27 87% 67%; /* A salmon */
-  }
-
-  .dark {
-    /* Keeping dark theme mostly as default shadcn, can be customized further if needed */
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 277 74% 61.4%; /* Vibrant Purple */
-    --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 275 87.1% 38.2%; /* Slightly lighter Electric Blue for dark mode */
-    --accent-foreground: 0 0% 100%; /* White */
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 277 74% 61.4%; /* Primary color for ring */
-    
-    --sidebar-background: 0 0% 7%; /* Darker background for sidebar in dark mode */
-    --sidebar-foreground: 0 0% 90%; /* Lighter text for sidebar in dark mode */
-    --sidebar-primary: 277 74% 61.4%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 14.9%;
-    --sidebar-ring: 277 74% 61.4%;
-    
-    --chart-1: 277 74% 61.4%;
-    --chart-2: 275 87.1% 38.2%;
-    --chart-3: 197 37% 54%;
-    --chart-4: 43 74% 56%;
-    --chart-5: 27 87% 57%;
   }
 }
 
