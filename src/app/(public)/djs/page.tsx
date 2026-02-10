@@ -39,7 +39,7 @@ export default function DjsGridPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="container px-4 py-12 sm:py-20">
+    <div className="container mx-auto px-4 py-12 sm:py-20">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl font-headline">
           Nosso <span className="text-primary">Elenco</span>
@@ -49,9 +49,9 @@ export default function DjsGridPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 justify-items-center">
         {PUBLIC_DJS.map((dj) => (
-          <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full">
+          <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full w-full max-w-[240px]">
             {/* Foto com Outline Verde e Película Fixa */}
             <div className="aspect-[3/4] w-full overflow-hidden rounded-lg bg-card ring-1 ring-primary/30 transition-all group-hover:ring-primary shadow-lg">
               <div className="relative h-full w-full overflow-hidden transition-transform duration-500 group-hover:scale-110">

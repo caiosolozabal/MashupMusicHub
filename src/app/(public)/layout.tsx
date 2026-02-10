@@ -17,7 +17,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
     <div className="theme-neon flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
       <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md">
-        <div className="container flex h-16 items-center justify-between px-4 sm:px-6">
+        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-8">
             <Logo className="text-primary font-black" />
             <nav className="hidden md:flex gap-6">
@@ -42,26 +42,26 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       </main>
 
       <footer className="border-t border-white/5 bg-black/40 py-12">
-        <div className="container px-4 sm:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="space-y-4 flex flex-col items-center md:items-start text-center md:text-left">
+        <div className="container mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
+            <div className="space-y-4 flex flex-col items-center">
               <Logo className="text-primary font-black" />
               <p className="text-sm text-muted-foreground max-w-xs font-body">
                 A agência que conecta os melhores talentos da música aos eventos mais exclusivos do Brasil.
               </p>
             </div>
             
-            <div className="space-y-4 flex flex-col items-center md:items-start">
+            <div className="space-y-4 flex flex-col items-center">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Navegação</h4>
-              <nav className="flex flex-col gap-2 items-center md:items-start">
+              <nav className="flex flex-col gap-2 items-center">
                 <Link href="/djs" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">DJs</Link>
                 <Link href="/login" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">Área Restrita</Link>
               </nav>
             </div>
 
-            <div className="space-y-4 flex flex-col items-center md:items-start">
+            <div className="space-y-4 flex flex-col items-center">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Contato</h4>
-              <div className="flex gap-5">
+              <div className="flex gap-5 justify-center">
                 <Link 
                   href="https://instagram.com/mashuprio" 
                   target="_blank" 
