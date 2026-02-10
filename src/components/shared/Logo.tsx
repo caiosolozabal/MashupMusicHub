@@ -8,20 +8,20 @@ const Logo = ({ className }: { className?: string }) => {
   const [imageError, setImageError] = useState(false);
 
   return (
-    <Link href="/" className={`flex items-center gap-2 group justify-center ${className}`}>
+    <Link href="/" className={`flex items-center gap-2 group ${className}`}>
       {!imageError ? (
-        <div className="relative h-10 w-40 sm:w-48">
+        <div className="relative h-8 w-32 sm:h-10 sm:w-40">
           <Image
             src="/logo.png"
             alt="Mashup Music Hub"
             fill
-            className="object-contain object-center transition-transform group-hover:scale-105"
+            className="object-contain object-left transition-transform group-hover:scale-105"
             onError={() => setImageError(true)}
             unoptimized
           />
         </div>
       ) : (
-        <span className="text-2xl font-headline font-black text-primary hover:text-primary/90 transition-colors uppercase tracking-tighter text-center">
+        <span className="text-xl font-headline font-black text-primary hover:text-primary/90 transition-colors uppercase tracking-tighter">
           Mashup<span className="text-foreground">Hub</span>
         </span>
       )}

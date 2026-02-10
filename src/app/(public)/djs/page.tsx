@@ -39,49 +39,47 @@ export default function DjsGridPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="container mx-auto px-4 py-12 sm:py-20">
-      <div className="mb-10 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-5xl font-headline">
+    <div className="container mx-auto max-w-7xl px-4 py-16 sm:py-24">
+      <div className="mb-16">
+        <h1 className="text-4xl font-black tracking-tight text-foreground sm:text-6xl font-headline">
           Nosso <span className="text-primary">Elenco</span>
         </h1>
-        <p className="mt-3 text-base text-muted-foreground max-w-xl mx-auto font-body">
-          Curadoria exclusiva dos melhores DJs do Rio de Janeiro para o seu evento.
+        <p className="mt-4 text-base text-muted-foreground max-w-xl font-body leading-relaxed">
+          Curadoria exclusiva dos melhores DJs do Rio de Janeiro para elevar o nível do seu evento.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-6 justify-items-center">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8">
         {PUBLIC_DJS.map((dj) => (
-          <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full w-full max-w-[240px]">
-            {/* Foto com Outline Verde e Película Fixa */}
-            <div className="aspect-[3/4] w-full overflow-hidden rounded-lg bg-card ring-1 ring-primary/30 transition-all group-hover:ring-primary shadow-lg">
-              <div className="relative h-full w-full overflow-hidden transition-transform duration-500 group-hover:scale-110">
+          <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full w-full">
+            {/* Foto com Zoom e Película Sincronizados */}
+            <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-card ring-1 ring-primary/20 transition-all group-hover:ring-primary shadow-2xl relative">
+              <div className="relative h-full w-full transition-transform duration-700 group-hover:scale-110">
                 <DjImage dj={dj} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-60" />
               </div>
             </div>
             
-            {/* Informações do DJ (Abaixo da Foto) */}
-            <div className="mt-4 flex flex-col flex-1 space-y-3">
-              <h3 className="text-lg font-bold text-foreground font-headline truncate group-hover:text-primary transition-colors">
+            {/* Informações Alinhadas ao Grid */}
+            <div className="mt-6 flex flex-col flex-1 space-y-3">
+              <h3 className="text-lg font-black text-foreground font-headline truncate group-hover:text-primary transition-colors uppercase tracking-tight">
                 {dj.nome}
               </h3>
               
-              {/* Descrição Breve */}
-              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-body">
-                {dj.resumoBooking}
-              </p>
-
-              {/* Estilos (Chips) */}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {dj.estilos.slice(0, 3).map((estilo) => (
+              <div className="flex flex-wrap gap-1.5">
+                {dj.estilos.slice(0, 2).map((estilo) => (
                   <span 
                     key={estilo} 
-                    className="text-[9px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary uppercase font-bold tracking-tighter"
+                    className="text-[8px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary uppercase font-black tracking-widest"
                   >
                     {estilo}
                   </span>
                 ))}
               </div>
+
+              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-body">
+                {dj.resumoBooking}
+              </p>
             </div>
           </Link>
         ))}
