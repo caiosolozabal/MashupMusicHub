@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { PUBLIC_DJS, type PublicDj } from '@/lib/public-djs';
-import { Instagram } from 'lucide-react';
 
 function DjImage({ dj }: { dj: PublicDj }) {
   const [error, setError] = useState(false);
@@ -23,7 +22,7 @@ function DjImage({ dj }: { dj: PublicDj }) {
       src={dj.fotoUrl}
       alt={dj.nome}
       fill
-      className="object-cover transition-transform duration-500 group-hover:scale-110"
+      className="object-cover"
       unoptimized={true}
       onError={() => setError(true)}
     />
@@ -55,26 +54,25 @@ export default function DjsGridPage() {
           <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full">
             {/* Foto com Outline Verde e Película Fixa */}
             <div className="aspect-[3/4] w-full overflow-hidden rounded-lg bg-card ring-1 ring-primary/30 transition-all group-hover:ring-primary shadow-lg">
-              <div className="relative h-full w-full overflow-hidden">
+              <div className="relative h-full w-full overflow-hidden transition-transform duration-500 group-hover:scale-110">
                 <DjImage dj={dj} />
-                {/* Película que escala junto com a foto para evitar falha visual */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60 transition-transform duration-500 group-hover:scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-60" />
               </div>
             </div>
             
             {/* Informações do DJ (Abaixo da Foto) */}
-            <div className="mt-4 flex flex-col flex-1 space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-foreground font-headline truncate group-hover:text-primary transition-colors">
-                  {dj.nome}
-                </h3>
-                <span className="text-muted-foreground hover:text-primary transition-colors">
-                  <Instagram className="h-4 w-4" />
-                </span>
-              </div>
+            <div className="mt-4 flex flex-col flex-1 space-y-3">
+              <h3 className="text-lg font-bold text-foreground font-headline truncate group-hover:text-primary transition-colors">
+                {dj.nome}
+              </h3>
               
+              {/* Descrição Breve */}
+              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-body">
+                {dj.resumoBooking}
+              </p>
+
               {/* Estilos (Chips) */}
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-1.5 pt-1">
                 {dj.estilos.slice(0, 3).map((estilo) => (
                   <span 
                     key={estilo} 
@@ -84,11 +82,6 @@ export default function DjsGridPage() {
                   </span>
                 ))}
               </div>
-              
-              {/* Descrição Breve */}
-              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-body">
-                {dj.resumoBooking}
-              </p>
             </div>
           </Link>
         ))}

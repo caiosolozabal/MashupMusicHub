@@ -44,22 +44,22 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       <footer className="border-t border-white/5 bg-black/40 py-12">
         <div className="container px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div className="space-y-4">
+            <div className="space-y-4 flex flex-col items-center md:items-start text-center md:text-left">
               <Logo className="text-primary font-black" />
               <p className="text-sm text-muted-foreground max-w-xs font-body">
                 A agência que conecta os melhores talentos da música aos eventos mais exclusivos do Brasil.
               </p>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-4 flex flex-col items-center md:items-start">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Navegação</h4>
-              <nav className="flex flex-col gap-2">
+              <nav className="flex flex-col gap-2 items-center md:items-start">
                 <Link href="/djs" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">DJs</Link>
                 <Link href="/login" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">Área Restrita</Link>
               </nav>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 flex flex-col items-center md:items-start">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Contato</h4>
               <div className="flex gap-5">
                 <Link 
