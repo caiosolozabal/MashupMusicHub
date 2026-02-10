@@ -61,14 +61,22 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
 
             <div className="space-y-4">
               <h4 className="text-sm font-black uppercase tracking-widest text-primary">Contato</h4>
-              <div className="flex flex-col gap-3">
-                <Link href="https://instagram.com/mashuprio" target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-body">
-                  <Instagram className="h-4 w-4" />
-                  <span>@mashuprio</span>
+              <div className="flex gap-5">
+                <Link 
+                  href="https://instagram.com/mashuprio" 
+                  target="_blank" 
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="h-6 w-6" />
                 </Link>
-                <Link href="https://wa.me/5521976950231" target="_blank" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors font-body">
-                  <MessageCircle className="h-4 w-4" />
-                  <span>Lucas Postigo</span>
+                <Link 
+                  href="https://wa.me/5521976950231" 
+                  target="_blank" 
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="WhatsApp"
+                >
+                  <MessageCircle className="h-6 w-6" />
                 </Link>
               </div>
             </div>
