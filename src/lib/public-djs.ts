@@ -20,7 +20,7 @@ export const PUBLIC_DJS: PublicDj[] = [
     nome: 'Deejay Pivete',
     instagramHandle: 'deejaypivete',
     presskitUrl: 'https://drive.google.com/drive/folders/1ujsNM_FqRDGK90kkoARQCUqiM2si8svK',
-    fotoUrl: '/djs/deejaypivete.jpg',
+    fotoUrl: '/djs/Pivete.jpeg',
     estilos: ['Open Format', 'Black Music', 'Funk'],
     resumoBooking: 'Referência em técnica e repertório, Pivete domina as pistas com o melhor do Open Format e Black Music.',
     bioLonga: 'Com anos de estrada na cena carioca, Deejay Pivete construiu uma carreira sólida baseada na versatilidade e na leitura de pista impecável. Seu set transita com naturalidade entre o Hip-Hop clássico e os hits atuais, sempre mantendo a energia lá no alto.'
