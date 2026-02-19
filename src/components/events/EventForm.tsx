@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarIcon, Loader2, FileText, UploadCloud, Link as LinkIcon, X, Search } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cn } from '@/lib/utils';
+import { cn, getDayOfWeek } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import type { Event, EventFile, UserDetails } from '@/lib/types';
 import { Timestamp, doc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, getDocs, orderBy, startAt, endAt, documentId, getDoc } from 'firebase/firestore';
@@ -32,12 +32,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Command, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Textarea } from '../ui/textarea';
 
-
-const getDayOfWeek = (date: Date | undefined): string => {
-  if (!date) return '';
-  const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-  return days[date.getDay()];
-};
 
 const eventFormSchema = z.object({
   nome_evento: z.string().min(3, { message: 'Nome do evento deve ter pelo menos 3 caracteres.' }),

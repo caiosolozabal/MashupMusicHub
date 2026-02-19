@@ -28,6 +28,15 @@ export function generateRandomPastelColor(): string {
 }
 
 /**
+ * Retorna o dia da semana por extenso em português.
+ */
+export function getDayOfWeek(date: Date | undefined): string {
+  if (!date) return '';
+  const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+  return days[date.getDay()];
+}
+
+/**
  * Define o estado operacional de um evento baseado em tempo, pagamento e settlement.
  */
 export type EventOperationalState = 'active' | 'closed' | 'overdue' | 'cancelled';

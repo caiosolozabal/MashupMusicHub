@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Event } from '@/lib/types';
@@ -10,6 +9,7 @@ import { Timestamp } from 'firebase/firestore';
 import { FileText, Link as LinkIcon, Truck, Disc, StickyNote, Copy } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '../ui/button';
+import { getDayOfWeek } from '@/lib/utils';
 
 const getStatusVariant = (status?: Event['status_pagamento']): VariantProps<typeof badgeVariants>['variant'] => {
   switch (status) {
@@ -48,7 +48,7 @@ export default function EventView({ event, onViewEvent, onDuplicateEvent }: Even
   const createdAtDate = event.created_at instanceof Timestamp ? event.created_at.toDate() : (typeof event.created_at === 'string' ? new Date(event.created_at) : event.created_at);
   const updatedAtDate = event.updated_at ? (event.updated_at instanceof Timestamp ? event.updated_at.toDate() : (typeof event.updated_at === 'string' ? new Date(event.updated_at) : event.updated_at)) : null;
 
-
+  const dayLabel = event.dia_da_semana || getDayOfWeek(eventDate);
   const serviceType = event.tipo_servico || 'servico_dj';
 
   return (
@@ -61,7 +61,7 @@ export default function EventView({ event, onViewEvent, onDuplicateEvent }: Even
                 {event.nome_evento}
             </CardTitle>
             <CardDescription>
-              {format(eventDate, 'dd/MM/yyyy HH:mm')} ({event.dia_da_semana}) - {event.local}
+              {format(eventDate, 'dd/MM/yyyy HH:mm')} ({dayLabel}) - {event.local}
             </CardDescription>
           </div>
           {onDuplicateEvent && (
@@ -191,5 +191,3 @@ export default function EventView({ event, onViewEvent, onDuplicateEvent }: Even
     </Card>
   );
 }
-
-    

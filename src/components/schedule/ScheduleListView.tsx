@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { Eye, Edit, Trash2, Disc, Truck, Lock, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/button';
-import { cn, getEventOperationalState } from '@/lib/utils';
+import { cn, getEventOperationalState, getDayOfWeek } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 
 interface ScheduleListViewProps {
@@ -58,12 +58,15 @@ export default function ScheduleListView({
              const state = getEventOperationalState(event);
              const isClosed = state === 'closed';
              const isOverdue = state === 'overdue';
+             const dayLabel = event.dia_da_semana || getDayOfWeek(event.data_evento);
 
             return(
             <TableRow key={event.id} className={cn("hover:bg-muted/50 transition-colors", isClosed && "opacity-60 bg-muted/20", isOverdue && "bg-destructive/5")}>
               <TableCell className="py-1.5 px-1 sm:px-4">
                 <div className="font-bold text-[11px] sm:text-sm leading-tight">{format(event.data_evento, 'dd/MM/yyyy')}</div>
-                <div className="text-[9px] sm:text-xs text-muted-foreground capitalize leading-tight">{event.dia_da_semana.substring(0, 3)}</div>
+                <div className="text-[9px] sm:text-xs text-muted-foreground capitalize leading-tight">
+                  {dayLabel.substring(0, 3)}
+                </div>
               </TableCell>
               <TableCell className="py-1.5 px-1 sm:px-4">
                 <div className='flex items-center gap-1'>
