@@ -44,7 +44,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
       <SidebarInset className="overflow-hidden">
         <Header />
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 bg-background overflow-x-auto">
+        <main className="flex-1 p-2 sm:p-6 lg:p-8 bg-background overflow-x-auto">
           <div className="max-w-full mx-auto">
             {children}
           </div>
