@@ -1,67 +1,42 @@
-# Mashup Music Hub 🎧 - Snapshot Técnico
+# Mashup Music Hub 🎧 - Site Institucional e Gestão
 
-Este documento fornece uma visão técnica detalhada da arquitetura, estrutura e funcionalidades do sistema Mashup Music Hub.
+Este projeto é uma plataforma completa para a agência Mashup Music, incluindo uma vitrine pública de DJs e uma área administrativa para gestão de agenda e fechamentos financeiros.
 
-## 🏗️ Arquitetura do Projeto
+## 🚀 Guia de Deploy (Hospedagem)
 
-O projeto é uma aplicação **Next.js 14** utilizando o **App Router**, integrada ao **Firebase** para autenticação, banco de dados (Firestore) e armazenamento de arquivos (Storage).
+Para colocar o site no ar com o domínio `mashupmusic.com.br`:
 
-### Stack Tecnológica
-- **Frontend:** React 18, Tailwind CSS, Shadcn/UI.
-- **Backend-as-a-Service:** Firebase (Auth, Firestore, Storage).
-- **Relatórios:** jsPDF e jsPDF-autotable para geração de orçamentos.
-- **Tipagem:** TypeScript rigoroso para modelos de dados.
+1. **Repositório**: Certifique-se de que o código está em um repositório privado ou público no GitHub.
+2. **Firebase App Hosting**:
+   - Vá para o [Console do Firebase](https://console.firebase.google.com/).
+   - Selecione o projeto `mashup-music-hub`.
+   - No menu lateral, clique em **App Hosting** e depois em "Começar".
+   - Conecte sua conta do GitHub e selecione este repositório.
+   - O Firebase cuidará de todo o processo de build do Next.js.
+3. **Domínio Personalizado**:
+   - Assim que o primeiro deploy terminar, vá nas configurações do App Hosting.
+   - Clique em **"Add Custom Domain"**.
+   - Digite `mashupmusic.com.br`.
+   - Copie os valores de DNS fornecidos pelo Firebase.
+4. **Configuração no Registro.br**:
+   - Acesse o painel do seu domínio no Registro.br.
+   - Na seção DNS, insira os registros (A e TXT) fornecidos pelo Firebase.
+   - Aguarde a propagação (pode levar algumas horas).
 
-## 📂 Snapshot da Estrutura de Arquivos (Top 200)
+## 🛠️ Tecnologias
+- **Frontend**: Next.js 14 (App Router), Tailwind CSS, Shadcn/UI.
+- **Backend**: Firebase (Auth, Firestore, Storage, App Hosting).
+- **Design**: Tema Neon para a área pública e Profissional/Roxo para a área interna.
 
-### Configurações de Ambiente
-- `.firebaserc` - Configuração de projeto padrão (mashup-music-hub).
-- `firebase.json` - Configurações de deploy de regras e índices.
-- `firestore.rules` - Regras de segurança granulares por Role.
-- `firestore.indexes.json` - Índices compostos para queries de alta performance.
-- `package.json` - Manifesto de dependências e scripts.
+## 📁 Estrutura de Arquivos Importantes
+- `src/app/(public)`: Páginas visíveis para todos os usuários (Home, DJs).
+- `src/app/(app)`: Área restrita para DJs e Administradores.
+- `public/`: Pasta para arquivos estáticos (logo.png, fotos dos DJs).
+- `src/lib/public-djs.ts`: Banco de dados dos DJs da vitrine.
 
-### Código Fonte (`src/`)
-- `src/app/` - Rotas e páginas (Layouts, Dashboard, Agenda, Locação, Fechamentos, Configurações).
-- `src/components/` - Componentes modulares:
-  - `ui/` - Componentes de base Shadcn.
-  - `events/` - Formulários e visualização de eventos.
-  - `rental/` - Lógica de orçamentos e geração de PDF.
-  - `settlements/` - Interface de fechamento financeiro.
-  - `settings/` - Painéis de controle administrativo.
-- `src/context/` - `AuthContext` para gestão global de sessão e permissões.
-- `src/lib/` - Bibliotecas utilitárias, definições de tipos (`types.ts`) e instâncias do Firebase.
-- `src/hooks/` - Hooks customizados para autenticação e utilitários de UI.
-
-## 🔑 Regras de Negócio e Permissões (RBAC)
-
-O sistema opera com base em funções (Roles):
-- **Admin/Partner:** Acesso total, gestão de usuários, contas bancárias e configuração de marca.
-- **DJ:** Acesso à própria agenda, upload de comprovantes, visualização de fechamentos e (se autorizado) criação de eventos de locação.
-- **Financeiro:** Focado na gestão de cobranças e fechamentos.
-
-## 🚀 Comandos Úteis
-
-### Desenvolvimento
-```bash
-npm run dev          # Inicia o servidor local em http://localhost:9002
-npm run build        # Gera o build de produção
-```
-
-### Operações Firebase (Modo Seguro)
-```bash
-# Deploy apenas de regras de segurança
-firebase deploy --only firestore:rules
-
-# Deploy apenas de índices
-firebase deploy --only firestore:indexes
-
-# Trocar projeto ativo
-firebase use --alias default
-```
-
-## 🛠️ Manutenção e Migração
-O sistema inclui uma ferramenta de migração dedicada em `src/app/(app)/settings/migration/`, permitindo a importação de itens de catálogo em lote e a consulta de dados legados do projeto `listeiro-cf302`.
+## 🎨 Identidade Visual
+- **Público**: Background `#0a0a0a`, Primária `#84FF96` (Verde Neon).
+- **Interno**: Background Branco, Primária Roxo Vibrante.
 
 ---
-*Gerado automaticamente pelo App Prototyper em Firebase Studio.*
+*Desenvolvido para Mashup Music Hub.*
