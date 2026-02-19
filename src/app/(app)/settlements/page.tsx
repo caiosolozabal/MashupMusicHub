@@ -96,10 +96,10 @@ interface PendingPaymentsInfo {
 
 
 const months = [
-  { value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' }, { value: '2', label: 'Março' },
-  { value: '3', label: 'Abril' }, { value: '4', label: 'Maio' }, { value: '5', label: 'Junho' },
-  { value: '6', label: 'Julho' }, { value: '7', label: 'Agosto' }, { value: '8', label: 'Setembro' },
-  { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
+  { value: '0', label: 'Jan' }, { value: '1', label: 'Fev' }, { value: '2', label: 'Mar' },
+  { value: '3', label: 'Abr' }, { value: '4', label: 'Mai' }, { value: '5', label: 'Jun' },
+  { value: '6', label: 'Jul' }, { value: '7', label: 'Ago' }, { value: '8', label: 'Set' },
+  { value: '9', label: 'Out' }, { value: '10', label: 'Nov' }, { value: '11', label: 'Dez' }
 ];
 
 const getYears = () => {
@@ -611,28 +611,28 @@ export default function SettlementsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Card className="shadow-lg">
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-4">
             <div>
-                <CardTitle className="font-headline text-2xl">Fechamentos</CardTitle>
-                <CardDescription>
+                <CardTitle className="font-headline text-xl sm:text-2xl">Fechamentos</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   {isActionAllowed
-                    ? 'Selecione um DJ, o período e os eventos para gerar um novo fechamento ou consultar o histórico.'
-                    : 'Visualize seus eventos, simule fechamentos e consulte o histórico.'
+                    ? 'Selecione um DJ e o período para gerar um fechamento.'
+                    : 'Visualize seus eventos e simule fechamentos.'
                   }
                 </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-end">
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 items-end">
             {isActionAllowed && (
-              <div className="space-y-2 xl:col-span-1">
-                  <Label htmlFor='dj-select'>DJ *</Label>
+              <div className="space-y-1 xl:col-span-1">
+                  <Label htmlFor='dj-select' className="text-xs font-semibold">DJ *</Label>
                   <Select inputId='dj-select' value={selectedDjId} onValueChange={setSelectedDjId} disabled={isLoadingDjs}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-9">
                       <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione o DJ"} />
                       </SelectTrigger>
                       <SelectContent>
@@ -644,41 +644,40 @@ export default function SettlementsPage() {
                   </Select>
               </div>
             )}
-             <div className="space-y-2 xl:col-span-1">
-                <Label>Mês</Label>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                    <SelectTrigger><SelectValue placeholder="Mês" /></SelectTrigger>
-                    <SelectContent>
-                        {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
-                    </SelectContent>
-                </Select>
+             <div className="grid grid-cols-2 gap-2 sm:col-span-1 xl:col-span-1">
+                <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Mês</Label>
+                    <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Mês" /></SelectTrigger>
+                        <SelectContent>
+                            {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1">
+                    <Label className="text-xs font-semibold">Ano</Label>
+                    <Select value={selectedYear} onValueChange={setSelectedYear}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Ano" /></SelectTrigger>
+                        <SelectContent>
+                            {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                </div>
              </div>
-             <div className="space-y-2 xl:col-span-1">
-                <Label>Ano</Label>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                    <SelectTrigger><SelectValue placeholder="Ano" /></SelectTrigger>
-                    <SelectContent>
-                        {availableYears.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="space-y-2 xl:col-span-1">
-              <Label>ou Período Manual</Label>
+            <div className="space-y-1 xl:col-span-1">
+              <Label className="text-xs font-semibold">ou Período Manual</Label>
               <div className="flex items-center gap-1">
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
                           id="date"
                           variant={"outline"}
-                          className="w-full justify-start text-left font-normal"
+                          className="w-full h-9 justify-start text-left font-normal text-xs"
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          <CalendarIcon className="mr-2 h-3 w-3" />
                           {dateRange?.from ? (
                               dateRange.to ? (
-                              <>
-                                  {format(dateRange.from, "dd/MM/yy")} -{" "}
-                                  {format(dateRange.to, "dd/MM/yy")}
-                              </>
+                              <>{format(dateRange.from, "dd/MM/yy")} - {format(dateRange.to, "dd/MM/yy")}</>
                               ) : (
                               `A partir de ${format(dateRange.from, "dd/MM/yy")}`
                               )
@@ -694,7 +693,7 @@ export default function SettlementsPage() {
                           defaultMonth={dateRange?.from}
                           selected={dateRange}
                           onSelect={handleDateRangeChange}
-                          numberOfMonths={2}
+                          numberOfMonths={isDj ? 1 : 2}
                         />
                     </PopoverContent>
                 </Popover>
@@ -705,78 +704,66 @@ export default function SettlementsPage() {
                 )}
               </div>
             </div>
-            <div className="space-y-2 xl:col-span-1">
-              <Label>Buscar Evento</Label>
+            <div className="space-y-1 xl:col-span-1">
+              <Label className="text-xs font-semibold">Buscar Evento</Label>
               <Input 
                 placeholder="Nome, contratante..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-9 text-xs"
               />
             </div>
           </div>
 
           {selectedDjId && pendingPaymentsInfo && pendingPaymentsInfo.totalPending > 0 && isActionAllowed && (
-             <Alert variant="destructive" className="mb-6">
+             <Alert variant="destructive" className="mb-4 py-2 px-3">
                 <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Atenção: Pagamentos Pendentes!</AlertTitle>
-                <AlertDescription>
-                    Este DJ possui <span className="font-bold">{pendingPaymentsInfo.totalPending}</span> evento(s) com pagamento pendente, dos quais <span className="font-bold">{pendingPaymentsInfo.totalOverdue}</span> estão em atraso (+15 dias).
+                <AlertTitle className="text-sm font-bold">Pagamentos Pendentes!</AlertTitle>
+                <AlertDescription className="text-xs">
+                    Este DJ possui <span className="font-bold">{pendingPaymentsInfo.totalPending}</span> evento(s) pendentes (<span className="font-bold">{pendingPaymentsInfo.totalOverdue}</span> em atraso).
                 </AlertDescription>
             </Alert>
           )}
 
           {selectedDjId && financialSummary && (
-            <Card className="mb-6 bg-secondary/50">
-              <CardHeader>
-                 <CardTitle className="text-xl">Resumo do Fechamento</CardTitle>
-                 <CardDescription>
-                    Resumo para {selectedDjName} com base nos {eventsForCalculation.length} eventos selecionados.
-                 </CardDescription>
+            <Card className="mb-4 bg-secondary/50 border-primary/10">
+              <CardHeader className="p-3 pb-2">
+                 <CardTitle className="text-sm font-bold">Resumo do Fechamento</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Eventos Selecionados</p>
-                    <p className="text-lg font-bold">{eventsForCalculation.length}</p>
+              <CardContent className="p-3 pt-0 space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 text-center">
+                  <div className="bg-background/50 p-1.5 rounded-md border border-border/50">
+                    <p className="text-[10px] text-muted-foreground uppercase">Eventos</p>
+                    <p className="text-sm font-bold">{eventsForCalculation.length}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Valor Bruto Total</p>
-                    <p className="text-lg font-bold">{financialSummary.totalBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <div className="bg-background/50 p-1.5 rounded-md border border-border/50">
+                    <p className="text-[10px] text-muted-foreground uppercase">Bruto</p>
+                    <p className="text-sm font-bold">{financialSummary.totalBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
-                  <div>
-                    <div className="flex items-center justify-center gap-1.5">
-                        <p className="text-sm text-muted-foreground">Parcela Líquida do DJ</p>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger>
-                                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="text-xs max-w-xs">Fórmula: ((Valor Total - Custos) * % do Serviço) + Custos. O percentual varia com o tipo de serviço (DJ ou Locação).</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
-                    <p className="text-lg font-bold">{financialSummary.parcelaDjTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <div className="bg-background/50 p-1.5 rounded-md border border-border/50">
+                    <p className="text-[10px] text-muted-foreground uppercase">Cachê DJ</p>
+                    <p className="text-sm font-bold">{financialSummary.parcelaDjTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Valor que o DJ Recebeu</p>
-                    <p className="text-lg font-bold">{financialSummary.totalRecebidoPeloDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  <div className="bg-background/50 p-1.5 rounded-md border border-border/50">
+                    <p className="text-[10px] text-muted-foreground uppercase">Rec. p/ DJ</p>
+                    <p className="text-sm font-bold">{financialSummary.totalRecebidoPeloDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
-                   <div className={`p-2 rounded-md ${financialSummary.saldoFinal >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
-                    <p className="text-sm font-semibold">{financialSummary.saldoFinal >= 0 ? 'A Agência PAGA' : 'O DJ PAGA'}</p>
-                    <p className={`text-xl font-bold ${financialSummary.saldoFinal >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                   <div className={`p-1.5 rounded-md ${financialSummary.saldoFinal >= 0 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-red-100 dark:bg-red-900/50'} border border-primary/10`}>
+                    <p className="text-[10px] font-bold uppercase">{financialSummary.saldoFinal >= 0 ? 'Agência Paga' : 'DJ Paga'}</p>
+                    <p className={`text-sm font-black ${financialSummary.saldoFinal >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                       {Math.abs(financialSummary.saldoFinal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </p>
                   </div>
                 </div>
                  {isActionAllowed && (
-                    <div className="flex justify-end pt-4">
+                    <div className="flex justify-end">
                         <Button 
+                          size="sm"
                           onClick={handleOpenConfirmDialog}
                           disabled={eventsForCalculation.length === 0 || isSubmitting}
+                          className="h-8 text-xs font-bold"
                         >
-                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            {isSubmitting && <Loader2 className="mr-2 h-3 w-3 animate-spin" />}
                             Gerar Fechamento
                         </Button>
                     </div>
@@ -785,31 +772,31 @@ export default function SettlementsPage() {
             </Card>
           )}
 
-          <Separator className="my-4" />
-
-          <div className="space-y-4">
-            <h3 className="font-headline text-lg">Eventos</h3>
-            <div className="flex items-center space-x-2">
-                <Checkbox id="show-closed" checked={showClosedEvents} onCheckedChange={(checked) => setShowClosedEvents(checked as boolean)} />
-                <Label htmlFor="show-closed">Visualizar eventos fechados / anteriores no período</Label>
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-headline text-base font-bold">Eventos do Período</h3>
+                <div className="flex items-center space-x-2">
+                    <Checkbox id="show-closed" checked={showClosedEvents} onCheckedChange={(checked) => setShowClosedEvents(checked as boolean)} />
+                    <Label htmlFor="show-closed" className="text-[10px] leading-none cursor-pointer">Ver fechados/anteriores</Label>
+                </div>
             </div>
             {isLoadingData ? (
                 <div className="flex justify-center items-center py-8">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    <p className="ml-2">Carregando eventos...</p>
+                    <p className="ml-2 text-sm">Carregando...</p>
                 </div>
             ) : !selectedDjId ? (
-                <p className="text-muted-foreground text-center py-8">
-                {isActionAllowed ? 'Por favor, selecione um DJ para visualizar os eventos.' : 'Carregando seus dados...'}
+                <p className="text-muted-foreground text-center py-8 text-sm">
+                {isActionAllowed ? 'Selecione um DJ para visualizar os eventos.' : 'Carregando seus dados...'}
                 </p>
             ) : filteredEvents.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum evento encontrado para os filtros selecionados.</p>
+                <p className="text-muted-foreground text-center py-8 text-sm">Nenhum evento encontrado.</p>
             ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <Table>
                     <TableHeader>
-                    <TableRow>
-                        <TableHead className="w-[50px]">
+                    <TableRow className="hover:bg-transparent h-8">
+                        <TableHead className="w-[40px] px-2">
                         {(isActionAllowed || isDj) && (
                             <Checkbox
                             checked={selectedEventIds.length > 0 && selectedEventIds.length === filteredEvents.filter(e => !e.settlementId).length}
@@ -818,14 +805,11 @@ export default function SettlementsPage() {
                             />
                         )}
                         </TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Evento</TableHead>
-                        <TableHead>Tipo</TableHead>
-                        <TableHead>Status Pag.</TableHead>
-                        <TableHead>Recebimento</TableHead>
-                        <TableHead>Valor Total</TableHead>
-                        <TableHead>Custos DJ</TableHead>
-                        <TableHead>Parcela DJ (Apurado)</TableHead>
+                        <TableHead className="px-2 text-[10px] uppercase font-black">Data</TableHead>
+                        <TableHead className="px-2 text-[10px] uppercase font-black">Evento</TableHead>
+                        <TableHead className="px-2 text-[10px] uppercase font-black">Status</TableHead>
+                        <TableHead className="px-2 text-[10px] uppercase font-black text-right">Total</TableHead>
+                        <TableHead className="px-2 text-[10px] uppercase font-black text-right">Cachê DJ</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -835,8 +819,8 @@ export default function SettlementsPage() {
                         const isSettled = !!event.settlementId;
 
                         return(
-                        <TableRow key={event.id} data-state={selectedEventIds.includes(event.id) ? 'selected' : ''} className={isSettled ? 'bg-muted/30' : ''}>
-                            <TableCell>
+                        <TableRow key={event.id} data-state={selectedEventIds.includes(event.id) ? 'selected' : ''} className={cn("h-10 hover:bg-muted/30 transition-colors", isSettled ? 'bg-muted/20 opacity-60' : '')}>
+                            <TableCell className="px-2">
                             {(isActionAllowed || isDj) && !isSettled && (
                                 <Checkbox
                                 checked={selectedEventIds.includes(event.id)}
@@ -845,64 +829,41 @@ export default function SettlementsPage() {
                                 />
                             )}
                             </TableCell>
-                            <TableCell>
-                            <div className="font-medium">{format(event.data_evento, 'dd/MM/yyyy')}</div>
+                            <TableCell className="px-2 whitespace-nowrap">
+                                <div className="font-bold text-[11px]">{format(event.data_evento, 'dd/MM/yy')}</div>
                             </TableCell>
-                            <TableCell className="font-medium">{event.nome_evento}</TableCell>
-                            <TableCell>
-                            <Badge variant="secondary" className="text-xs whitespace-nowrap">{getServiceTypeText(event.tipo_servico)}</Badge>
+                            <TableCell className="px-2">
+                                <div className="font-semibold text-[11px] line-clamp-1">{event.nome_evento}</div>
+                                <div className="text-[9px] text-muted-foreground capitalize">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="px-2">
                                 {isActionAllowed ? (
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant={getButtonStatusVariant(event.status_pagamento)} className="capitalize text-xs h-7 px-2 py-1">
+                                            <Button variant={getButtonStatusVariant(event.status_pagamento)} className="h-5 text-[9px] px-1.5 font-bold uppercase">
                                                 {getStatusText(event.status_pagamento)}
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Alterar Status</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
                                             <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'pendente')}>Pendente</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'parcial')}>Parcial</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'pago')}>Pago</DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'vencido')}>Vencido</DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => handleStatusUpdate(event.id, 'cancelado')} className="text-destructive focus:text-destructive">Cancelado</DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem onSelect={() => handleAccountUpdate(event.id, event.conta_que_recebeu === 'agencia' ? 'dj' : 'agencia')}>Alterar Recebimento</DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 ) : (
-                                    <Badge variant={getStatusVariant(event.status_pagamento)} className="capitalize text-xs">
+                                    <Badge variant={getStatusVariant(event.status_pagamento)} className="h-5 text-[9px] px-1.5 font-bold uppercase">
                                         {getStatusText(event.status_pagamento)}
                                     </Badge>
                                 )}
                             </TableCell>
-                            <TableCell>
-                                {isActionAllowed ? (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="capitalize text-xs h-7 px-2 py-1">
-                                                {event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Alterar Recebimento</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem onSelect={() => handleAccountUpdate(event.id, 'agencia')}>Agência</DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => handleAccountUpdate(event.id, 'dj')}>DJ</DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                ) : (
-                                    <span className="capitalize text-xs">{event.conta_que_recebeu === 'agencia' ? 'Agência' : 'DJ'}</span>
-                                )}
+                            <TableCell className="px-2 text-right text-[11px] font-medium">
+                                {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                             </TableCell>
-                            <TableCell>
-                            {Number(event.valor_total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                            </TableCell>
-                            <TableCell>
-                            {Number(event.dj_costs || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                            </TableCell>
-                            <TableCell className="font-semibold">
-                            {parcelaDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            <TableCell className="px-2 text-right text-[11px] font-black text-primary">
+                                {parcelaDj.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                             </TableCell>
                         </TableRow>
                         )
@@ -913,49 +874,41 @@ export default function SettlementsPage() {
             )}
           </div>
 
-          <Separator className="my-6" />
+          <Separator className="my-4" />
 
-          <div className="space-y-4">
-             <h3 className="font-headline text-lg">Histórico de Fechamentos</h3>
+          <div className="space-y-3">
+             <h3 className="font-headline text-base font-bold">Histórico de Fechamentos</h3>
              {isLoadingData ? (
-                 <p className="text-muted-foreground">Carregando histórico...</p>
+                 <p className="text-xs text-muted-foreground">Carregando histórico...</p>
              ) : !selectedDjId ? (
-                 <p className="text-muted-foreground text-center py-4">{isActionAllowed ? 'Selecione um DJ para ver o histórico.' : ''}</p>
+                 <p className="text-xs text-muted-foreground text-center py-4">{isActionAllowed ? 'Selecione um DJ para ver o histórico.' : ''}</p>
              ) : djSettlements.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">Nenhum fechamento encontrado para este DJ.</p>
+                <p className="text-xs text-muted-foreground text-center py-4">Nenhum fechamento encontrado.</p>
              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                     {djSettlements.map(settlement => (
                         <Card 
                             key={settlement.id} 
                             className="hover:border-primary transition-colors cursor-pointer group shadow-sm flex flex-col"
                             onClick={() => handleViewSettlement(settlement)}
                         >
-                            <CardHeader className="p-4 pb-2 space-y-1">
-                                <div className="flex justify-between items-start gap-2">
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-sm font-bold truncate">
-                                            Fechamento {format(settlement.generatedAt.toDate(), 'dd/MM/yy')}
-                                        </span>
-                                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                            {settlement.summary?.totalEvents || 0} eventos
-                                        </span>
-                                    </div>
-                                    <Badge variant={settlement.status === 'paid' ? 'default' : 'secondary'} className="capitalize text-[10px] px-1.5 h-5 flex-shrink-0">
-                                        {settlement.status === 'paid' ? 'Pago' : 'Pendente'}
+                            <CardHeader className="p-3 pb-1 space-y-0.5">
+                                <div className="flex justify-between items-start gap-1">
+                                    <span className="text-[10px] font-black truncate">
+                                        {format(settlement.generatedAt.toDate(), 'dd/MM/yy')}
+                                    </span>
+                                    <Badge variant={settlement.status === 'paid' ? 'default' : 'secondary'} className="text-[8px] h-4 px-1 leading-none uppercase">
+                                        {settlement.status === 'paid' ? 'Pago' : 'Pend'}
                                     </Badge>
                                 </div>
+                                <span className="text-[8px] text-muted-foreground uppercase font-bold">
+                                    {settlement.summary?.totalEvents || 0} eventos
+                                </span>
                             </CardHeader>
-                            <CardContent className="p-4 pt-0 mt-auto">
-                                <div className="flex flex-col gap-1">
-                                    <p className="text-xs font-semibold text-primary">
-                                        {(settlement.summary?.finalPaidValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    </p>
-                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                                        <UserCheck className="h-2.5 w-2.5" />
-                                        <span className="truncate">{settlement.generatedByName || 'Admin'}</span>
-                                    </div>
-                                </div>
+                            <CardContent className="p-3 pt-0 mt-auto">
+                                <p className="text-xs font-black text-primary">
+                                    {(settlement.summary?.finalPaidValue || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </p>
                             </CardContent>
                         </Card>
                     ))}

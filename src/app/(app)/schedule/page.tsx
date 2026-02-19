@@ -142,26 +142,29 @@ export default function SchedulePage() {
   if (isLoading || !selectedMonth) return <div className="flex justify-center p-10"><Loader2 className="animate-spin h-8 w-8" /></div>;
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="flex flex-row justify-between items-center">
-          <div><CardTitle>Agenda de Eventos</CardTitle><CardDescription>Gerenciamento operacional mensal.</CardDescription></div>
-          <div className="flex gap-2">
-            <Button variant={viewMode === 'list' ? 'default' : 'outline'} onClick={() => setViewMode('list')} size="sm"><List className="h-4 w-4 mr-2" />Lista</Button>
-            <Button variant={viewMode === 'month' ? 'default' : 'outline'} onClick={() => setViewMode('month')} size="sm"><CalendarDays className="h-4 w-4 mr-2" />Calendário</Button>
-            <Button onClick={() => { setSelectedEvent(null); setIsFormOpen(true); }} size="sm" className="bg-primary"><PlusCircle className="h-4 w-4 mr-2" />Novo</Button>
+    <div className="space-y-4">
+      <Card className="shadow-lg">
+        <CardHeader className="p-4 sm:p-6 flex flex-row justify-between items-center">
+          <div>
+            <CardTitle className="text-xl sm:text-2xl">Agenda</CardTitle>
+            <CardDescription className="hidden sm:block">Gestão operacional mensal.</CardDescription>
+          </div>
+          <div className="flex gap-1 sm:gap-2">
+            <Button variant={viewMode === 'list' ? 'default' : 'outline'} onClick={() => setViewMode('list')} size="sm" className="h-8 px-2 text-xs"><List className="h-3 w-3 mr-1" />Lista</Button>
+            <Button variant={viewMode === 'month' ? 'default' : 'outline'} onClick={() => setViewMode('month')} size="sm" className="h-8 px-2 text-xs"><CalendarDays className="h-3 w-3 mr-1" />Mês</Button>
+            <Button onClick={() => { setSelectedEvent(null); setIsFormOpen(true); }} size="sm" className="h-8 px-2 text-xs bg-primary"><PlusCircle className="h-3 w-3 mr-1" />Novo</Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <Input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+        <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+            <Input placeholder="Buscar evento..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="h-9 text-xs" />
             <Select value={selectedDjId} onValueChange={setSelectedDjId}>
-              <SelectTrigger><SelectValue placeholder="DJ" /></SelectTrigger>
+              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Filtrar por DJ" /></SelectTrigger>
               <SelectContent><SelectItem value="all">Todos DJs</SelectItem>{allDjs.map(dj => <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName}</SelectItem>)}</SelectContent>
             </Select>
-            <div className="col-span-2 flex gap-2">
-               <Select value={selectedMonth} onValueChange={setSelectedMonth}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
-               <Select value={selectedYear} onValueChange={setSelectedYear}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['2025','2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
+            <div className="col-span-1 sm:col-span-2 flex gap-2">
+               <Select value={selectedMonth} onValueChange={setSelectedMonth}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
+               <Select value={selectedYear} onValueChange={setSelectedYear}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{['2025','2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
             </div>
           </div>
 
