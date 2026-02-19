@@ -53,7 +53,7 @@ export const PUBLIC_DJS: PublicDj[] = [
     fotoUrl: '/djs/yurihang.jpeg',
     estilos: ['Open Format', 'Funk', 'Black Music'],
     resumoBooking: 'DJ e produtor residente do Konteiner, com forte presença na cena carioca.',
-    bioLonga: 'Diretamente da Zona Norte do Rio de Janeiro, Yuri Hang é DJ e produtor musical com foco em Open Format. Suas principais referências são a Black Music e o Funk, transitando com facilidade por diferentes estilos e formatos de pista.\n\nResidente de uma das maiores casas de shows do Rio de Janeiro, o Konteiner, Yuri acumula dez anos de carreira, tendo passado pelas principais casas e eventos da cidade. Sua presença de palco e leitura de pista fazem dele um nome consolidado na cena local.'
+    bioLonga: 'Com mais de 14 anos de atuação, Yuri Hang é DJ especialista em Open Format, reconhecido por manter pistas cheias, sets versáteis e forte conexão com o público. Com base sólida em Black Music e Funk, adapta o repertório de forma estratégica para diferentes formatos de evento e perfis de pista.\n\nJá se apresentou em diversas casas e eventos do Rio de Janeiro, dividindo line-ups com grandes nomes da música nacional. Foi residente da tradicional casa de shows Konteiner, onde consolidou sua leitura de pista, presença de palco e capacidade de resposta em tempo real à dinâmica de cada evento.\n\nSeu trabalho é orientado a resultado: energia, engajamento e fluidez musical do início ao fim — ideal para festas, shows, eventos corporativos e projetos que exigem versatilidade, experiência e entrega profissional.'
   },
   {
     slug: 'djsolo',
@@ -63,6 +63,6 @@ export const PUBLIC_DJS: PublicDj[] = [
     fotoUrl: '/djs/djsolo.jpeg',
     estilos: ['Open Format', 'Funk', 'Black Music', 'Eletrônico'],
     resumoBooking: 'DJ da Zona Sul do Rio, com passagens por grandes festivais e artistas nacionais.',
-    bioLonga: 'Originário da Zona Sul do Rio de Janeiro, Solô (Caio Solozabal) descobriu sua paixão pela música ainda jovem. Aos 14 anos, iniciou sua trajetória como hobby, que rapidamente se transformou em dedicação profissional à discotecagem.\n\nAtuando no formato Open Format, Solô mistura com habilidade funk carioca, black music e música eletrônica, criando sets dinâmicos e conectados com diferentes públicos.\n\nAo longo da carreira, já se apresentou em eventos e festivais renomados como Kriok Festival, Alma Festival e JUCS, compartilhando o palco com artistas como L7nnon, Cabelinho e DJ Zullu. Também foi DJ residente da Fox Formaturas por dois anos, fortalecendo sua experiência em grandes produções.'
+    bioLonga: 'Originário da Sul do Rio de Janeiro, Solô (Caio Solozabal) descobriu sua paixão pela música ainda jovem. Aos 14 anos, iniciou sua trajetória como hobby, que rapidamente se transformou em dedicação profissional à discotecagem.\n\nAtuando no formato Open Format, Solô mistura com habilidade funk carioca, black music e música eletrônica, criando sets dinâmicos e conectados com diferentes públicos.\n\nAo longo da carreira, já se apresentou em eventos e festivais renomados como Kriok Festival, Alma Festival e JUCS, compartilhando o palco com artistas como L7nnon, Cabelinho e DJ Zullu. Também foi DJ residente da Fox Formaturas por dois anos, fortalecendo sua experiência em grandes produções.'
   }
 ];
