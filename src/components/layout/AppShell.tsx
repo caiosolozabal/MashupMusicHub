@@ -23,8 +23,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar side="left" variant="sidebar" collapsible="icon">
-        <SidebarHeader className="p-4 flex items-center justify-between">
+      <Sidebar side="left" variant="sidebar" collapsible="icon" className="border-r shadow-sm">
+        <SidebarHeader className="p-4 flex items-center justify-between border-b">
           <div className="block group-data-[collapsible=icon]:hidden">
             <Logo />
           </div>
@@ -36,16 +36,18 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <SidebarNav />
         </SidebarContent>
         <SidebarFooter className="p-4 mt-auto border-t border-sidebar-border">
-          <p className="text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
+          <p className="text-[10px] uppercase tracking-widest text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
             © {currentYear || ''} Mashup Music
           </p>
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset>
+      <SidebarInset className="overflow-hidden">
         <Header />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-background">
-          {children}
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 bg-background overflow-x-auto">
+          <div className="max-w-full mx-auto">
+            {children}
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>
