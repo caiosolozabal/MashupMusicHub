@@ -1,16 +1,19 @@
+
 'use client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart, CalendarClock, ListChecks, Users, Loader2, AlertCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { BarChart, CalendarClock, ListChecks, Users, Loader2, AlertCircle, ClipboardList, CheckCircle2, ArrowRight } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
-import type { Event } from '@/lib/types';
-import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths } from 'date-fns';
+import { collection, getDocs, query, where, Timestamp, onSnapshot } from 'firebase/firestore';
+import type { Event, Task } from '@/lib/types';
+import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths, isSameDay, isBefore, startOfDay } from 'date-fns';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { getEventOperationalState } from '@/lib/utils';
+import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
+import { Badge } from '@/components/ui/badge';
 
 
 interface StatCardData {
@@ -28,6 +31,9 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<StatCardData[]>([]);
   const [recentActivities, setRecentActivities] = useState<Event[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+  
+  const [ownerTasks, setOwnerTasks] = useState<Task[]>([]);
+  const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -129,8 +135,36 @@ export default function DashboardPage() {
       }
     };
 
-    if (!authLoading && user && userDetails) fetchData();
+    if (!authLoading && user && userDetails) {
+      fetchData();
+      
+      // Listeners para Tasks no Dashboard
+      const unsubA = onSnapshot(queryMyOpenTasks(user.uid), (snap) => {
+        setOwnerTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
+      });
+      const unsubB = onSnapshot(queryMyAssignedOpenTasks(user.uid), (snap) => {
+        setAssignedTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
+      });
+      return () => { unsubA(); unsubB(); };
+    }
   }, [user, userDetails, authLoading, toast]);
+
+  const tasksSummary = useMemo(() => {
+    const all = [...ownerTasks, ...assignedTasks];
+    const map = new Map<string, Task>();
+    all.forEach(t => map.set(t.id, t));
+    const merged = Array.from(map.values());
+    
+    const now = new Date();
+    const todayStart = startOfDay(now);
+    
+    return {
+      total: merged.length,
+      overdue: merged.filter(t => t.dueDate.toDate() < now).length,
+      today: merged.filter(t => isSameDay(t.dueDate.toDate(), now)).length,
+      topTasks: merged.sort((a, b) => a.dueDate.toMillis() - b.dueDate.toMillis()).slice(0, 3)
+    };
+  }, [ownerTasks, assignedTasks]);
 
   if (isLoading || authLoading) {
     return (
@@ -162,8 +196,45 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="lg:col-span-1 border-primary/20 bg-primary/5">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="font-headline text-lg">Suas Tarefas</CardTitle>
+            <ClipboardList className="h-5 w-5 text-primary" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-2">
+              <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
+                <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
+              </div>
+              <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
+                <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              {tasksSummary.topTasks.map(task => (
+                <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
+                  <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
+                  <div className="flex-1 truncate">
+                    <p className="font-bold truncate">{task.title}</p>
+                    <p className="text-[10px] text-muted-foreground">{format(task.dueDate.toDate(), 'dd/MM HH:mm')}</p>
+                  </div>
+                  {task.status === 'pending_acceptance' && <Badge className="text-[8px] h-4 px-1">Convite</Badge>}
+                </div>
+              ))}
+              {tasksSummary.total === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhuma tarefa pendente.</p>}
+            </div>
+            
+            <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
+              <Link href="/tasks">Ver tudo <ArrowRight className="ml-2 h-3 w-3" /></Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-1">
           <CardHeader><CardTitle className="font-headline">Atividade Recente</CardTitle></CardHeader>
           <CardContent>
             {recentActivities.length > 0 ? (
@@ -184,7 +255,8 @@ export default function DashboardPage() {
             ) : <p className="text-muted-foreground text-sm">Nenhuma atividade recente.</p>}
           </CardContent>
         </Card>
-        <Card>
+
+        <Card className="lg:col-span-1">
           <CardHeader><CardTitle className="font-headline">Próximos Eventos</CardTitle></CardHeader>
           <CardContent>
              {upcomingEvents.length > 0 ? (

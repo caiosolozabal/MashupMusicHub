@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,9 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, ClipboardList, CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
+import { Loader2, ClipboardList, CheckCircle2, XCircle, AlertCircle, Clock, PlusCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import TaskFormDialog from "@/components/tasks/TaskFormDialog";
 
 function dedupeById(tasks: Task[]) {
   const map = new Map<string, Task>();
@@ -32,6 +34,7 @@ export default function TasksPage() {
   const [ownerTasks, setOwnerTasks] = useState<Task[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   useEffect(() => {
     if (!uid) return;
@@ -76,7 +79,10 @@ export default function TasksPage() {
           <h1 className="text-3xl font-bold tracking-tight font-headline">Avisos e Tarefas</h1>
           <p className="text-muted-foreground">Gerencie suas pendências e colaborações operacionais.</p>
         </div>
-        {/* Futuro: Botão de Nova Task aqui */}
+        <Button onClick={() => setIsFormOpen(true)} className="bg-primary text-primary-foreground">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Nova Tarefa
+        </Button>
       </div>
 
       <div className="grid gap-4">
@@ -160,6 +166,8 @@ export default function TasksPage() {
           })
         )}
       </div>
+
+      <TaskFormDialog isOpen={isFormOpen} onClose={(created) => setIsFormOpen(false)} />
     </div>
   );
 }
