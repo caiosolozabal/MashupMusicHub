@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,8 +21,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { createTask, defaultDueDateEndOfDay } from '@/lib/tasks';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import type { UserDetails, TaskPriority, TaskCategory, TaskStatus } from '@/lib/types';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import type { UserDetails, TaskStatus } from '@/lib/types';
 import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -47,13 +46,11 @@ interface TaskFormDialogProps {
 }
 
 export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps) {
-  const { user, userDetails, role } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
-  const [isLoadingDjs, setIsLoadingDjs] = useState(false);
-
-  const isStaff = role === 'admin' || role === 'partner';
+  const [allUsers, setAllUsers] = useState<UserDetails[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
@@ -77,20 +74,20 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
         category: 'operational',
         dueDate: defaultDueDateEndOfDay(),
       });
-      fetchDjs();
+      fetchUsers();
     }
   }, [isOpen, user?.uid, form]);
 
-  const fetchDjs = async () => {
-    setIsLoadingDjs(true);
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true);
     try {
-      const q = query(collection(db, 'users'), where('role', '==', 'dj'), orderBy('displayName'));
+      const q = query(collection(db, 'users'), orderBy('displayName'));
       const snap = await getDocs(q);
-      setAllDjs(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails)));
+      setAllUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails)));
     } catch (error) {
-      console.error("Error fetching DJs:", error);
+      console.error("Error fetching users:", error);
     } finally {
-      setIsLoadingDjs(false);
+      setIsLoadingUsers(false);
     }
   };
 
@@ -99,18 +96,14 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
     setIsSubmitting(true);
 
     try {
-      let initialStatus: TaskStatus = 'pending';
-      
-      // Lógica de status inicial do Blueprint V3
-      if (!isStaff && data.ownerUid !== user.uid) {
-        initialStatus = 'pending_acceptance';
-      }
+      // Regra de status inicial: se criar para outro, começa como pending_acceptance
+      const initialStatus: TaskStatus = (data.ownerUid !== user.uid) ? 'pending_acceptance' : 'pending';
 
       await createTask({
         ...data,
         createdByUid: user.uid,
         status: initialStatus,
-        assignedToUids: [user.uid, data.ownerUid], // Inclui criador e dono como envolvidos
+        assignedToUids: [user.uid, data.ownerUid],
       });
 
       toast({ title: 'Tarefa Criada!', description: 'O aviso foi registrado com sucesso.' });
@@ -153,12 +146,12 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione o destinatário" />
+                      <SelectValue placeholder={isLoadingUsers ? "Carregando..." : "Selecione o destinatário"} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={user?.uid || 'me'}>Para Mim</SelectItem>
-                      {allDjs.filter(d => d.uid !== user?.uid).map(dj => (
-                        <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName}</SelectItem>
+                      {allUsers.filter(u => u.uid !== user?.uid).map(u => (
+                        <SelectItem key={u.uid} value={u.uid}>{u.displayName || u.email}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

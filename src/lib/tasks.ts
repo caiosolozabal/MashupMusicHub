@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -108,6 +107,6 @@ export function queryMyClosedTasks(uid: string) {
     getTasksCollection(),
     where("ownerUid", "==", uid),
     where("status", "in", CLOSED_STATUSES),
-    orderBy("dueDate", "desc")
+    orderBy("updatedAt", "desc")
   );
 }
