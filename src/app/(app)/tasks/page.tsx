@@ -3,17 +3,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { onSnapshot, Timestamp } from "firebase/firestore";
 import type { Task } from "@/lib/types";
-import { queryMyOpenTasks, queryMyAssignedOpenTasks, queryMyClosedTasks, setTaskStatus, acceptTask, declineTask } from "@/lib/tasks";
+import { queryMyOpenTasks, queryMyAssignedOpenTasks, queryMyClosedTasks, setTaskStatus, acceptTask, declineTask, deleteTask } from "@/lib/tasks";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, ClipboardList, CheckCircle2, XCircle, AlertCircle, Clock, PlusCircle, History } from "lucide-react";
+import { Loader2, ClipboardList, CheckCircle2, XCircle, AlertCircle, Clock, PlusCircle, History, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import TaskFormDialog from "@/components/tasks/TaskFormDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 function dedupeById(tasks: Task[]) {
   const map = new Map<string, Task>();
@@ -28,7 +39,8 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function TasksPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userDetails, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const uid = user?.uid;
 
   const [ownerTasks, setOwnerTasks] = useState<Task[]>([]);
@@ -36,6 +48,10 @@ export default function TasksPage() {
   const [closedTasks, setClosedTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+
+  // States para Diálogos
+  const [taskToComplete, setTaskToConclude] = useState<Task | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
 
   useEffect(() => {
     if (!uid) return;
@@ -71,6 +87,30 @@ export default function TasksPage() {
     return closedTasks.sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
   }, [closedTasks]);
 
+  const handleCompleteTask = async () => {
+    if (!taskToComplete) return;
+    try {
+      await setTaskStatus(taskToComplete.id, "completed");
+      toast({ title: "Tarefa concluída!", description: "Ela foi movida para o histórico." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Erro ao concluir", description: error.message });
+    } finally {
+      setTaskToConclude(null);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+    try {
+      await deleteTask(taskToDelete.id);
+      toast({ title: "Tarefa excluída!", description: "O registro foi removido permanentemente." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Erro ao excluir", description: error.message });
+    } finally {
+      setTaskToDelete(null);
+    }
+  };
+
   if (authLoading || (isLoading && uid)) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -81,6 +121,8 @@ export default function TasksPage() {
   }
 
   if (!uid) return null;
+
+  const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
   const renderTaskList = (tasks: Task[], emptyMessage: string) => {
     if (tasks.length === 0) {
@@ -100,17 +142,18 @@ export default function TasksPage() {
       const isCompleted = t.status === "completed";
       const dueDate = t.dueDate instanceof Timestamp ? t.dueDate.toDate() : new Date(t.dueDate);
       const isOverdue = dueDate < new Date() && !isCompleted;
+      const canDelete = isStaff || t.createdByUid === uid;
 
       return (
-        <Card key={t.id} className={`overflow-hidden transition-all mb-3 ${isPendingAcceptance ? 'border-primary/40 bg-primary/5' : ''}`}>
+        <Card key={t.id} className={`overflow-hidden transition-all mb-3 ${isPendingAcceptance ? 'border-primary/40 bg-primary/10 shadow-md scale-[1.01]' : ''}`}>
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-start gap-4">
               <div className="pt-1">
                 <Checkbox
                   checked={isCompleted}
-                  disabled={isPendingAcceptance}
+                  disabled={isPendingAcceptance || isCompleted}
                   onCheckedChange={(checked) => {
-                    setTaskStatus(t.id, checked ? "completed" : "pending");
+                    if (checked) setTaskToConclude(t);
                   }}
                 />
               </div>
@@ -141,9 +184,9 @@ export default function TasksPage() {
                     {isOverdue && <span className="ml-1 uppercase text-[9px] bg-destructive/10 px-1 rounded">Atrasada</span>}
                   </div>
                   {isPendingAcceptance && (
-                     <div className="flex items-center gap-1.5 text-primary">
+                     <div className="flex items-center gap-1.5 text-primary font-bold animate-pulse">
                       <AlertCircle className="h-3.5 w-3.5" />
-                      <span>Aguardando Aceitação</span>
+                      <span>Aguardando sua Aceitação</span>
                     </div>
                   )}
                   {isCompleted && t.completedAt && (
@@ -155,16 +198,29 @@ export default function TasksPage() {
                 </div>
               </div>
 
-              {isPendingAcceptance ? (
-                <div className="flex flex-col sm:flex-row gap-2 self-center">
-                  <Button size="sm" onClick={() => acceptTask(t.id)} className="h-8 px-4 font-bold">
-                    <CheckCircle2 className="mr-2 h-4 w-4" /> Aceitar
+              <div className="flex flex-col sm:flex-row gap-2 self-center">
+                {isPendingAcceptance ? (
+                  <>
+                    <Button size="sm" onClick={() => acceptTask(t.id)} className="h-8 px-4 font-bold">
+                      <CheckCircle2 className="mr-2 h-4 w-4" /> Aceitar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => declineTask(t.id)} className="h-8 px-4 font-bold text-destructive hover:bg-destructive/10">
+                      <XCircle className="mr-2 h-4 w-4" /> Recusar
+                    </Button>
+                  </>
+                ) : null}
+                
+                {canDelete && (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={() => setTaskToDelete(t)} 
+                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => declineTask(t.id)} className="h-8 px-4 font-bold text-destructive hover:bg-destructive/10">
-                    <XCircle className="mr-2 h-4 w-4" /> Recusar
-                  </Button>
-                </div>
-              ) : null}
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -207,6 +263,39 @@ export default function TasksPage() {
       </Tabs>
 
       <TaskFormDialog isOpen={isFormOpen} onClose={(created) => setIsFormOpen(false)} />
+
+      {/* Alertas de Confirmação */}
+      <AlertDialog open={!!taskToComplete} onOpenChange={(o) => !o && setTaskToConclude(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Concluir Tarefa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta tarefa será movida para a aba de Histórico. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCompleteTask}>Concluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!taskToDelete} onOpenChange={(o) => !o && setTaskToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir permanentemente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. A tarefa será removida do sistema para todos os envolvidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTask} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
