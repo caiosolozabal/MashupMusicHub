@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -65,6 +66,22 @@ export async function setTaskStatus(taskId: string, status: TaskStatus) {
   if (status !== "completed") patch.completedAt = null;
 
   return updateDoc(ref, patch);
+}
+
+export async function completeTaskMutation(taskId: string, input: {
+  completionStatus: "completed" | "not_completed",
+  completionNote?: string | null,
+  completedByUid: string
+}) {
+  const ref = doc(db, "tasks", taskId);
+  return updateDoc(ref, {
+    status: "completed",
+    completionStatus: input.completionStatus,
+    completionNote: input.completionNote || null,
+    completedByUid: input.completedByUid,
+    completedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function acceptTask(taskId: string) {

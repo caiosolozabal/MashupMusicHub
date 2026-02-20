@@ -131,6 +131,9 @@ export type Task = {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   completedAt?: Timestamp | null;
+  completedByUid?: string | null;
+  completionStatus?: "completed" | "not_completed" | null;
+  completionNote?: string | null;
   linkedEventId?: string | null;
   notes?: string | null;
 };
