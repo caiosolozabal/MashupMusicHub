@@ -7,7 +7,7 @@ import {
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, CalendarDays, Settings, DollarSign, Loader2, Users, Package } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, DollarSign, Loader2, Users, Package, ClipboardList } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -22,6 +22,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Painel', icon: LayoutDashboard, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
+  { href: '/tasks', label: 'Avisos', icon: ClipboardList, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
   { href: '/rental', label: 'Locação', icon: Package, roles: ['admin', 'partner'], exact: false },
   { href: '/djs', label: 'Vitrine de DJs', icon: Users, roles: ['admin', 'partner', 'dj'], exact: false },
@@ -43,7 +44,7 @@ export default function SidebarNav() {
   if (loading && !userDetails) {
     return (
        <SidebarMenu>
-        {[...Array(6)].map((_, i) => (
+        {[...Array(7)].map((_, i) => (
           <SidebarMenuItem key={i} >
             <div className="h-8 w-full bg-muted/50 animate-pulse rounded-md" />
           </SidebarMenuItem>

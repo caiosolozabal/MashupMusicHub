@@ -29,11 +29,8 @@ service cloud.firestore {
     }
 
     match /events/{eventId} {
-      // Regra de Listagem Protegida: DJs listam apenas seus próprios eventos. Admins listam tudo.
       allow list: if isAdmin() || isPartner() || (isDj() && request.query.limit <= 500 && (request.query.filters.dj_id == request.auth.uid || request.query.filters.size() == 0));
-      // Regra de Leitura: Qualquer logado pode ver detalhes (necessário para a visualização da agenda global se permitido).
       allow read: if isSignedIn();
-      
       allow create, update: if isAdmin() || isPartner() || (isDj() && request.resource.data.dj_id == request.auth.uid);
       allow delete: if isAdmin() || isPartner() || (isDj() && resource.data.dj_id == request.auth.uid);
     }
@@ -54,6 +51,43 @@ service cloud.firestore {
 
     match /app_config/{configId} {
       allow read, list, create, update, delete: if isAdmin() || isPartner();
+    }
+
+    match /tasks/{taskId} {
+      function isStaff() { return isAdmin() || isPartner(); }
+      function isOwner() { return isSignedIn() && request.auth.uid == resource.data.ownerUid; }
+      function isAssignee() {
+        return isSignedIn()
+          && resource.data.assignedToUids != null
+          && (request.auth.uid in resource.data.assignedToUids);
+      }
+      function isCreator() { return isSignedIn() && request.auth.uid == resource.data.createdByUid; }
+
+      allow read, list: if isStaff() || isOwner() || isAssignee();
+
+      allow create: if isSignedIn()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.ownerUid is string
+        && request.resource.data.title is string
+        && request.resource.data.status is string
+        && (
+          isStaff()
+          || (request.resource.data.ownerUid == request.auth.uid)
+          || (request.resource.data.ownerUid != request.auth.uid
+              && request.resource.data.status == "pending_acceptance")
+        );
+
+      allow update: if (isStaff() || isOwner() || isAssignee())
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (
+          isStaff()
+          || resource.data.status != "pending_acceptance"
+          || (resource.data.status == "pending_acceptance" && isOwner())
+        );
+
+      allow delete: if isStaff() || isCreator();
     }
 
     match /{document=**} {
