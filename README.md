@@ -44,6 +44,28 @@ Sistema integrado de gestão para a agência **Mashup Music**, unindo uma vitrin
 
 ---
 
+## 📝 Planejamento: Módulo de Tasks / Avisos (Em breve)
+*Funcionalidade em fase de validação arquitetural.*
+
+### Objetivo
+Criar um sistema de organização interna onde cada usuário possui seu caderno de tarefas, permitindo delegação entre DJs e controle centralizado pela Staff.
+
+### Regras de Aceitação (Horizontal)
+- Quando um DJ cria uma tarefa para outro, ela inicia como `pending_acceptance`.
+- O destinatário deve aceitar para que a tarefa entre no fluxo ativo.
+- Admins/Partners podem criar tarefas diretamente em estado `pending` para qualquer usuário.
+
+### Estrutura de Dados
+- **Coleção**: `tasks`
+- **Status**: `pending_acceptance`, `pending`, `doing`, `completed`, `declined`, `canceled`.
+- **Campos Principais**: `ownerUid`, `createdByUid`, `assignedToUids[]`, `dueDate`, `priority`, `category`.
+
+### Regras de Segurança (RBAC)
+- **DJs**: Leitura apenas de suas tarefas ou colaborações. Edição de status apenas. Exclusão apenas do que criou.
+- **Staff**: Visão global, criação "top-down" e controle total.
+
+---
+
 ## 🏗️ Arquitetura Técnica
 - **Frontend**: Next.js 14 (App Router) + Tailwind CSS.
 - **Backend**: Firebase (Auth, Firestore, Storage).
