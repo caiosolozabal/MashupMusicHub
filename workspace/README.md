@@ -1,109 +1,120 @@
-# Mashup Music Hub 🎧 - Documentação do Sistema
+# Mashup Music Hub 🎧 - Documentação Completa do Ecossistema
 
-Este repositório contém a plataforma completa da **Mashup Music**, uma solução integrada que combina uma vitrine pública de talentos com um robusto ERP (Sistema de Gestão) para administração de agenda, logística de equipamentos e fechamentos financeiros.
-
----
-
-## 🏗️ Arquitetura Técnica
-
-A aplicação foi construída utilizando as tecnologias mais modernas do ecossistema web:
-
-- **Frontend**: Next.js 14 (App Router) com React 18.
-- **Estilização**: Tailwind CSS para design responsivo e Shadcn/UI para componentes de interface consistentes.
-- **Backend-as-a-Service**: Firebase.
-  - **Firestore**: Banco de dados NoSQL em tempo real.
-  - **Auth**: Autenticação segura com controle de acesso baseado em funções (RBAC).
-  - **Storage**: Armazenamento de comprovantes, logotipos e fotos dos itens.
-- **Geração de Documentos**: `jsPDF` para criação de propostas e relatórios financeiros em PDF diretamente no navegador.
+Este repositório contém a plataforma definitiva da **Mashup Music**, uma solução "all-in-one" que integra uma vitrine pública de alto impacto visual com um robusto sistema de gestão ERP para administração de agenda, logística de equipamentos e fechamentos financeiros complexos.
 
 ---
 
-## 🎨 Identidade Visual e UX
+## 🏗️ 1. Arquitetura e Stack Tecnológica
 
-O sistema opera com dois temas distintos para diferenciar claramente os contextos:
+O sistema foi projetado seguindo os padrões mais modernos de desenvolvimento web, priorizando performance, escalabilidade e segurança:
 
-1.  **Área Pública (Tema Neon)**: Fundo escuro (`#0a0a0a`), textos em branco e destaques em **Verde Neon** (`#84FF96`). Foco em impacto visual e conversão de clientes.
-2.  **Área Administrativa (Tema Profissional)**: Fundo branco, tipografia em preto e elementos de marca em **Roxo Vibrante**. Foco em legibilidade, produtividade e foco operacional.
-
----
-
-## 🌐 Módulo Público (Vitrine)
-
-### 1. Landing Page
-- Design centralizado e minimalista.
-- Hero section com chamada para ação (CTA) para contratação via WhatsApp.
-- Seção de estatísticas e diferenciais da agência.
-
-### 2. Showcase de DJs (Elenco)
-- Grid dinâmico de talentos com efeitos de zoom e película visual.
-- Filtros por estilo musical (Open Format, Funk, Black Music, etc.).
-- **Páginas Individuais**: Biografia detalhada, presskits, links de redes sociais e curadoria de estilos para cada artista.
-
-### 3. Cabeçalho e Rodapé Integrados
-- Navegação fluida.
-- Rodapé minimalista com links diretos para Instagram (@mashuprio) e WhatsApp do gestor.
-- Suporte para logotipo dinâmico (carregado via `public/logo.png`).
+- **Frontend**: [Next.js 14](https://nextjs.org/) (App Router) - Utilizando Server Components para SEO na área pública e Client Components para interatividade na área de gestão.
+- **Linguagem**: TypeScript para tipagem estática e redução de bugs em tempo de execução.
+- **Estilização**: [Tailwind CSS](https://tailwindcss.com/) com uma estratégia de temas duplos (Neon vs. Profissional).
+- **Componentes de UI**: [Radix UI](https://www.radix-ui.com/) e [Shadcn/UI](https://ui.shadcn.com/) para acessibilidade e design consistente.
+- **Backend (BaaS)**: [Firebase](https://firebase.google.com/).
+  - **Cloud Firestore**: Banco de dados NoSQL com sincronização em tempo real.
+  - **Firebase Auth**: Sistema de autenticação com persistência de sessão e controle de funções (RBAC).
+  - **Cloud Storage**: Hospedagem de ativos binários (comprovantes, logos e fotos).
+- **Geração de Documentos**: `jsPDF` e `jsPDF-AutoTable` para processamento de PDFs no lado do cliente.
 
 ---
 
-## 🛡️ Módulo Interno (Gestão ERP)
+## 🎨 2. Design System e Identidade Visual
 
-O coração do sistema é o painel de controle, acessível apenas para usuários autenticados com níveis de permissão específicos (**Admin**, **Sócio**, **DJ**).
+O sistema implementa dois contextos visuais distintos via classes CSS dinâmicas:
 
-### 1. Dashboard de Inteligência
-- Visão geral de faturamento mensal.
-- Contador de pendências operacionais e pagamentos em atraso.
-- Atalhos para os próximos eventos da agenda.
+### Área Pública (Tema Neon)
+- **Foco**: Conversão e Vitrine.
+- **Paleta**: Fundo `#0a0a0a` (Preto Profundo), Destaques `#84FF96` (Verde Neon).
+- **Tipografia**: Poppins (Headline) para impacto e modernidade.
 
-### 2. Gestão de Agenda (Eventos)
-O sistema possui uma lógica avançada de **Estados Operacionais**:
-- **Ativo**: Eventos futuros ou recentes aguardando conclusão.
-- **Em Atraso**: Eventos passados onde o cliente não confirmou o pagamento integral.
-- **Encerrado**: Eventos passados, com pagamento confirmado e já incluídos em um fechamento financeiro (Histórico Imutável).
-- **Cancelado**: Registros desativados para fins de métricas.
-
-**Funcionalidades da Agenda:**
-- Visualização em **Lista Compacta** (otimizada para mobile) ou **Calendário Mensal**.
-- Filtros por DJ, Mês/Ano ou período personalizado.
-- **Vínculo de Eventos**: Capacidade de conectar um "Serviço de DJ" a uma "Locação de Equipamento", permitindo rastrear custos e receitas de forma cruzada.
-- **Upload de Comprovantes**: DJs podem subir fotos de recibos diretamente no evento.
-
-### 3. Sistema Financeiro e Fechamentos (Settlements)
-Mecanismo automático para prestação de contas entre a agência e o artista:
-- **Cálculo de Cachê**: Aplicação automática de porcentagens diferenciadas (Cachê de DJ vs. Comissão de Locação).
-- **Lógica de Recebimento**: Distingue se o sinal foi recebido pela **Agência** ou pelo **DJ**, calculando o saldo final (quem deve pagar quem).
-- **Ajuste Manual (Delta)**: Permite ao administrador adicionar bônus ou descontos extras antes de fechar o período.
-- **Relatório de Fechamento**: Geração de PDF profissional com extrato de todos os eventos, dados bancários do DJ e resumo de valores.
-
-### 4. Módulo de Locação (Rental)
-- **Catálogo de Equipamentos**: Gestão de inventário com fotos, preços base, descrição técnica e tags.
-- **Gerador de Orçamentos**: Ferramenta de montagem de kits.
-- **Inteligência de Capacidade**: O sistema analisa os itens adicionados e sugere para quantas pessoas aquele kit é adequado (Ex: "Som ideal para até 100 pessoas com bom grave").
-- **Propostas em PDF**: Gera propostas comerciais prontas para enviar ao cliente, com termos de uso e chave PIX da agência.
-
-### 5. Gestão de Usuários e Permissões
-- **Convite de Usuários**: Fluxo de criação de conta e perfil simultâneo.
-- **Configurações Financeiras por DJ**: Cada DJ tem seu próprio percentual de contrato e cor de identificação na agenda.
-- **Dados Bancários**: Armazenamento seguro de chaves PIX e contas para automatizar os relatórios de fechamento.
-
-### 6. Ferramentas de Migração
-- **Legado**: Visualização somente leitura de eventos do banco de dados antigo (`listeiro-cf302`).
-- **Importação em Lote**: Ferramenta para subir catálogo de itens de locação de forma massiva.
+### Área Interna (Tema Corporativo)
+- **Foco**: Produtividade e Operação.
+- **Paleta**: Fundo `#F0F0F0` (Cinza Claro), Primária `#9D4EDD` (Roxo Vibrante).
+- **Tipografia**: PT Sans (Corpo) para legibilidade em longas jornadas de trabalho.
 
 ---
 
-## 🚀 Orientações para Produção
+## 🌐 3. Módulo Público (Vitrine de Talentos)
 
-### Como subir a Logotipo
-1. Salve sua logo como `logo.png` (formato PNG transparente recomendado).
-2. Coloque o arquivo na pasta `/public/`.
-3. O sistema irá atualizar automaticamente no topo e no rodapé.
+### 3.1. Landing Page Inteligente
+- **Hero Section**: Centralizada, com copy focada em elevar o nível sonoro de eventos.
+- **Estatísticas Dinâmicas**: Exibição de marcos da agência (Eventos realizados, Curadoria, etc.).
+- **CTA Integrado**: Botão de contratação direta via API do WhatsApp.
 
-### Hospedagem e Domínio
-Para utilizar o domínio **mashupmusic.com.br**:
-1. O projeto está configurado para o **Firebase App Hosting**.
-2. Conecte o repositório GitHub ao console do Firebase.
-3. Aponte o DNS no Registro.br conforme as instruções geradas no painel do Firebase após o primeiro deploy.
+### 3.2. Catálogo de DJs (Elenco)
+- **Grid Adaptativo**: Organização automática de cards com efeito de zoom sincronizado entre foto e película escura.
+- **Filtros de Estilo**: Sistema de chips (badges) para identificação rápida de gênero musical.
+- **Páginas Individuais**:
+  - Bio Longa com suporte a quebras de linha e formatação.
+  - Links externos para Presskits e Instagram.
+  - Galeria de estilos musicais curados.
 
 ---
-*Desenvolvido para Mashup Music Hub.*
+
+## 🛡️ 4. Módulo Administrativo (ERP)
+
+Este é o motor do sistema, protegido por regras de segurança do Firestore que impedem o acesso de usuários não autorizados.
+
+### 4.1. Controle de Acesso Baseado em Funções (RBAC)
+- **Admin/Sócio**: Acesso total a todas as funções financeiras, de usuários e de catálogo.
+- **DJ**: Acesso restrito apenas à sua própria agenda e seus fechamentos.
+- **Financeiro**: (Previsão) Foco exclusivo em auditoria e pagamentos.
+
+### 4.2. Gestão de Agenda e Eventos
+O sistema possui uma inteligência de **Estados Operacionais** que classifica cada evento:
+- **Ativo**: Eventos futuros ou recentes.
+- **Em Atraso (Overdue)**: Eventos passados onde o `status_pagamento != 'pago'`. O sistema emite alertas visuais pulsantes.
+- **Encerrado (Closed)**: Eventos passados, pagos pelo cliente e já processados em um fechamento financeiro. Estes tornam-se imutáveis para preservar o histórico contábil.
+- **Vínculo de Eventos**: Permite conectar um evento de "Serviço de DJ" a um de "Locação de Equipamentos", facilitando o rastreamento de logística cruzada.
+
+### 4.3. Sistema de Fechamentos Financeiros (Settlements)
+Mecanismo de alta precisão para acerto de contas entre a agência e o artista:
+- **Cálculo de Comissões**: Aplica percentuais específicos por DJ para serviços e locações separadamente.
+- **Gestão de Fluxo de Caixa**: Identifica quem recebeu o sinal (Agência ou DJ) e calcula automaticamente quem deve pagar quem no saldo final.
+- **Ajuste Manual (Delta)**: Permite adicionar bônus ou descontos manuais no momento do fechamento, com obrigatoriedade de justificativa textual.
+- **Relatórios**: Geração automática de PDF com extrato detalhado, dados bancários e resumo de receita bruta vs. líquida.
+
+### 4.4. Módulo de Locação (Rental)
+- **Catálogo Técnico**: Gerenciamento de itens com atributos de "Pontuação de Som" e "Capacidade de Pessoas".
+- **Inteligência de Sugestão**: O sistema analisa o "Sound Score" total do orçamento e sugere para qual tipo de público aquele kit é adequado (Ex: "Som ambiente" vs "Festa robusta").
+- **Workflow de Orçamentos**: Criação, edição e histórico de propostas com conversão instantânea para PDF comercial contendo termos de uso e logo da agência.
+
+---
+
+## ⚙️ 5. Mecanismos de Configuração e Gestão
+
+### 5.1. Gestão de Usuários
+- **Convite Direto**: Administradores podem criar contas de usuários (Auth + Firestore) em um único fluxo.
+- **Customização Financeira**: Definição de cores para a agenda, percentuais de ganho e dados de pagamento (PIX/Banco) por DJ.
+
+### 5.2. Gestão de Marca (Branding)
+- **Logotipo Dinâmico**: O sistema busca `public/logo.png`. Caso não exista, utiliza um fallback de texto estilizado.
+- **Dados Mestres**: Configuração central de Chave PIX e Termos de Locação que se replicam em todos os PDFs gerados pelo sistema.
+
+---
+
+## 🛠️ 6. Ferramentas de Suporte e Migração
+
+- **Legado (Old DB)**: Interface somente leitura conectada ao banco de dados antigo (`listeiro-cf302`), permitindo consulta de histórico de anos anteriores sem misturar os dados novos.
+- **Importação Batch**: Script para subir em massa o catálogo de equipamentos a partir de uma estrutura pré-definida.
+
+---
+
+## 🚀 7. Guia para o Usuário Final (Produção)
+
+### Como atualizar a Marca?
+1. Nomeie sua logo como `logo.png` (formato PNG transparente recomendado).
+2. Suba o arquivo na pasta `/public/` do projeto.
+3. O sistema atualizará o topo, rodapé e PDFs automaticamente.
+
+### Como funciona o Fechamento?
+1. Vá em **Fechamentos**.
+2. Selecione o DJ e o mês desejado.
+3. Marque os eventos que o cliente já pagou.
+4. O sistema dirá o valor exato que a agência deve transferir ao DJ ou vice-versa.
+5. Clique em "Confirmar" e o sistema gera o recibo em PDF oficial.
+
+---
+*Documentação atualizada em Fevereiro de 2025.*
