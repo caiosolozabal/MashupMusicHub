@@ -156,13 +156,22 @@ export default function DashboardPage() {
     const merged = Array.from(map.values());
     
     const now = new Date();
-    const todayStart = startOfDay(now);
     
     return {
       total: merged.length,
-      overdue: merged.filter(t => t.dueDate.toDate() < now).length,
-      today: merged.filter(t => isSameDay(t.dueDate.toDate(), now)).length,
-      topTasks: merged.sort((a, b) => a.dueDate.toMillis() - b.dueDate.toMillis()).slice(0, 3)
+      overdue: merged.filter(t => {
+        const date = t.dueDate?.toDate?.() || new Date(0);
+        return date < now;
+      }).length,
+      today: merged.filter(t => {
+        const date = t.dueDate?.toDate?.() || null;
+        return date ? isSameDay(date, now) : false;
+      }).length,
+      topTasks: merged.sort((a, b) => {
+        const aTime = a.dueDate?.toMillis?.() || 0;
+        const bTime = b.dueDate?.toMillis?.() || 0;
+        return aTime - bTime;
+      }).slice(0, 3)
     };
   }, [ownerTasks, assignedTasks]);
 
@@ -215,16 +224,19 @@ export default function DashboardPage() {
             </div>
             
             <div className="space-y-2">
-              {tasksSummary.topTasks.map(task => (
-                <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
-                  <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
-                  <div className="flex-1 truncate">
-                    <p className="font-bold truncate">{task.title}</p>
-                    <p className="text-[10px] text-muted-foreground">{format(task.dueDate.toDate(), 'dd/MM HH:mm')}</p>
+              {tasksSummary.topTasks.map(task => {
+                const date = task.dueDate?.toDate?.() || new Date();
+                return (
+                  <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
+                    <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
+                    <div className="flex-1 truncate">
+                      <p className="font-bold truncate">{task.title}</p>
+                      <p className="text-[10px] text-muted-foreground">{format(date, 'dd/MM HH:mm')}</p>
+                    </div>
+                    {task.status === 'pending_acceptance' && <Badge className="text-[8px] h-4 px-1">Convite</Badge>}
                   </div>
-                  {task.status === 'pending_acceptance' && <Badge className="text-[8px] h-4 px-1">Convite</Badge>}
-                </div>
-              ))}
+                );
+              })}
               {tasksSummary.total === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhuma tarefa pendente.</p>}
             </div>
             

@@ -82,11 +82,19 @@ export default function TasksPage() {
 
   const openMerged = useMemo(() => {
     const all = dedupeById([...ownerTasks, ...assignedTasks]);
-    return all.sort((a, b) => a.dueDate.toMillis() - b.dueDate.toMillis());
+    return all.sort((a, b) => {
+      const aTime = a.dueDate?.toMillis?.() || 0;
+      const bTime = b.dueDate?.toMillis?.() || 0;
+      return aTime - bTime;
+    });
   }, [ownerTasks, assignedTasks]);
 
   const closedSorted = useMemo(() => {
-    return closedTasks.sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
+    return closedTasks.sort((a, b) => {
+      const aTime = a.updatedAt?.toMillis?.() || 0;
+      const bTime = b.updatedAt?.toMillis?.() || 0;
+      return bTime - aTime;
+    });
   }, [closedTasks]);
 
   const handleConfirmCompletion = async (data: { completionStatus: 'completed' | 'not_completed', completionNote?: string }) => {
@@ -143,7 +151,7 @@ export default function TasksPage() {
     return tasks.map((t) => {
       const isPendingAcceptance = t.status === "pending_acceptance";
       const isCompleted = t.status === "completed";
-      const dueDate = t.dueDate instanceof Timestamp ? t.dueDate.toDate() : new Date(t.dueDate);
+      const dueDate = t.dueDate instanceof Timestamp ? t.dueDate.toDate() : (t.dueDate ? new Date(t.dueDate) : new Date());
       const isOverdue = dueDate < new Date() && !isCompleted && !isHistory;
       const canDelete = isStaff || t.createdByUid === uid;
 
@@ -221,13 +229,13 @@ export default function TasksPage() {
                   {isCompleted && t.completedAt && (
                     <div className="flex items-center gap-1.5 text-green-600">
                       <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>{t.completionStatus === 'not_completed' ? 'Encerrada' : 'Concluída'} em {format(t.completedAt.toDate(), "dd/MM/yy HH:mm", { locale: ptBR })}</span>
+                      <span>{t.completionStatus === 'not_completed' ? 'Encerrada' : 'Concluída'} em {format(t.completedAt instanceof Timestamp ? t.completedAt.toDate() : new Date(), "dd/MM/yy HH:mm", { locale: ptBR })}</span>
                     </div>
                   )}
                   {t.status === 'declined' && t.updatedAt && (
                     <div className="flex items-center gap-1.5 text-destructive">
                       <XCircle className="h-3.5 w-3.5" />
-                      <span>Recusada em {format(t.updatedAt.toDate(), "dd/MM/yy HH:mm", { locale: ptBR })}</span>
+                      <span>Recusada em {format(t.updatedAt instanceof Timestamp ? t.updatedAt.toDate() : new Date(), "dd/MM/yy HH:mm", { locale: ptBR })}</span>
                     </div>
                   )}
                 </div>
