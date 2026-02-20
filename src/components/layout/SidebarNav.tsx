@@ -22,7 +22,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Painel', icon: LayoutDashboard, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
-  { href: '/tasks', label: 'Avisos', icon: ClipboardList, roles: ['admin', 'partner', 'dj'] },
+  { href: '/tasks', label: 'Avisos e tarefas', icon: ClipboardList, roles: ['admin', 'partner', 'dj'] },
   { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
   { href: '/rental', label: 'Locação', icon: Package, roles: ['admin', 'partner'], exact: false },
   { href: '/djs', label: 'Vitrine de DJs', icon: Users, roles: ['admin', 'partner', 'dj'], exact: false },
