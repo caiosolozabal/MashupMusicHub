@@ -4,6 +4,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { PUBLIC_DJS, type PublicDj } from '@/lib/public-djs';
+import { RENTAL_PACKAGES } from '@/lib/public-rental-packages';
+import { PackageCard } from '@/components/public/PackageCard';
 
 function DjImage({ dj }: { dj: PublicDj }) {
   const [error, setError] = useState(false);
@@ -50,39 +52,44 @@ export default function DjsGridPage() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 sm:gap-8">
-        {PUBLIC_DJS.map((dj) => (
-          <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full w-full">
-            {/* Foto com Zoom e Película Sincronizados */}
-            <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-card ring-1 ring-primary/20 transition-all group-hover:ring-primary shadow-2xl relative">
-              <div className="relative h-full w-full transition-transform duration-700 group-hover:scale-110">
-                <DjImage dj={dj} />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-60" />
+        {PUBLIC_DJS.map((dj, index) => {
+          // Inserir o card de locação na quarta posição (índice 3) para cross-selling
+          if (index === 3) {
+            return <PackageCard key="rental-teaser" pkg={RENTAL_PACKAGES[2]} />; // Mostra o pacote Casamento como destaque
+          }
+          
+          return (
+            <Link key={dj.slug} href={`/djs/${dj.slug}`} className="group relative flex flex-col h-full w-full">
+              <div className="aspect-[3/4] w-full overflow-hidden rounded-xl bg-card ring-1 ring-primary/20 transition-all group-hover:ring-primary shadow-2xl relative">
+                <div className="relative h-full w-full transition-transform duration-700 group-hover:scale-110">
+                  <DjImage dj={dj} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-60" />
+                </div>
               </div>
-            </div>
-            
-            {/* Informações Alinhadas ao Grid */}
-            <div className="mt-6 flex flex-col flex-1 space-y-3">
-              <h3 className="text-lg font-black text-foreground font-headline truncate group-hover:text-primary transition-colors uppercase tracking-tight">
-                {dj.nome}
-              </h3>
               
-              <div className="flex flex-wrap gap-1.5">
-                {dj.estilos.slice(0, 2).map((estilo) => (
-                  <span 
-                    key={estilo} 
-                    className="text-[8px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary uppercase font-black tracking-widest"
-                  >
-                    {estilo}
-                  </span>
-                ))}
-              </div>
+              <div className="mt-6 flex flex-col flex-1 space-y-3">
+                <h3 className="text-lg font-black text-foreground font-headline truncate group-hover:text-primary transition-colors uppercase tracking-tight">
+                  {dj.nome}
+                </h3>
+                
+                <div className="flex flex-wrap gap-1.5">
+                  {dj.estilos.slice(0, 2).map((estilo) => (
+                    <span 
+                      key={estilo} 
+                      className="text-[8px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary uppercase font-black tracking-widest"
+                    >
+                      {estilo}
+                    </span>
+                  ))}
+                </div>
 
-              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-body">
-                {dj.resumoBooking}
-              </p>
-            </div>
-          </Link>
-        ))}
+                <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-body">
+                  {dj.resumoBooking}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

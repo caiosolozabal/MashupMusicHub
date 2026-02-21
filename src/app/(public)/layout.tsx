@@ -25,6 +25,9 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                 <Link href="/djs" className="text-xs font-black uppercase tracking-widest transition-colors hover:text-primary">
                   DJs
                 </Link>
+                <Link href="/equipamentos" className="text-xs font-black uppercase tracking-widest transition-colors hover:text-primary">
+                  Equipamentos
+                </Link>
               </nav>
             </div>
             
@@ -57,6 +60,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
               <h4 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Navegação</h4>
               <nav className="flex flex-col gap-3">
                 <Link href="/djs" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">DJs</Link>
+                <Link href="/equipamentos" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">Equipamentos</Link>
                 <Link href="/login" className="text-sm text-muted-foreground hover:text-primary transition-colors font-body">Área Restrita</Link>
               </nav>
             </div>
