@@ -31,7 +31,7 @@ git init
 git add .
 git commit -m "🚀 Deploy inicial: Mashup Music Hub completo"
 git branch -M main
-git remote add origin https://github.com/caiosolozabal/mashup.git
+git remote add origin https://github.com/caiosolozabal/MashupMusicHub.git
 git push -u origin main
 ```
 
