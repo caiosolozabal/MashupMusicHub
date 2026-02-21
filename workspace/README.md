@@ -23,8 +23,22 @@ Agora que o código já está no seu GitHub, siga estes passos no **Console do F
 
 ### 3. Autorizar o Login
 1. No menu lateral, vá em **Build > Authentication**.
-2. Clique na aba **Configurações > Domínios Autorizados**.
+2. Clique na aba **Settings > Authorized Domains**.
 3. Adicione `mashupmusic.com.br` e `www.mashupmusic.com.br`. **Sem isso, o login não funcionará no novo domínio.**
+
+---
+
+## 🛠️ Fluxo de Trabalho (Como atualizar o site)
+
+Sempre que fizermos alterações aqui no Firebase Studio e você quiser que elas apareçam no site real, execute estes 3 comandos no terminal:
+
+```bash
+git add .
+git commit -m "Descrição da mudança (ex: adicionado novos DJs)"
+git push
+```
+
+Assim que você der o `push`, o Firebase App Hosting começará a construir a nova versão do site automaticamente!
 
 ---
 
@@ -35,4 +49,4 @@ Para que as fotos reais apareçam no site, você deve criar as seguintes pastas 
 - `public/pacotes/pacote-casamento/1.jpg`
 
 ---
-*Mashup Music Hub - Elevando o som do seu evento.*
+*Mashup Music Hub - Eleve o nível sonoro do seu evento.*
