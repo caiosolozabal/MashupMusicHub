@@ -1,6 +1,7 @@
 
 /**
  * @fileOverview Base de dados dos pacotes de locação para a vitrine pública.
+ * Configurado para usar caminhos de imagem locais conforme preferência do usuário.
  */
 
 export type RentalPackage = {
@@ -31,11 +32,11 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
       "Entrega e montagem (conforme combinado)",
     ],
     images: [
-      "https://picsum.photos/seed/pkg-a-1/800/600",
-      "https://picsum.photos/seed/pkg-a-2/800/600",
+      "/pacotes/pacote-a/1.jpg",
+      "/pacotes/pacote-a/2.jpg",
     ],
     ctaWhatsAppText:
-      "Olá! Vi no site e quero um orçamento do Pacote A (até 50 pessoas). Pode me ajudar?",
+      "Olá! Quero orçamento do Pacote A (2 altas — até 50 pessoas). Pode me ajudar com disponibilidade e valores?",
   },
   {
     slug: "pacote-b",
@@ -54,11 +55,11 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
       "Entrega e montagem (conforme combinado)",
     ],
     images: [
-      "https://picsum.photos/seed/pkg-b-1/800/600",
-      "https://picsum.photos/seed/pkg-b-2/800/600",
+      "/pacotes/pacote-b/1.jpg",
+      "/pacotes/pacote-b/2.jpg",
     ],
     ctaWhatsAppText:
-      "Olá! Vi no site e quero um orçamento do Pacote B (até 100 pessoas). Pode me ajudar?",
+      "Olá! Quero orçamento do Pacote B (2 altas + 2 subs — até 100 pessoas). Pode me ajudar?",
   },
   {
     slug: "pacote-casamento",
@@ -79,11 +80,11 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
       "Montagem e desmontagem técnica inclusa",
     ],
     images: [
-      "https://picsum.photos/seed/pkg-c-1/800/600",
-      "https://picsum.photos/seed/pkg-c-2/800/600",
-      "https://picsum.photos/seed/pkg-c-3/800/600",
+      "/pacotes/pacote-casamento/1.jpg",
+      "/pacotes/pacote-casamento/2.jpg",
+      "/pacotes/pacote-casamento/3.jpg",
     ],
     ctaWhatsAppText:
-      "Olá! Vi no site e quero um orçamento do Pacote Casamento (Premium). Pode me ajudar?",
+      "Olá! Quero um orçamento do Pacote Casamento (Premium). Pode me ajudar com os detalhes?",
   },
 ];

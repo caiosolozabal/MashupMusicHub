@@ -1,41 +1,31 @@
+
 # Mashup Music Hub 🎧
 
 O ecossistema definitivo para gestão de agências de DJs e eventos. Esta plataforma integra uma vitrine pública de alto impacto com um ERP administrativo completo para controle de agenda, logística de equipamentos e fechamentos financeiros.
 
-## 🚀 Funcionalidades Principais
+## 🚀 Como colocar o site no ar (Produção)
 
-### 1. Vitrine Pública (Área do Cliente)
-- **Elenco de DJs**: Galeria interativa com perfis detalhados, bios e presskits.
-- **Locação de Equipamentos**: Vitrine de pacotes de som e iluminação com reserva direta via WhatsApp.
-- **Design Neon**: Estética moderna voltada para conversão e impacto visual.
+Agora que o código está no GitHub, siga estes passos no Console do Firebase:
 
-### 2. Painel Administrativo (ERP)
-- **Agenda Inteligente**: Gestão operacional com estados automáticos (Ativo, Em Atraso, Encerrado).
-- **Avisos e Tarefas**: Sistema de delegamento de tarefas com rastro de auditoria e confirmação de execução.
-- **Fechamentos Financeiros**: Cálculo automático de cachês (DJs + Locação) com geração de extratos em PDF.
-- **Gestão de Catálogo**: Controle completo de itens de locação com fotos e especificações técnicas.
+1. **Ativar App Hosting**: No Console do Firebase, vá em *Build > App Hosting* e conecte seu repositório `MashupMusicHub`.
+2. **Configurar Domínio**: Após o primeiro deploy, vá nas configurações do App Hosting e adicione `mashupmusic.com.br`.
+3. **Validar DNS**: Como você já configurou o Registro.br, o Firebase validará o domínio automaticamente.
+4. **Autorizar Login**: Vá em *Authentication > Settings > Authorized Domains* e adicione `mashupmusic.com.br` e `www.mashupmusic.com.br`.
 
-## 🛠️ Stack Tecnológica
-- **Frontend**: Next.js 14 (App Router), Tailwind CSS, Shadcn/UI.
-- **Backend**: Firebase (Auth, Firestore, Storage, App Hosting).
-- **Documentos**: jsPDF para geração de contratos e recibos.
+## 🛠️ Comandos Git (Para atualizações)
 
----
-
-## 💻 Comandos para Deploy (Terminal)
-
-Se você estiver usando o terminal para subir este código para o seu repositório pela primeira vez, execute os comandos abaixo na ordem:
-
+Sempre que fizer mudanças, execute:
 ```bash
-git init
 git add .
-git commit -m "🚀 Deploy inicial: Mashup Music Hub completo"
-git branch -M main
-git remote add origin https://github.com/caiosolozabal/MashupMusicHub.git
-git push -u origin main
+git commit -m "Descrição da sua mudança"
+git push
 ```
 
-*Nota: Você precisará estar autenticado no seu GitHub para que o comando `push` funcione.*
+## 📸 Fotos dos Equipamentos
+Para as fotos dos pacotes aparecerem, crie as seguintes pastas dentro de `public/` e coloque os arquivos `.jpg`:
+- `public/pacotes/pacote-a/` (1.jpg, 2.jpg)
+- `public/pacotes/pacote-b/` (1.jpg, 2.jpg)
+- `public/pacotes/pacote-casamento/` (1.jpg, 2.jpg, 3.jpg)
 
 ---
 *Mashup Music Hub - Elevando o som do seu evento.*
