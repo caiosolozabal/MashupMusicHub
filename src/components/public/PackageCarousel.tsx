@@ -1,4 +1,5 @@
-'use client';
+
+"use client";
 
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
@@ -24,13 +25,13 @@ export function PackageCarousel({
       setTimeout(() => {
         setIndex((prev) => (prev + 1) % safeImages.length);
         setFade(true);
-      }, 300); // Tempo do fade out
+      }, 300);
     }, intervalMs);
 
     return () => clearInterval(t);
   }, [safeImages.length, intervalMs]);
 
-  const src = safeImages[index] ?? safeImages[0];
+  const src = safeImages[index] ?? safeImages[0] ?? "https://picsum.photos/seed/mashup/800/600";
 
   return (
     <div className="relative w-full aspect-[4/3] overflow-hidden rounded-2xl bg-black/20">
@@ -41,10 +42,11 @@ export function PackageCarousel({
           fill
           className="object-cover"
           sizes="(max-width: 768px) 100vw, 33vw"
+          priority={false}
           unoptimized
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+      <div className="absolute inset-0 bg-black/35" />
     </div>
   );
 }
