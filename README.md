@@ -1,80 +1,41 @@
 # Mashup Music Hub 🎧
 
-Sistema integrado de gestão para a agência **Mashup Music**, unindo uma vitrine pública de DJs com um ERP administrativo completo.
+O ecossistema definitivo para gestão de agências de DJs e eventos. Esta plataforma integra uma vitrine pública de alto impacto com um ERP administrativo completo para controle de agenda, logística de equipamentos e fechamentos financeiros.
 
-## 🚀 Guia de Utilização por Página
+## 🚀 Funcionalidades Principais
 
-### 1. Dashboard (Painel de Controle)
-- **O que faz**: Visão geral da saúde da agência ou da agenda do DJ.
-- **Como usar**: 
-  - Acompanhe os cards de **Pendências Operacionais** (eventos que já passaram e não foram pagos).
-  - Visualize o **Faturamento do Mês** atual.
-  - Acesse rapidamente os **Próximos Eventos** através dos links diretos.
+### 1. Vitrine Pública (Área do Cliente)
+- **Elenco de DJs**: Galeria interativa com perfis detalhados, bios e presskits.
+- **Locação de Equipamentos**: Vitrine de pacotes de som e iluminação com reserva direta via WhatsApp.
+- **Design Neon**: Estética moderna voltada para conversão e impacto visual.
 
-### 2. Agenda de Eventos
-- **O que faz**: Gestão completa do calendário operacional.
-- **Como usar**:
-  - **Novo Evento**: Clique em "Novo" e preencha os dados. Se for Staff, você pode atribuir qualquer DJ. Se for DJ, o evento é auto-atribuído.
-  - **Vínculos**: Use o campo "Vincular Evento" para conectar uma Locação a um Serviço de DJ, facilitando o rastreamento.
-  - **Comprovantes**: Dentro de um evento salvo, DJs podem fazer upload de recibos de pagamento diretamente para conferência da Staff.
-  - **Modos de Exibição**: Alterne entre "Lista" (compacto para mobile) e "Mês" (visualização de calendário).
+### 2. Painel Administrativo (ERP)
+- **Agenda Inteligente**: Gestão operacional com estados automáticos (Ativo, Em Atraso, Encerrado).
+- **Avisos e Tarefas**: Sistema de delegamento de tarefas com rastro de auditoria e confirmação de execução.
+- **Fechamentos Financeiros**: Cálculo automático de cachês (DJs + Locação) com geração de extratos em PDF.
+- **Gestão de Catálogo**: Controle completo de itens de locação com fotos e especificações técnicas.
 
-### 3. Fechamentos (Settlements)
-- **O que faz**: O "coração financeiro" que calcula quem deve quem.
-- **Como usar**:
-  - **Seleção**: Escolha o DJ e o mês/período.
-  - **Conferência**: Marque apenas os eventos que o cliente já pagou integralmente.
-  - **Resumo**: O sistema calcula automaticamente o **Cachê do DJ** (baseado em % de serviço e locação) e o **Saldo Final** (considerando quem recebeu o sinal).
-  - **Ajuste Manual (Delta)**: Caso precise adicionar um bônus ou desconto extra, altere o valor final e descreva o motivo.
-  - **Finalização**: Ao confirmar, um PDF oficial é gerado e o evento é "Encerrado", ficando protegido contra edições futuras.
-
-### 4. Locação (Rental)
-- **O que faz**: Montagem de orçamentos comerciais de equipamentos.
-- **Como usar**:
-  - **Orçamento**: Adicione itens do catálogo ao carrinho lateral. O sistema sugere a capacidade de público baseada na "Pontuação de Som".
-  - **Taxas**: Insira frete ou descontos.
-  - **Status**: Salve como "Rascunho" ou "Enviado". 
-  - **PDF Comercial**: Gere a proposta profissional com o logo da agência e termos de uso configurados.
-
-### 5. Configurações
-- **Gerenciar Usuários**: Staff pode convidar novos usuários, definir percentuais de comissão e escolher a cor do DJ no calendário.
-- **Contas da Agência**: Cadastro de contas bancárias para controle de recebimento de sinal.
-- **Marca (Logo & PIX)**: Suba o logotipo da empresa e a chave PIX principal. Esses dados aparecerão em todos os PDFs.
-- **Migração**: Ferramenta para consultar eventos do banco de dados antigo ou importar o catálogo de itens via planilha.
+## 🛠️ Stack Tecnológica
+- **Frontend**: Next.js 14 (App Router), Tailwind CSS, Shadcn/UI.
+- **Backend**: Firebase (Auth, Firestore, Storage, App Hosting).
+- **Documentos**: jsPDF para geração de contratos e recibos.
 
 ---
 
-## 📝 Planejamento: Módulo de Tasks / Avisos (Em breve)
-*Funcionalidade em fase de validação arquitetural.*
+## 💻 Comandos para Deploy (Terminal)
 
-### Objetivo
-Criar um sistema de organização interna onde cada usuário possui seu caderno de tarefas, permitindo delegação entre DJs e controle centralizado pela Staff.
+Se você estiver usando o terminal para subir este código para o seu repositório pela primeira vez, execute os comandos abaixo na ordem:
 
-### Regras de Aceitação (Horizontal)
-- Quando um DJ cria uma tarefa para outro, ela inicia como `pending_acceptance`.
-- O destinatário deve aceitar para que a tarefa entre no fluxo ativo.
-- Admins/Partners podem criar tarefas diretamente em estado `pending` para qualquer usuário.
+```bash
+git init
+git add .
+git commit -m "🚀 Deploy inicial: Mashup Music Hub completo"
+git branch -M main
+git remote add origin https://github.com/caiosolozabal/mashup.git
+git push -u origin main
+```
 
-### Estrutura de Dados
-- **Coleção**: `tasks`
-- **Status**: `pending_acceptance`, `pending`, `doing`, `completed`, `declined`, `canceled`.
-- **Campos Principais**: `ownerUid`, `createdByUid`, `assignedToUids[]`, `dueDate`, `priority`, `category`.
-
-### Regras de Segurança (RBAC)
-- **DJs**: Leitura apenas de suas tarefas ou colaborações. Edição de status apenas. Exclusão apenas do que criou.
-- **Staff**: Visão global, criação "top-down" e controle total.
-
----
-
-## 🏗️ Arquitetura Técnica
-- **Frontend**: Next.js 14 (App Router) + Tailwind CSS.
-- **Backend**: Firebase (Auth, Firestore, Storage).
-- **Segurança**: Regras de acesso baseadas em funções (RBAC).
-- **Temas**: Tema Profissional (Interno) e Tema Neon (Público).
-
-## 📖 Documentação Completa
-Para detalhes sobre modelagem de dados e regras de negócio complexas, consulte:
-👉 **[CONSULTAR DOCUMENTAÇÃO DE ENGENHARIA](/workspace/README.md)**
+*Nota: Você precisará estar autenticado no seu GitHub para que o comando `push` funcione.*
 
 ---
 *Mashup Music Hub - Elevando o som do seu evento.*
