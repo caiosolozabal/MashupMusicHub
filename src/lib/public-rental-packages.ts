@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Base de dados dos pacotes de locação para a vitrine pública.
  * Configurado para usar caminhos de imagem locais conforme preferência do usuário.
@@ -33,7 +32,7 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
     ],
     images: [
       "/pacotes/pacote-a/1.jpg",
-      "/pacotes/pacote-a/2.jpg",
+      "https://picsum.photos/seed/pacote-a-2/800/1000",
     ],
     ctaWhatsAppText:
       "Olá! Quero orçamento do Pacote A (2 altas — até 50 pessoas). Pode me ajudar com disponibilidade e valores?",
@@ -56,7 +55,7 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
     ],
     images: [
       "/pacotes/pacote-b/1.jpg",
-      "/pacotes/pacote-b/2.jpg",
+      "https://picsum.photos/seed/pacote-b-2/800/1000",
     ],
     ctaWhatsAppText:
       "Olá! Quero orçamento do Pacote B (2 altas + 2 subs — até 100 pessoas). Pode me ajudar?",
@@ -82,7 +81,7 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
     images: [
       "/pacotes/pacote-casamento/1.jpg",
       "/pacotes/pacote-casamento/2.jpg",
-      "/pacotes/pacote-casamento/3.jpg",
+      "https://picsum.photos/seed/wedding-kit-3/800/1000",
     ],
     ctaWhatsAppText:
       "Olá! Quero um orçamento do Pacote Casamento (Premium). Pode me ajudar com os detalhes?",
