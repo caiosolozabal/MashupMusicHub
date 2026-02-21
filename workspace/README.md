@@ -20,6 +20,22 @@ O sistema foi projetado seguindo os padrões mais modernos de desenvolvimento we
 
 ---
 
+## 💻 Comandos para Deploy (Terminal)
+
+Se você encontrar erros de conflito no primeiro envio, use estes comandos na ordem:
+
+```bash
+git init
+git add .
+git commit -m "🚀 Deploy inicial: Mashup Music Hub completo"
+git branch -M main
+git remote add origin https://github.com/caiosolozabal/MashupMusicHub.git
+# Se o remote já existir, use: git remote set-url origin https://github.com/caiosolozabal/MashupMusicHub.git
+git push -u origin main --force
+```
+
+---
+
 ## 🎨 2. Design System e Identidade Visual
 
 O sistema implementa dois contextos visuais distintos via classes CSS dinâmicas:
@@ -68,37 +84,6 @@ O sistema possui uma inteligência de **Estados Operacionais** que classifica ca
 - **Em Atraso (Overdue)**: Eventos passados onde o `status_pagamento != 'pago'`. O sistema emite alertas visuais pulsantes.
 - **Encerrado (Closed)**: Eventos passados, pagos pelo cliente e já processados em um fechamento financeiro. Estes tornam-se imutáveis para preservar o histórico contábil.
 - **Vínculo de Eventos**: Permite conectar um evento de "Serviço de DJ" a um de "Locação de Equipamentos", facilitando o rastreamento de logística cruzada.
-
-### 4.3. Sistema de Fechamentos Financeiros (Settlements)
-Mecanismo de alta precisão para acerto de contas entre a agência e o artista:
-- **Cálculo de Comissões**: Aplica percentuais específicos por DJ para serviços e locações separadamente.
-- **Gestão de Fluxo de Caixa**: Identifica quem recebeu o sinal (Agência ou DJ) e calcula automaticamente quem deve pagar quem no saldo final.
-- **Ajuste Manual (Delta)**: Permite adicionar bônus ou descontos manuais no momento do fechamento, com obrigatoriedade de justificativa textual.
-- **Relatórios**: Geração automática de PDF com extrato detalhado, dados bancários e resumo de receita bruta vs. líquida.
-
-### 4.4. Módulo de Locação (Rental)
-- **Catálogo Técnico**: Gerenciamento de itens com atributos de "Pontuação de Som" e "Capacidade de Pessoas".
-- **Inteligência de Sugestão**: O sistema analisa o "Sound Score" total do orçamento e sugere para qual tipo de público aquele kit é adequado (Ex: "Som ambiente" vs "Festa robusta").
-- **Workflow de Orçamentos**: Criação, edição e histórico de propostas com conversão instantânea para PDF comercial contendo termos de uso e logo da agência.
-
----
-
-## ⚙️ 5. Mecanismos de Configuração e Gestão
-
-### 5.1. Gestão de Usuários
-- **Convite Direto**: Administradores podem criar contas de usuários (Auth + Firestore) em um único fluxo.
-- **Customização Financeira**: Definição de cores para a agenda, percentuais de ganho e dados de pagamento (PIX/Banco) por DJ.
-
-### 5.2. Gestão de Marca (Branding)
-- **Logotipo Dinâmico**: O sistema busca `public/logo.png`. Caso não exista, utiliza um fallback de texto estilizado.
-- **Dados Mestres**: Configuração central de Chave PIX e Termos de Locação que se replicam em todos os PDFs gerados pelo sistema.
-
----
-
-## 🛠️ 6. Ferramentas de Suporte e Migração
-
-- **Legado (Old DB)**: Interface somente leitura conectada ao banco de dados antigo (`listeiro-cf302`), permitindo consulta de histórico de anos anteriores sem misturar os dados novos.
-- **Importação Batch**: Script para subir em massa o catálogo de equipamentos a partir de uma estrutura pré-definida.
 
 ---
 
