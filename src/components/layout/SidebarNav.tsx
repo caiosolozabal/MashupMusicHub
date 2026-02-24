@@ -10,6 +10,7 @@ import {
 import { LayoutDashboard, CalendarDays, Settings, DollarSign, Loader2, Users, Package, ClipboardList } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useSidebar } from '@/components/ui/sidebar';
 
 interface NavItem {
   href: string;
@@ -32,6 +33,13 @@ const navItems: NavItem[] = [
 export default function SidebarNav() {
   const pathname = usePathname();
   const { userDetails, loading } = useAuth(); 
+  const { setOpenMobile, isMobile } = useSidebar();
+
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const canView = (itemRoles: UserRole[]): boolean => {
     if (loading) {
@@ -63,7 +71,7 @@ export default function SidebarNav() {
         if (canView(item.roles)) {
           return (
             <SidebarMenuItem key={item.href}>
-              <Link href={item.href} legacyBehavior passHref>
+              <Link href={item.href} onClick={handleLinkClick} legacyBehavior passHref>
                 <SidebarMenuButton
                   asChild
                   isActive={isActive}

@@ -41,9 +41,8 @@ export default function ScheduleListView({
           <TableRow className="hover:bg-transparent">
             <TableHead className="w-[80px] h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase">Data</TableHead>
             <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase">Evento</TableHead>
-            <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase">Status</TableHead>
-            <TableHead className="hidden sm:table-cell h-9 px-2 sm:px-4">Pagamento</TableHead>
-            <TableHead className="hidden md:table-cell h-9 px-2 sm:px-4">Total</TableHead>
+            <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase text-center">Status</TableHead>
+            <TableHead className="hidden md:table-cell h-9 px-2 sm:px-4 text-right">Total</TableHead>
             <TableHead className="hidden lg:table-cell h-9 px-2 sm:px-4">DJ</TableHead>
             <TableHead className="text-right h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase">Ações</TableHead>
           </TableRow>
@@ -51,7 +50,7 @@ export default function ScheduleListView({
         <TableBody>
           {events.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Nenhum evento encontrado.</TableCell>
+              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum evento encontrado.</TableCell>
             </TableRow>
           ) : events.map((event) => {
              const dj = allDjs.find(d => d.uid === event.dj_id);
@@ -59,9 +58,10 @@ export default function ScheduleListView({
              const isClosed = state === 'closed';
              const isOverdue = state === 'overdue';
              const dayLabel = event.dia_da_semana || getDayOfWeek(event.data_evento);
+             const djColor = dj?.dj_color || '#ccc';
 
             return(
-            <TableRow key={event.id} className={cn("hover:bg-muted/50 transition-colors", isClosed && "opacity-60 bg-muted/20", isOverdue && "bg-destructive/5")}>
+            <TableRow key={event.id} className={cn("hover:bg-muted/50 transition-colors border-l-4", isClosed && "opacity-60 bg-muted/20", isOverdue && "bg-destructive/5")} style={{ borderLeftColor: djColor }}>
               <TableCell className="py-1.5 px-1 sm:px-4">
                 <div className="font-bold text-[11px] sm:text-sm leading-tight">{format(event.data_evento, 'dd/MM/yyyy')}</div>
                 <div className="text-[9px] sm:text-xs text-muted-foreground capitalize leading-tight">
@@ -69,18 +69,27 @@ export default function ScheduleListView({
                 </div>
               </TableCell>
               <TableCell className="py-1.5 px-1 sm:px-4">
-                <div className='flex items-center gap-1'>
-                    <div className="shrink-0">
-                      {event.tipo_servico === 'locacao_equipamento' ? <Truck className="h-3 w-3 text-primary" /> : <Disc className="h-3 w-3 text-primary" />}
+                <div className='flex flex-col gap-0.5'>
+                    <div className='flex items-center gap-1'>
+                        <div className="shrink-0">
+                          {event.tipo_servico === 'locacao_equipamento' ? <Truck className="h-3 w-3 text-primary" /> : <Disc className="h-3 w-3 text-primary" />}
+                        </div>
+                        <span className="font-bold text-[11px] sm:text-sm line-clamp-1 leading-tight">
+                          {event.nome_evento}
+                        </span>
+                        {isClosed && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" title="Evento Encerrado" />}
                     </div>
-                    <span className="font-semibold text-[11px] sm:text-sm line-clamp-1 leading-tight">
-                      {event.nome_evento}
-                    </span>
-                    {isClosed && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" title="Evento Encerrado" />}
+                    {/* Nome do DJ visível em todas as telas agora */}
+                    <div className="flex items-center gap-1.5">
+                        <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: djColor }}></div>
+                        <span className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-tight">
+                            {event.dj_nome}
+                        </span>
+                    </div>
                 </div>
               </TableCell>
               <TableCell className="py-1.5 px-1 sm:px-4">
-                <div className="flex flex-col gap-1 items-start">
+                <div className="flex flex-col gap-1 items-center">
                   {state === 'closed' && <Badge variant="outline" className="text-[9px] h-5 py-0 bg-green-50 text-green-700 border-green-200">Encerrado</Badge>}
                   {state === 'overdue' && (
                     <Badge variant="destructive" className="text-[9px] h-5 py-0 animate-pulse flex gap-1 items-center justify-center px-1.5">
@@ -92,18 +101,13 @@ export default function ScheduleListView({
                   {state === 'cancelled' && <Badge variant="outline" className="text-[9px] h-5 py-0">Cancelado</Badge>}
                 </div>
               </TableCell>
-              <TableCell className="hidden sm:table-cell py-2 px-2 sm:px-4">
-                <Badge variant={event.status_pagamento === 'pago' ? 'default' : 'outline'} className="text-[10px] h-5 py-0 capitalize">
-                  {event.status_pagamento}
-                </Badge>
-              </TableCell>
-              <TableCell className="hidden md:table-cell py-2 px-2 sm:px-4 text-xs">
+              <TableCell className="hidden md:table-cell py-2 px-2 sm:px-4 text-xs text-right font-medium">
                 {event.valor_total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
               </TableCell>
               <TableCell className="hidden lg:table-cell py-2 px-2 sm:px-4 text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dj?.dj_color || '#ccc' }}></span>
-                  <span className="truncate max-w-[100px]">{event.dj_nome}</span>
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: djColor }}></span>
+                  <span className="truncate max-w-[100px] font-semibold">{event.dj_nome}</span>
                 </div>
               </TableCell>
               <TableCell className="py-1.5 px-1 sm:px-4 text-right">
