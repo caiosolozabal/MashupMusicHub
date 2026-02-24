@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 import { 
   SidebarMenu, 
   SidebarMenuItem, 
   SidebarMenuButton 
 } from '@/components/ui/sidebar';
-import { LayoutDashboard, CalendarDays, Settings, DollarSign, Loader2, Users, Package, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, DollarSign, Users, Package, ClipboardList } from 'lucide-react';
 import type { UserRole } from '@/context/AuthContext';
 import { useAuth } from '@/hooks/useAuth';
 import { useSidebar } from '@/components/ui/sidebar';
@@ -35,11 +36,12 @@ export default function SidebarNav() {
   const { userDetails, loading } = useAuth(); 
   const { setOpenMobile, isMobile } = useSidebar();
 
-  const handleLinkClick = () => {
+  // FECHAMENTO AUTOMÁTICO: Sempre que o endereço mudar (navegação), fecha o menu mobile.
+  useEffect(() => {
     if (isMobile) {
       setOpenMobile(false);
     }
-  };
+  }, [pathname, isMobile, setOpenMobile]);
 
   const canView = (itemRoles: UserRole[]): boolean => {
     if (loading) {
@@ -71,19 +73,17 @@ export default function SidebarNav() {
         if (canView(item.roles)) {
           return (
             <SidebarMenuItem key={item.href}>
-              <Link href={item.href} onClick={handleLinkClick} legacyBehavior passHref>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive}
-                  tooltip={{ children: item.label, side: 'right', align: 'center' }}
-                  aria-label={item.label}
-                >
-                  <a>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </a>
-                </SidebarMenuButton>
-              </Link>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive}
+                tooltip={{ children: item.label, side: 'right', align: 'center' }}
+                aria-label={item.label}
+              >
+                <Link href={item.href}>
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           )
         }
