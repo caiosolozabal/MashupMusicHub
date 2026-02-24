@@ -13,7 +13,7 @@ interface PackagePageProps {
 
 export async function generateMetadata({ params }: PackagePageProps): Promise<Metadata> {
   const pkg = RENTAL_PACKAGES.find((p) => p.slug === params.slug);
-  if (!pkg) return { title: 'Pacote não encontrado' };
+  if (!pkg) return { title: 'Estrutura não encontrada' };
   return {
     title: `Mashup | ${pkg.title}`,
     description: pkg.subtitle,
@@ -28,26 +28,21 @@ export default function PackagePage({ params }: PackagePageProps) {
   const pkg = RENTAL_PACKAGES.find((p) => p.slug === params.slug);
   if (!pkg) return notFound();
 
-  const whatsappLink = `https://wa.me/5521976950231?text=${encodeURIComponent(pkg.ctaWhatsAppText)}`;
-
   return (
     <div className="container mx-auto max-w-6xl px-4 py-12 sm:py-20">
       <Link href="/equipamentos" className="inline-flex items-center text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors mb-8">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para locação
+        <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para Audio Experience
       </Link>
 
       <div className="grid lg:grid-cols-2 gap-12 items-start">
         <div className="space-y-8">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <Badge className="bg-primary/10 border border-primary/20 text-primary font-black text-[10px] px-3 py-1">
-                EQUIPAMENTO PROFISSIONAL
-              </Badge>
-              <Badge variant="outline" className="text-[10px] font-black uppercase tracking-widest">
-                Até {pkg.capacityPeople} pessoas
+              <Badge className="bg-primary/10 border border-primary/20 text-primary font-black text-[10px] px-3 py-1 uppercase">
+                Estrutura Profissional Mashup
               </Badge>
             </div>
-            <h1 className="text-4xl sm:text-6xl font-black font-headline tracking-tighter leading-none mb-4">
+            <h1 className="text-4xl sm:text-6xl font-black font-headline tracking-tighter leading-none mb-4 uppercase">
               {pkg.title}
             </h1>
             <p className="text-xl text-muted-foreground font-body font-bold uppercase tracking-widest">
@@ -81,10 +76,10 @@ export default function PackagePage({ params }: PackagePageProps) {
             </div>
           </div>
 
-          <Button asChild size="lg" className="w-full sm:w-auto bg-primary text-black font-black hover:bg-primary/90 px-12 py-8 text-lg rounded-full shadow-2xl shadow-primary/20">
-            <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-              Solicitar orçamento
-            </a>
+          <Button asChild size="lg" className="w-full sm:w-auto bg-primary text-black font-black hover:bg-primary/90 px-12 py-8 text-lg rounded-full shadow-2xl shadow-primary/20 uppercase tracking-widest">
+            <Link href={`/equipamentos/orcamento?estrutura=${pkg.slug}`}>
+              Solicitar orçamento personalizado
+            </Link>
           </Button>
         </div>
 
