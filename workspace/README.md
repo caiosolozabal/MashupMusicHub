@@ -26,8 +26,8 @@ Para que as fotos reais apareçam nos cards de locação, você deve criar as se
 - Pasta: `public/estruturas/wedding/`
 - Arquivos: `1.jpg` (principal), `2.jpg`
 
-### 3. Live Performance
-- Pasta: `public/estruturas/live/`
+### 3. AUDIO EXPERIENCE (Experiência Completa)
+- Pasta: `public/estruturas/experience/`
 - Arquivos: `1.jpg` (principal), `2.jpg`
 
 ### 4. Corporate Elite
