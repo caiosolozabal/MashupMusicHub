@@ -29,8 +29,8 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
       "Montagem e desmontagem técnica",
     ],
     images: [
-      "https://picsum.photos/seed/social-1/800/1000",
-      "https://picsum.photos/seed/social-2/800/1000",
+      "/estruturas/social/1.jpg",
+      "/estruturas/social/2.jpg",
     ],
   },
   {
@@ -49,8 +49,8 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
       "Microfonia digital para discursos",
     ],
     images: [
-      "https://picsum.photos/seed/wedding-1/800/1000",
-      "https://picsum.photos/seed/wedding-2/800/1000",
+      "/estruturas/wedding/1.jpg",
+      "/estruturas/wedding/2.jpg",
     ],
   },
   {
@@ -69,8 +69,8 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
       "Técnico de som dedicado",
     ],
     images: [
-      "https://picsum.photos/seed/live-1/800/1000",
-      "https://picsum.photos/seed/live-2/800/1000",
+      "/estruturas/live/1.jpg",
+      "/estruturas/live/2.jpg",
     ],
   },
   {
@@ -89,8 +89,8 @@ export const RENTAL_PACKAGES: RentalPackage[] = [
       "Ambientação sonora para coquetéis",
     ],
     images: [
-      "https://picsum.photos/seed/corp-1/800/1000",
-      "https://picsum.photos/seed/corp-2/800/1000",
+      "/estruturas/corporate/1.jpg",
+      "/estruturas/corporate/2.jpg",
     ],
   },
 ];
