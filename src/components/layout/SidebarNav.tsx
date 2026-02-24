@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
 import { 
   SidebarMenu, 
   SidebarMenuItem, 
@@ -36,19 +35,19 @@ export default function SidebarNav() {
   const { userDetails, loading } = useAuth(); 
   const { setOpenMobile, isMobile } = useSidebar();
 
-  // FECHAMENTO AUTOMÁTICO: Sempre que o endereço mudar (navegação), fecha o menu mobile.
-  useEffect(() => {
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  }, [pathname, isMobile, setOpenMobile]);
-
   const canView = (itemRoles: UserRole[]): boolean => {
     if (loading) {
       return false;
     }
     const userRole = userDetails?.role ?? null;
     return itemRoles.includes(userRole);
+  };
+
+  // FECHAMENTO MANUAL: Chamado apenas quando o usuário clica em um link no mobile.
+  const handleLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
   };
 
   if (loading && !userDetails) {
@@ -78,6 +77,7 @@ export default function SidebarNav() {
                 isActive={isActive}
                 tooltip={{ children: item.label, side: 'right', align: 'center' }}
                 aria-label={item.label}
+                onClick={handleLinkClick}
               >
                 <Link href={item.href}>
                   <item.icon />

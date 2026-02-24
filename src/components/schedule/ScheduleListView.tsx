@@ -40,7 +40,7 @@ export default function ScheduleListView({
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead className="w-[80px] h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase font-black">Data</TableHead>
-            <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase font-black">Evento / DJ</TableHead>
+            <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase font-black">Evento / Responsável</TableHead>
             <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase text-center font-black">Status</TableHead>
             <TableHead className="hidden md:table-cell h-9 px-2 sm:px-4 text-right font-black">Total</TableHead>
             <TableHead className="text-right h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase font-black">Ações</TableHead>
@@ -59,7 +59,7 @@ export default function ScheduleListView({
              const dayLabel = event.dia_da_semana || getDayOfWeek(event.data_evento);
              const djColor = dj?.dj_color || '#e2e8f0';
              
-             // Identificação do DJ com fallback
+             // Identificação do DJ com fallback robusto
              const djDisplayName = event.dj_nome || dj?.displayName || dj?.email?.split('@')[0] || 'DJ não definido';
 
             return(
@@ -89,10 +89,10 @@ export default function ScheduleListView({
                         </span>
                         {isClosed && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
                     </div>
-                    {/* Identificação clara do DJ */}
-                    <div className="flex items-center gap-1.5">
+                    {/* Identificação clara do DJ responsável */}
+                    <div className="flex items-center gap-1.5 mt-0.5">
                         <div className="h-2 w-2 rounded-full shrink-0 border border-black/10" style={{ backgroundColor: djColor }}></div>
-                        <span className="text-[10px] sm:text-[11px] font-black text-muted-foreground uppercase tracking-wider">
+                        <span className="text-[10px] sm:text-[11px] font-black text-primary uppercase tracking-wider">
                             {djDisplayName}
                         </span>
                     </div>
