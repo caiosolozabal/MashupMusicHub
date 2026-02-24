@@ -21,7 +21,7 @@ export const PUBLIC_DJS: PublicDj[] = [
     instagramHandle: 'deejaypivete',
     presskitUrl: 'https://drive.google.com/drive/folders/1ujsNM_FqRDGK90kkoARQCUqiM2si8svK',
     fotoUrl: '/djs/Pivete.jpeg',
-    estilos: ['Hip Hop', 'Funk', 'Brasilidades', 'MPB', 'Open Format'],
+    estilos: ['Hip Hop', 'Funk', 'Brasilidades', 'Open Format'],
     resumoBooking: 'DJ criado nas pistas do Rio, com forte identidade brasileira e passagem por grandes eventos em todo o país.',
     bioLonga: 'Nascido no bairro da Tijuca e criado nas festas de hip hop do centro do Rio de Janeiro, Pivete desenvolveu suas habilidades de discotecagem inspirado por DJs da cena R&B e Black Music.\n\nCom muito estudo e prática, construiu uma carreira sólida transitando com facilidade por diversos ritmos, tendo como especialidades a brasilidade e o funk dentro do formato Open Format.\n\nPivete já se apresentou em sete estados brasileiros, levando sua identidade musical para diferentes regiões do país. No Rio de Janeiro, sua cidade natal, é presença confirmada em grandes eventos e casas de destaque, consolidando-se como um DJ versátil, experiente e conectado com o público.'
   },

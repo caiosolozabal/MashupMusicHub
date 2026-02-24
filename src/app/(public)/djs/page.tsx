@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -121,7 +120,7 @@ export default function DjsGridPage() {
                 </h3>
                 
                 <div className="flex flex-wrap gap-1.5">
-                  {dj.estilos.slice(0, 2).map((estilo) => (
+                  {dj.estilos.map((estilo) => (
                     <span 
                       key={estilo} 
                       className="text-[8px] px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-muted-foreground uppercase font-black tracking-widest group-hover:border-primary/30 group-hover:text-primary/80 transition-colors"
@@ -139,7 +138,7 @@ export default function DjsGridPage() {
           </div>
         ))}
 
-        {/* Card de Locação como Teaser (sempre aparece se o estilo for "Todos" ou "Open Format") */}
+        {/* Card de Locação como Teaser */}
         {(selectedStyle === 'Todos' || selectedStyle === 'Open Format') && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
             <PackageCard pkg={RENTAL_PACKAGES[2]} />
