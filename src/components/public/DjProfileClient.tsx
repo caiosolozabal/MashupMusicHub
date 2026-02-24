@@ -1,94 +1,85 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { type PublicDj } from '@/lib/public-djs';
 import Image from 'next/image';
 import Link from 'next/link';
-import { type PublicDj } from '@/lib/public-djs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Instagram, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Instagram, FileText, ArrowLeft, Music2, Share2 } from 'lucide-react';
+import { useState } from 'react';
 
-export default function DjProfileClient({ dj }: { dj: PublicDj }) {
-  const [imageError, setImageError] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+interface DjProfileClientProps {
+  dj: PublicDj;
+}
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) return null;
+export default function DjProfileClient({ dj }: DjProfileClientProps) {
+  const [imgError, setImgError] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container px-4 py-8 sm:py-12">
-        <Button variant="ghost" asChild className="mb-8 -ml-4 text-muted-foreground hover:text-primary">
-          <Link href="/djs">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar para o elenco
-          </Link>
-        </Button>
+    <div className="container mx-auto max-w-6xl px-4 py-12 sm:py-20">
+      <Link href="/djs" className="inline-flex items-center text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors mb-8">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para o Elenco
+      </Link>
 
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
-          {/* Coluna da Imagem */}
-          <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-card ring-1 ring-white/10">
-            {imageError ? (
-              <div className="flex h-full w-full items-center justify-center bg-secondary">
-                <span className="text-6xl font-bold text-primary font-headline">
-                  {dj.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                </span>
-              </div>
-            ) : (
-              <Image
-                src={dj.fotoUrl}
-                alt={dj.nome}
-                fill
-                className="object-cover"
-                unoptimized={true}
-                priority
-                onError={() => setImageError(true)}
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent opacity-60" />
+      <div className="grid lg:grid-cols-12 gap-12 items-start">
+        {/* Foto do DJ */}
+        <div className="lg:col-span-5">
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-3xl border border-white/10 bg-card shadow-2xl">
+            <Image
+              src={imgError ? 'https://picsum.photos/seed/dj/800/1200' : dj.fotoUrl}
+              alt={dj.nome}
+              fill
+              className="object-cover"
+              onError={() => setImgError(true)}
+              unoptimized
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+          </div>
+        </div>
+
+        {/* Informações */}
+        <div className="lg:col-span-7 space-y-8">
+          <div>
+            <h1 className="text-5xl sm:text-7xl font-black font-headline tracking-tighter leading-none mb-4 uppercase">
+              {dj.nome}
+            </h1>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {dj.estilos.map((estilo) => (
+                <Badge key={estilo} variant="secondary" className="bg-white/5 border-white/10 text-[10px] font-black uppercase tracking-widest py-1 px-3">
+                  {estilo}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-xl text-primary font-body font-bold uppercase tracking-widest leading-snug max-w-2xl">
+              {dj.resumoBooking}
+            </p>
           </div>
 
-          {/* Coluna de Texto */}
-          <div className="flex flex-col justify-center space-y-8">
-            <div className="space-y-4">
-              <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-7xl font-headline">
-                {dj.nome}
-              </h1>
-              
-              <div className="flex flex-wrap gap-2">
-                {dj.estilos.map((estilo) => (
-                  <Badge key={estilo} variant="secondary" className="bg-primary/10 text-primary border-primary/20">
-                    {estilo}
-                  </Badge>
-                ))}
-              </div>
+          <div className="prose prose-invert max-w-none">
+            <div className="whitespace-pre-wrap text-muted-foreground font-body leading-relaxed text-lg">
+              {dj.bioLonga}
             </div>
+          </div>
 
-            <div className="space-y-6">
-              <div className="space-y-4 text-lg leading-relaxed text-muted-foreground">
-                {dj.bioLonga.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx}>{paragraph}</p>
-                ))}
-              </div>
-
-              <div className="pt-6 flex flex-col sm:flex-row gap-4">
-                <Button asChild size="lg" className="bg-primary text-black font-bold hover:bg-primary/90 flex-1">
-                  <Link href="https://wa.me/5521976950231" target="_blank">
-                    <MessageSquare className="mr-2 h-5 w-5" />
-                    Contratar agora
-                  </Link>
-                </Button>
-                
-                <Button asChild variant="outline" size="lg" className="border-white/10 hover:bg-white/5 flex-1">
-                  <Link href={`https://instagram.com/${dj.instagramHandle.replace('@', '')}`} target="_blank">
-                    <Instagram className="mr-2 h-5 w-5" />
-                    Siga no Instagram
-                  </Link>
-                </Button>
-              </div>
+          <div className="flex flex-wrap gap-4 pt-4">
+            <Button asChild size="lg" className="bg-primary text-black font-black hover:bg-primary/90 rounded-full px-8 uppercase tracking-widest">
+              <Link href={`https://wa.me/5521976950231?text=Olá, gostaria de consultar a disponibilidade para o DJ ${dj.nome}`} target="_blank">
+                Contratar DJ
+              </Link>
+            </Button>
+            
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="icon" className="rounded-full border-white/10 hover:border-primary hover:text-primary">
+                <Link href={`https://instagram.com/${dj.instagramHandle}`} target="_blank" title="Instagram">
+                  <Instagram className="h-5 w-5" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="icon" className="rounded-full border-white/10 hover:border-primary hover:text-primary">
+                <Link href={dj.presskitUrl} target="_blank" title="Presskit">
+                  <FileText className="h-5 w-5" />
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

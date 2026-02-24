@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -10,9 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, MessageCircle, Send, Sparkles } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 
 const orcamentoSchema = z.object({
   nome: z.string().min(3, 'Por favor, informe seu nome.'),
@@ -30,11 +31,11 @@ const orcamentoSchema = z.object({
 
 type OrcamentoValues = z.infer<typeof orcamentoSchema>;
 
-export default function OrcamentoPage() {
+// Componente interno que usa os hooks de busca para evitar erro de build
+function OrcamentoForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const estruturaSlug = searchParams.get('estrutura');
-  const [estrutura, setEstrutura] = useState(RENTAL_PACKAGES.find(p => p.slug === estruturaSlug) || RENTAL_PACKAGES[0]);
+  const [estrutura, setEstrutura] = useState(RENTAL_PACKAGES[0]);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<OrcamentoValues>({
     resolver: zodResolver(orcamentoSchema),
@@ -193,5 +194,17 @@ Pode me passar uma estimativa e disponibilidade?`;
         </Button>
       </form>
     </div>
+  );
+}
+
+export default function OrcamentoPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    }>
+      <OrcamentoForm />
+    </Suspense>
   );
 }
