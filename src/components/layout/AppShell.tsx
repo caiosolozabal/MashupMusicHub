@@ -42,10 +42,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </SidebarFooter>
       </Sidebar>
 
-      <SidebarInset className="overflow-hidden">
+      <SidebarInset className="min-w-0 flex flex-col">
         <Header />
-        <main className="flex-1 p-2 sm:p-6 lg:p-8 bg-background overflow-x-auto">
-          <div className="max-w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 bg-background">
+          <div className="w-full max-w-full overflow-x-hidden">
             {children}
           </div>
         </main>
