@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, getDocs, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,6 +96,17 @@ export default function GuestListsAdminPage() {
     }
   };
 
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este evento? Todas as listas vinculadas deixarão de ser exibidas no Admin. Esta ação não pode ser desfeita.')) return;
+    
+    try {
+      await deleteDoc(doc(db, 'guest_events', eventId));
+      toast({ title: 'Evento excluído com sucesso' });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Erro ao excluir', description: e.message });
+    }
+  };
+
   const handleOpenEdit = (event: GuestEvent) => {
     setSelectedEvent(event);
     setIsFormOpen(true);
@@ -180,6 +191,9 @@ export default function GuestListsAdminPage() {
                     <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleDuplicateEvent(event); }}>
                       {isDuplicating === event.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                       Nova Edição (Duplicar)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={(e) => { e.preventDefault(); handleDeleteEvent(event.id); }}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Excluir Evento
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

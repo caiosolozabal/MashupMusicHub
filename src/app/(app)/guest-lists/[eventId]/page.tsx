@@ -91,6 +91,17 @@ export default function GuestEventDetailPage() {
     }
   };
 
+  const handleDeleteEvent = async () => {
+    if (!confirm('ATENÇÃO: Você está prestes a excluir o EVENTO inteiro. Isso removerá o acesso a todas as listas deste evento aqui no painel. Continuar?')) return;
+    try {
+      await deleteDoc(doc(db, 'guest_events', eventId as string));
+      toast({ title: 'Evento excluído' });
+      router.push('/guest-lists');
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Erro ao excluir', description: e.message });
+    }
+  };
+
   if (isLoading || !event) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -120,6 +131,10 @@ export default function GuestEventDetailPage() {
             <Button variant="outline" size="sm" onClick={() => setIsEventFormOpen(true)}>
               <Edit className="mr-2 h-4 w-4" />
               Configurar Evento
+            </Button>
+            <Button variant="outline" size="sm" className="text-destructive border-destructive/20 hover:bg-destructive/10" onClick={handleDeleteEvent}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir Evento
             </Button>
             <Button variant="outline" size="sm" onClick={() => setIsBatchOpen(true)}>
               <Layers className="mr-2 h-4 w-4" />
