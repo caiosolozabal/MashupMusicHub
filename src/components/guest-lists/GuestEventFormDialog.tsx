@@ -100,7 +100,8 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
     const field = type === 'media' ? 'mediaUrl' : 'backgroundUrl';
     
     setter(true);
-    const tempId = event?.id || 'new_event';
+    // Garantir que temos um ID para o caminho do storage, mesmo que o evento seja novo
+    const tempId = event?.id || 'temp_' + Math.random().toString(36).substring(7);
     const filePath = `events/${tempId}/assets/${Date.now()}-${file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase()}`;
     const fileRef = storageRef(storage, filePath);
 
@@ -112,11 +113,11 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
           null, 
           (error) => {
             console.error("Upload error:", error);
-            // Mensagem de erro mais instrutiva para CORS
+            // Mensagem de erro mais instrutiva para CORS e Regras
             toast({ 
               variant: 'destructive', 
               title: 'Erro no upload', 
-              description: 'Ocorreu um erro de permissão (CORS) ou o Storage não está ativado no Console do Firebase.' 
+              description: 'Verifique se as Regras de Segurança no Console do Firebase permitem o upload ou se o CORS foi configurado.' 
             });
             setter(false);
             reject(error);

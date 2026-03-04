@@ -3,31 +3,24 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     
-    // Auxiliares de Autenticação e Papéis
+    // Auxiliares básicos
     function isSignedIn() {
       return request.auth != null;
     }
     
-    function getUserData() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && getUserData().role == 'admin';
-    }
-
-    function isPartner() {
-      return isSignedIn() && getUserData().role == 'partner';
-    }
-
+    // Verifica se o usuário tem perfil no Firestore e se é admin ou partner
+    // Nota: Usamos (default) para o banco de dados padrão
     function isStaff() {
-      return isAdmin() || isPartner();
+      return isSignedIn() && 
+        (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'partner');
     }
 
     // Regras para Mídias de Eventos (Landing Pages)
-    // Permite leitura pública para que convidados vejam as fotos/vídeos
     match /events/{eventId}/assets/{allPaths=**} {
+      // Qualquer um pode ver as capas e backgrounds das festas
       allow read: if true;
+      // Apenas equipe interna pode subir ou alterar mídias
       allow write: if isStaff();
     }
 
@@ -48,7 +41,7 @@ service firebase.storage {
       allow write: if isStaff();
     }
     
-    // Bloqueio padrão para qualquer outro caminho não especificado
+    // Bloqueio padrão para qualquer outro caminho
     match /{allPaths=**} {
       allow read, write: if false;
     }
