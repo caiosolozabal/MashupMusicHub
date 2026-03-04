@@ -3,24 +3,31 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    function isPartner() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'partner';
-    }
-
-    function isDj() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'dj';
-    }
-    
+    // Auxiliares básicos
     function isSignedIn() {
       return request.auth != null;
     }
 
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
+    }
+
+    function isPartner() {
+      return isSignedIn() && getUserData().role == 'partner';
+    }
+
+    function isDj() {
+      return isSignedIn() && getUserData().role == 'dj';
+    }
+
+    // Regras de Usuários - Prioridade para leitura do próprio perfil para evitar erro no AuthContext
     match /users/{userId} {
-      allow read, update, create: if request.auth.uid == userId || isAdmin() || isPartner();
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isPartner());
+      allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isPartner());
       allow list: if isAdmin() || isPartner();
     }
     
@@ -71,7 +78,6 @@ service cloud.firestore {
         && request.resource.data.title is string
         && request.resource.data.status is string
         && (
-          // Regra de aceitação obrigatória para TODOS se criar para outro
           (request.resource.data.ownerUid == request.auth.uid)
           || (request.resource.data.ownerUid != request.auth.uid
               && request.resource.data.status == "pending_acceptance")
@@ -92,18 +98,20 @@ service cloud.firestore {
 
     // Regras para o Módulo de Captação de Convidados
     match /guest_events/{eventId} {
-      allow read: if true; // Acesso público para páginas de inscrição
+      allow read: if true; 
       allow list, create, update, delete: if isAdmin() || isPartner();
       
       match /lists/{listId} {
-        allow read: if true; // Acesso público para verificar slug/capacidade
+        allow read: if true; 
         allow list, create, update, delete: if isAdmin() || isPartner();
       }
     }
 
     match /guest_submissions/{submissionId} {
-      allow create: if true; // Inscrição pública
-      allow read, list, update, delete: if isAdmin() || isPartner();
+      allow create: if true; 
+      // Permite listagem pública SE filtrada por listId (usado na página de stats)
+      allow list: if isAdmin() || isPartner() || request.query.filters.listId != null;
+      allow read, update, delete: if isAdmin() || isPartner();
     }
 
     match /contacts/{contactId} {
@@ -111,7 +119,7 @@ service cloud.firestore {
     }
 
     match /slugs/{slug} {
-      allow read: if true; // Resolução de URL pública
+      allow read: if true; 
       allow create, update, delete: if isAdmin() || isPartner();
     }
 
