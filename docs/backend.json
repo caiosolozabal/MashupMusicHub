@@ -1,369 +1,89 @@
+
 {
   "entities": {
-    "Event": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Event",
+    "GuestEvent": {
+      "title": "GuestEvent",
+      "description": "Evento pai para captação de convidados.",
       "type": "object",
-      "description": "Represents an event managed by Mashup Music Hub.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the event."
-        },
-        "date": {
-          "type": "string",
-          "description": "Date of the event.",
-          "format": "date-time"
-        },
-        "dayOfWeek": {
-          "type": "string",
-          "description": "Day of the week the event takes place."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the event."
-        },
-        "venue": {
-          "type": "string",
-          "description": "Location or venue of the event."
-        },
-        "client": {
-          "type": "string",
-          "description": "Name of the client or contractor for the event."
-        },
-        "totalValue": {
-          "type": "number",
-          "description": "Total value of the event contract."
-        },
-        "downPayment": {
-          "type": "number",
-          "description": "Amount of the down payment received."
-        },
-        "paymentStatus": {
-          "type": "string",
-          "description": "Current payment status of the event (e.g., pending, paid, overdue)."
-        },
-        "accountId": {
-          "type": "string",
-          "description": "Reference to Account. (Relationship: Account 1:N Event). The account that received the value for the event."
-        },
-        "djIds": {
-          "type": "array",
-          "description": "References to DJs. (Relationship: DJ N:N Event). List of DJs assigned to the event.",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "date",
-        "name",
-        "venue",
-        "client",
-        "totalValue",
-        "paymentStatus",
-        "accountId"
-      ]
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "mediaUrl": { "type": "string", "description": "URL do vídeo ou imagem principal." },
+        "backgroundUrl": { "type": "string", "description": "Imagem de fundo da landing page." },
+        "promoText": { "type": "string", "description": "Texto descritivo do evento." },
+        "curfewAt": { "type": "string", "format": "date-time", "description": "Horário de fechamento automático das listas." },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     },
-    "DJ": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "DJ",
+    "GuestList": {
+      "title": "GuestList",
+      "description": "Segmento de lista dentro de um evento (ex: VIP, Promoter X).",
       "type": "object",
-      "description": "Represents a DJ in the Mashup Music Hub agency.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the DJ."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the DJ."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the DJ.",
-          "format": "email"
-        },
-        "percentage": {
-          "type": "number",
-          "description": "Percentage of event revenue the DJ receives."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "email",
-        "percentage"
-      ]
+        "id": { "type": "string" },
+        "eventId": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string", "description": "Slug único para a URL pública." },
+        "capacity": { "type": "number", "description": "Limite opcional de nomes." },
+        "statsToken": { "type": "string", "description": "Token para acesso às estatísticas sem login." },
+        "customMediaUrl": { "type": "string", "description": "Sobrescreve a mídia do evento se necessário." }
+      }
     },
-    "Account": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Account",
+    "GuestSubmission": {
+      "title": "GuestSubmission",
+      "description": "Registro individual de um convidado em uma lista.",
       "type": "object",
-      "description": "Represents a bank or payment account used for event transactions.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the account."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the account (e.g., Bank of America Checking)."
-        },
-        "accountNumber": {
-          "type": "string",
-          "description": "Account number."
-        },
-        "routingNumber": {
-          "type": "string",
-          "description": "Routing number for the account."
-        }
-      },
-      "required": [
-        "id",
-        "name",
-        "accountNumber",
-        "routingNumber"
-      ]
+        "id": { "type": "string" },
+        "eventId": { "type": "string" },
+        "listId": { "type": "string" },
+        "contactId": { "type": "string", "description": "Referência ao contato único no CRM." },
+        "name": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "instagram": { "type": "string" },
+        "email": { "type": "string" },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      }
     },
-    "Settlement": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Settlement",
+    "Contact": {
+      "title": "Contact",
+      "description": "CRM Global - Dados consolidados do frequentador.",
       "type": "object",
-      "description": "Represents a financial settlement for a DJ, generated for a specific period.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the settlement."
-        },
-        "djId": {
-          "type": "string",
-          "description": "Reference to DJ. (Relationship: DJ 1:N Settlement). The DJ this settlement is for."
-        },
-        "date": {
-          "type": "string",
-          "description": "Date the settlement was generated.",
-          "format": "date-time"
-        },
-        "amount": {
-          "type": "number",
-          "description": "Total amount to be paid to the DJ."
-        },
-        "notes": {
-          "type": "string",
-          "description": "Any notes or observations related to the settlement."
-        },
-        "receiptUrl": {
-          "type": "string",
-          "description": "URL of the uploaded payment receipt.",
-          "format": "uri"
-        }
-      },
-      "required": [
-        "id",
-        "djId",
-        "date",
-        "amount"
-      ]
-    },
-    "UserProfile": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "UserProfile",
-      "type": "object",
-      "description": "Represents a user profile within the Mashup Music Hub platform. Note: Does NOT store authentication credentials.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user profile."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the user.",
-          "format": "email"
-        },
-        "role": {
-          "type": "string",
-          "description": "Role of the user (e.g., admin, partner, dj, finance, manager/producer)."
-        },
-        "djId": {
-          "type": "string",
-          "description": "Reference to DJ. (Relationship: DJ 1:1 UserProfile).  If the user is a DJ, this is the reference to their DJ record."
-        }
-      },
-      "required": [
-        "id",
-        "email",
-        "role"
-      ]
-    },
-    "Document": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Document",
-      "type": "object",
-      "description": "Represents a document associated with an event, stored in Firebase Storage.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the document."
-        },
-        "eventId": {
-          "type": "string",
-          "description": "Reference to Event. (Relationship: Event 1:N Document). The event this document is associated with."
-        },
-        "filename": {
-          "type": "string",
-          "description": "Original filename of the document."
-        },
-        "storageUrl": {
-          "type": "string",
-          "description": "URL of the document in Firebase Storage.",
-          "format": "uri"
-        },
-        "uploadDate": {
-          "type": "string",
-          "description": "Date and time the document was uploaded.",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "id",
-        "eventId",
-        "filename",
-        "storageUrl",
-        "uploadDate"
-      ]
+        "id": { "type": "string", "description": "ID baseado no número do WhatsApp para deduplicação." },
+        "name": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "instagram": { "type": "string" },
+        "email": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" }, "description": "Tags de comportamento (ex: 'house', 'vip-frequente')." },
+        "lastActivity": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password"]
   },
   "firestore": {
     "structure": [
       {
-        "path": "/users/{userId}/profile",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores user profile information. Path-based ownership ensures that only the user can access their profile.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+        "path": "/guest_events/{eventId}",
+        "definition": { "entityName": "GuestEvent", "description": "Configurações globais do evento de captação." }
       },
       {
-        "path": "/roles_admin/{userId}",
-        "definition": {
-          "entityName": "roles_admin",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Indicates admin privileges for a user. Existence of a document grants admin access.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+        "path": "/guest_events/{eventId}/lists/{listId}",
+        "definition": { "entityName": "GuestList", "description": "Listas específicas vinculadas ao evento." }
       },
       {
-        "path": "/events/{eventId}",
-        "definition": {
-          "entityName": "Event",
-          "schema": {
-            "$ref": "#/backend/entities/Event"
-          },
-          "description": "Stores event information. Includes denormalized 'members' map for authorization independence.",
-          "params": [
-            {
-              "name": "eventId",
-              "description": "The unique identifier for the event."
-            }
-          ]
-        }
+        "path": "/guest_submissions/{submissionId}",
+        "definition": { "entityName": "GuestSubmission", "description": "Entradas brutas dos formulários." }
       },
       {
-        "path": "/djs/{djId}",
-        "definition": {
-          "entityName": "DJ",
-          "schema": {
-            "$ref": "#/backend/entities/DJ"
-          },
-          "description": "Stores DJ information. Used to associate DJs with events and settlements.",
-          "params": [
-            {
-              "name": "djId",
-              "description": "The unique identifier for the DJ."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/djs/{djId}/settlements/{settlementId}",
-        "definition": {
-          "entityName": "Settlement",
-          "schema": {
-            "$ref": "#/backend/entities/Settlement"
-          },
-          "description": "Stores settlement information for DJs.  Path-based ownership ensures that only the DJ and authorized personnel can access the settlement data.",
-          "params": [
-            {
-              "name": "djId",
-              "description": "The unique identifier for the DJ."
-            },
-            {
-              "name": "settlementId",
-              "description": "The unique identifier for the settlement."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/events/{eventId}/documents/{documentId}",
-        "definition": {
-          "entityName": "Document",
-          "schema": {
-            "$ref": "#/backend/entities/Document"
-          },
-          "description": "Stores documents associated with an event.",
-          "params": [
-            {
-              "name": "eventId",
-              "description": "The unique identifier for the event."
-            },
-            {
-              "name": "documentId",
-              "description": "The unique identifier for the document."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/accounts/{accountId}",
-        "definition": {
-          "entityName": "Account",
-          "schema": {
-            "$ref": "#/backend/entities/Account"
-          },
-          "description": "Stores financial account information.  Access should be restricted to finance and admin roles.",
-          "params": [
-            {
-              "name": "accountId",
-              "description": "The unique identifier for the financial account."
-            }
-          ]
-        }
+        "path": "/contacts/{contactId}",
+        "definition": { "entityName": "Contact", "description": "Base de dados consolidada (CRM)." }
       }
-    ],
-    "reasoning": "The Firestore structure is designed to support the Mashup Music Hub application, focusing on secure, scalable, and maintainable data management. The design emphasizes authorization independence through denormalization, clear segregation of data based on access requirements, and consistent access modeling.  This design addresses the core features: user authentication with role-based access control, event management, and DJ financial system.\n\nConsistent access modeling is applied throughout the structure. Private data related to users is stored under the `/users/{userId}` path, ensuring path-based ownership. Collaborative data, like events, leverages the denormalized 'members' map to define access control.\n\nTo support role-based access control, a dedicated collection `/roles_admin/{uid}` is used.  The existence of a document with the user's UID in this collection grants admin privileges, and this simplifies rules for admin-level access.\n\nThis structure supports all application use cases, including:\n\n*   **User Authentication and Roles**: User profiles are stored in `/users/{userId}/profile`, with a `role` field indicating their permissions. Admins can be identified via `/roles_admin/{userId}`.\n*   **Event Management**: Events are stored in `/events/{eventId}`.  DJ assignments are managed within the `event` document via the `djIds` property.\n*   **DJ Financial System**: Settlement documents are stored under `/djs/{djId}/settlements/{settlementId}`. This structure ensures that only the DJ and authorized personnel can access the settlement data."
+    ]
   }
 }

@@ -22,6 +22,58 @@ export interface UserDetails {
   updatedAt?: any;
 }
 
+// --- GUEST LIST MODULE TYPES ---
+
+export interface GuestEvent {
+  id: string;
+  name: string;
+  date: Timestamp;
+  location: string;
+  mediaUrl?: string | null;
+  backgroundUrl?: string | null;
+  promoText?: string | null;
+  curfewAt?: Timestamp | null;
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface GuestList {
+  id: string;
+  eventId: string;
+  name: string;
+  slug: string;
+  capacity?: number | null;
+  statsToken: string;
+  customMediaUrl?: string | null;
+  customPromoText?: string | null;
+}
+
+export interface GuestSubmission {
+  id: string;
+  eventId: string;
+  listId: string;
+  contactId: string;
+  name: string;
+  whatsapp?: string | null;
+  instagram?: string | null;
+  email?: string | null;
+  submittedAt: Timestamp;
+}
+
+export interface Contact {
+  id: string; // Document ID should be the cleaned WhatsApp number
+  name: string;
+  whatsapp: string;
+  instagram?: string | null;
+  email?: string | null;
+  tags?: string[];
+  lastActivity: Timestamp;
+  attendanceCount: number;
+}
+
+// --- EXISTING TYPES ---
+
 export interface AgencyAccount {
   id: string;
   accountName: string;
