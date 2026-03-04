@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { GuestEvent, GuestList, UrlSlug } from '@/lib/types';
-import { Loader2, Calendar, MapPin, Clock, AlertCircle, Ticket, Info } from 'lucide-react';
+import { Loader2, Calendar, MapPin, Clock, AlertCircle, Ticket, Info, Tag } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import PublicGuestListForm from '@/components/guest-lists/PublicGuestListForm';
 import Image from 'next/image';
@@ -110,22 +110,34 @@ export default function PublicGuestListPage() {
       <div className="relative z-10 w-full max-w-lg px-4 py-12 flex flex-col gap-8">
         
         <div className="text-center space-y-4">
-          <div className="flex flex-col items-center gap-2">
-            <Badge variant="secondary" className="bg-primary/20 border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest px-4 py-1">
-              Lista: {list.name}
-            </Badge>
-            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg">
-              <p className="text-[9px] font-bold uppercase text-muted-foreground tracking-tighter mb-0.5 leading-none">Código de Desconto</p>
-              <p className="text-sm font-black uppercase text-primary tracking-widest leading-none">{slug}</p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="bg-primary text-black px-6 py-2 rounded-full shadow-[0_0_20px_rgba(132,255,30,0.3)]">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-none mb-1">Você está na lista</p>
+              <h2 className="text-lg font-black uppercase tracking-tighter leading-none">{list.name}</h2>
+            </div>
+            
+            <div className="bg-white/10 backdrop-blur-md border border-white/10 px-4 py-2 rounded-xl flex items-center gap-2">
+              <Tag className="h-3 w-3 text-primary" />
+              <div>
+                <p className="text-[8px] font-bold uppercase text-muted-foreground tracking-tighter leading-none">Cód. Desconto</p>
+                <p className="text-xs font-black uppercase text-primary tracking-widest leading-none">{slug}</p>
+              </div>
             </div>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-black font-headline tracking-tighter leading-tight uppercase italic">
+          <h1 className="text-4xl sm:text-5xl font-black font-headline tracking-tighter leading-[0.9] uppercase italic py-4">
             {event.name}
           </h1>
-          <div className="flex flex-wrap justify-center gap-4 text-sm font-bold uppercase tracking-widest text-muted-foreground">
-            <div className="flex items-center gap-1.5"><Calendar className="h-4 w-4" /> {format(event.date.toDate(), "dd/MM", { locale: ptBR })}</div>
-            <div className="flex items-center gap-1.5"><MapPin className="h-4 w-4" /> {event.location}</div>
+          
+          <div className="flex flex-wrap justify-center gap-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+              <Calendar className="h-3.5 w-3.5 text-primary" /> 
+              {format(event.date.toDate(), "dd 'de' MMMM", { locale: ptBR })}
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+              <MapPin className="h-3.5 w-3.5 text-primary" /> 
+              {event.location}
+            </div>
           </div>
         </div>
 
@@ -158,19 +170,31 @@ export default function PublicGuestListPage() {
             ) : (
               <>
                 <div className="mb-8 space-y-6">
-                  <div className="space-y-2">
-                    <h2 className="text-xl font-black font-headline uppercase tracking-tight">Garanta seu nome</h2>
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-black font-headline uppercase tracking-tight flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      Garanta seu lugar
+                    </h2>
                     
                     {list.customPromoText && (
-                      <div className="p-4 bg-primary/10 border-l-4 border-primary rounded-r-xl">
-                        <p className="text-xs font-black uppercase tracking-widest text-primary mb-1">Valores & Info:</p>
-                        <p className="text-sm font-bold text-white whitespace-pre-wrap leading-relaxed">{list.customPromoText}</p>
+                      <div className="p-5 bg-primary/10 border border-primary/20 rounded-2xl space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Valores & Horários:</p>
+                        <div className="space-y-2">
+                          {list.customPromoText.split('\n').map((line, i) => (
+                            <div key={i} className="flex items-center justify-between gap-4 border-b border-white/5 pb-1 last:border-0 last:pb-0">
+                              <p className="text-sm font-bold text-white uppercase tracking-tight">{line.split(':')[0]}</p>
+                              <p className="text-sm font-black text-primary">{line.split(':')[1] || ''}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
 
-                    <p className="text-xs text-muted-foreground font-medium whitespace-pre-wrap leading-relaxed mt-4">
-                      {event.promoText || 'Preencha os campos abaixo para confirmar sua presença na lista.'}
-                    </p>
+                    {event.promoText && (
+                      <p className="text-xs text-muted-foreground font-medium whitespace-pre-wrap leading-relaxed px-1">
+                        {event.promoText}
+                      </p>
+                    )}
                   </div>
                 </div>
 
