@@ -172,7 +172,14 @@ export default function GuestEventDetailPage() {
                           <Copy className="mr-2 h-3.5 w-3.5" />
                           Link
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(statsUrl, 'Link de estatísticas')}>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => { 
+                            copyToClipboard(statsUrl, 'Link de estatísticas');
+                            window.open(statsUrl, '_blank');
+                          }}
+                        >
                           <BarChart3 className="mr-2 h-3.5 w-3.5" />
                           Stats
                         </Button>
