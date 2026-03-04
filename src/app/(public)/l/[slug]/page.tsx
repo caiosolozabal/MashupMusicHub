@@ -114,7 +114,6 @@ export default function PublicGuestListPage() {
             <Badge variant="secondary" className="bg-primary/20 border-primary/30 text-primary text-[10px] font-black uppercase tracking-widest px-4 py-1">
               Lista: {list.name}
             </Badge>
-            {/* Código do Promoter em destaque */}
             <div className="bg-white/10 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-lg">
               <p className="text-[9px] font-bold uppercase text-muted-foreground tracking-tighter mb-0.5 leading-none">Código de Desconto</p>
               <p className="text-sm font-black uppercase text-primary tracking-widest leading-none">{slug}</p>
@@ -162,16 +161,14 @@ export default function PublicGuestListPage() {
                   <div className="space-y-2">
                     <h2 className="text-xl font-black font-headline uppercase tracking-tight">Garanta seu nome</h2>
                     
-                    {/* Texto de Valores (Específico da Lista/Lote) */}
                     {list.customPromoText && (
                       <div className="p-4 bg-primary/10 border-l-4 border-primary rounded-r-xl">
                         <p className="text-xs font-black uppercase tracking-widest text-primary mb-1">Valores & Info:</p>
-                        <p className="text-sm font-bold text-white leading-relaxed">{list.customPromoText}</p>
+                        <p className="text-sm font-bold text-white whitespace-pre-wrap leading-relaxed">{list.customPromoText}</p>
                       </div>
                     )}
 
-                    {/* Texto Geral do Evento */}
-                    <p className="text-xs text-muted-foreground font-medium leading-relaxed mt-4">
+                    <p className="text-xs text-muted-foreground font-medium whitespace-pre-wrap leading-relaxed mt-4">
                       {event.promoText || 'Preencha os campos abaixo para confirmar sua presença na lista.'}
                     </p>
                   </div>
