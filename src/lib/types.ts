@@ -46,7 +46,7 @@ export interface GuestList {
   capacity?: number | null;
   statsToken: string;
   customMediaUrl?: string | null;
-  customPromoText?: string | null;
+  customPromoText?: string | null; // Novo campo para valores/regras do lote
   submissionCount: number;
 }
 

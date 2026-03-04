@@ -45,6 +45,7 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
   const [selectedStandards, setSelectedStandards] = useState<string[]>([]);
   const [promoterNames, setPromoterNames] = useState('');
   const [slugPrefix, setPrefix] = useState('');
+  const [batchPromoText, setBatchPromoText] = useState('');
 
   // Auto-slug generator helper
   const slugify = (text: string) => {
@@ -86,7 +87,7 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
         let baseSlug = slugify(name);
         if (slugPrefix) baseSlug = `${slugify(slugPrefix)}-${baseSlug}`;
         
-        // Verificação rápida de colisão (simples para o lote)
+        // Verificação rápida de colisão
         let finalSlug = baseSlug;
         const slugCheck = await getDoc(doc(db, 'slugs', finalSlug));
         if (slugCheck.exists()) {
@@ -99,6 +100,7 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
           name,
           slug: finalSlug,
           statsToken,
+          customPromoText: batchPromoText || null, // Aplica o texto de valores a todas
           submissionCount: 0,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -141,6 +143,7 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
     setStep('form');
     setSelectedStandards([]);
     setPromoterNames('');
+    setBatchPromoText('');
     setCreatedLists([]);
     onClose(true);
   };
@@ -160,15 +163,25 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
 
         {step === 'form' ? (
           <div className="space-y-6 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="prefix">Prefixo dos Links (Opcional)</Label>
-              <Input 
-                id="prefix" 
-                placeholder="Ex: farra-0703" 
-                value={slugPrefix} 
-                onChange={(e) => setPrefix(e.target.value)} 
-              />
-              <p className="text-[10px] text-muted-foreground">Isso ajuda a organizar os links. Ex: /l/farra-0703-lucas</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="prefix">Prefixo dos Links (Opcional)</Label>
+                <Input 
+                  id="prefix" 
+                  placeholder="Ex: farra-0703" 
+                  value={slugPrefix} 
+                  onChange={(e) => setPrefix(e.target.value)} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="batch-values">Texto de Valores/Preços (Para todas as listas)</Label>
+                <Input 
+                  id="batch-values" 
+                  placeholder="Ex: H R$ 100 | M R$ 50" 
+                  value={batchPromoText}
+                  onChange={(e) => setBatchPromoText(e.target.value)}
+                />
+              </div>
             </div>
 
             <Tabs defaultValue="standards">
@@ -225,7 +238,7 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
           <div className="space-y-6 py-4">
             <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl">
               <p className="text-sm text-green-700 font-medium">
-                Foram geradas <strong>{createdLists.length}</strong> listas para o evento <strong>{eventName}</strong>.
+                Foram geradas <strong>{createdLists.length}</strong> listas para o evento <strong>{eventName}</strong> com o texto de valores padrão.
               </p>
             </div>
 

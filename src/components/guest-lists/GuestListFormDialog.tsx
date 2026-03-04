@@ -25,6 +25,7 @@ const guestListSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório'),
   slug: z.string().min(2, 'Slug é obrigatório').regex(/^[a-z0-9-]+$/, 'Use apenas letras minúsculas, números e hífens'),
   capacity: z.coerce.number().optional(),
+  customPromoText: z.string().optional(),
 });
 
 type GuestListFormValues = z.infer<typeof guestListSchema>;
@@ -50,12 +51,14 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
         name: list.name,
         slug: list.slug,
         capacity: list.capacity || 0,
+        customPromoText: list.customPromoText || '',
       });
     } else {
       reset({
         name: '',
         slug: '',
         capacity: 0,
+        customPromoText: '',
       });
     }
   }, [list, reset, isOpen]);
@@ -77,7 +80,6 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
   const onSubmit = async (data: GuestListFormValues) => {
     setIsSubmitting(true);
     try {
-      // 1. Verificar se o slug está disponível
       const slugRef = doc(db, 'slugs', data.slug);
       const slugSnap = await getDoc(slugRef);
       
@@ -94,6 +96,7 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
         name: data.name,
         slug: data.slug,
         capacity: data.capacity || null,
+        customPromoText: data.customPromoText || null,
         statsToken,
         eventId,
         updatedAt: serverTimestamp(),
@@ -101,13 +104,10 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
 
       const listDocRef = doc(db, 'guest_events', eventId, 'lists', listId);
       
-      // 2. Salvar a lista
       if (list) {
         await updateDoc(listDocRef, listPayload);
-        // Se o slug mudou, precisamos atualizar a coleção de slugs
         if (list.slug !== data.slug) {
           await setDoc(slugRef, { type: 'list', eventId, listId });
-          // Opcional: deletar o slug antigo
         }
       } else {
         await setDoc(listDocRef, {
@@ -116,7 +116,6 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
           submissionCount: 0,
           createdAt: serverTimestamp(),
         });
-        // Registrar o slug
         await setDoc(slugRef, { type: 'list', eventId, listId });
       }
 
@@ -143,19 +142,23 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="custom-text">Valores e Regras (Específico desta lista)</Label>
+            <Input id="custom-text" {...register('customPromoText')} placeholder="Ex: H R$ 100 | M R$ 50" />
+            <p className="text-[10px] text-muted-foreground">Isso aparecerá em destaque na página pública.</p>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="slug">Link Amigável (Slug)</Label>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground text-sm">/l/</span>
               <Input id="slug" {...register('slug')} placeholder="link-da-festa" />
             </div>
-            <p className="text-[10px] text-muted-foreground">Ex: mashupmusic.com.br/l/{watch('slug') || '...'}</p>
             {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="capacity">Capacidade Máxima (Opcional)</Label>
             <Input id="capacity" type="number" {...register('capacity')} placeholder="Ex: 150" />
-            <p className="text-[10px] text-muted-foreground italic">A lista fechará automaticamente ao atingir este limite.</p>
           </div>
 
           <DialogFooter>
