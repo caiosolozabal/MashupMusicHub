@@ -91,9 +91,8 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
   const handleFileUpload = async (file: File, type: 'media' | 'background') => {
     if (!file) return;
 
-    // Trava de segurança de 10MB
     if (file.size > 10 * 1024 * 1024) {
-      toast({ variant: 'destructive', title: 'Arquivo muito grande', description: 'O limite é de 10MB para garantir o carregamento rápido da página.' });
+      toast({ variant: 'destructive', title: 'Arquivo muito grande', description: 'O limite é de 10MB.' });
       return;
     }
 
@@ -101,18 +100,32 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
     const field = type === 'media' ? 'mediaUrl' : 'backgroundUrl';
     
     setter(true);
-    const tempId = event?.id || 'new';
-    const filePath = `events/${tempId}/assets/${Date.now()}-${file.name}`;
+    const tempId = event?.id || 'new_event';
+    const filePath = `events/${tempId}/assets/${Date.now()}-${file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase()}`;
     const fileRef = storageRef(storage, filePath);
 
     try {
-      const uploadTask = await uploadBytesResumable(fileRef, file);
-      const downloadURL = await getDownloadURL(uploadTask.ref);
-      setValue(field, downloadURL);
-      toast({ title: 'Upload concluído!', description: 'A mídia foi salva temporariamente. Salve o evento para confirmar.' });
+      const uploadTask = uploadBytesResumable(fileRef, file);
+      
+      return new Promise((resolve, reject) => {
+        uploadTask.on('state_changed', 
+          null, 
+          (error) => {
+            console.error("Upload error:", error);
+            toast({ variant: 'destructive', title: 'Erro no upload', description: 'Verifique as permissões de CORS no Storage.' });
+            setter(false);
+            reject(error);
+          }, 
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            setValue(field, downloadURL);
+            setter(false);
+            resolve(downloadURL);
+          }
+        );
+      });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Erro no upload', description: e.message });
-    } finally {
+      console.error(e);
       setter(false);
     }
   };
@@ -159,7 +172,6 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 py-4">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Coluna 1: Dados Básicos */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome do Evento</Label>
@@ -191,13 +203,11 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
               </div>
             </div>
 
-            {/* Coluna 2: Mídias e Identidade */}
             <div className="space-y-6 border-l pl-6 hidden md:block">
               <h3 className="text-sm font-black uppercase tracking-widest text-primary flex items-center gap-2">
                 <ImageIcon className="h-4 w-4" /> Identidade Visual
               </h3>
 
-              {/* Mídia Principal (Cover) */}
               <div className="space-y-3">
                 <Label className="text-xs font-bold">Mídia Principal (Cover)</Label>
                 <div className="aspect-video w-full rounded-lg border-2 border-dashed bg-muted/30 relative overflow-hidden group">
@@ -238,7 +248,6 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
                 </div>
               </div>
 
-              {/* Background */}
               <div className="space-y-3">
                 <Label className="text-xs font-bold">Imagem de Fundo (Background)</Label>
                 <div className="h-24 w-full rounded-lg border-2 border-dashed bg-muted/30 relative overflow-hidden group">
