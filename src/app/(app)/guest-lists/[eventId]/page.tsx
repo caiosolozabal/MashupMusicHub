@@ -20,7 +20,8 @@ import {
   Loader2,
   MoreVertical,
   Link as LinkIcon,
-  Eye
+  Eye,
+  Layers
 } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -29,6 +30,7 @@ import type { GuestEvent, GuestList } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import GuestListFormDialog from '@/components/guest-lists/GuestListFormDialog';
 import SubmissionsDialog from '@/components/guest-lists/SubmissionsDialog';
+import BatchListDialog from '@/components/guest-lists/BatchListDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
@@ -44,6 +46,7 @@ export default function GuestEventDetailPage() {
   
   // Dialogs
   const [isListFormOpen, setIsListFormOpen] = useState(false);
+  const [isBatchOpen, setIsBatchOpen] = useState(false);
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<GuestList | null>(null);
 
@@ -110,7 +113,11 @@ export default function GuestEventDetailPage() {
               {format(event.date.toDate(), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })} • {event.location}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsBatchOpen(true)}>
+              <Layers className="mr-2 h-4 w-4" />
+              Criar em Lote
+            </Button>
             <Button size="sm" onClick={() => { setSelectedList(null); setIsListFormOpen(true); }}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Criar Nova Lista
@@ -132,7 +139,10 @@ export default function GuestEventDetailPage() {
             {lists.length === 0 ? (
               <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
                 <p className="text-muted-foreground">Nenhuma lista criada para este evento.</p>
-                <Button variant="link" onClick={() => setIsListFormOpen(true)} className="text-primary font-bold">Criar minha primeira lista</Button>
+                <div className="mt-4 flex justify-center gap-2">
+                  <Button variant="link" onClick={() => setIsListFormOpen(true)} className="text-primary font-bold">Criar lista individual</Button>
+                  <Button variant="link" onClick={() => setIsBatchOpen(true)} className="text-primary font-bold">Criar em lote</Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -202,6 +212,13 @@ export default function GuestEventDetailPage() {
         onClose={() => setIsListFormOpen(false)} 
         eventId={eventId as string}
         list={selectedList}
+      />
+
+      <BatchListDialog
+        isOpen={isBatchOpen}
+        onClose={() => setIsBatchOpen(false)}
+        eventId={eventId as string}
+        eventName={event.name}
       />
 
       <SubmissionsDialog
