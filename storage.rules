@@ -1,0 +1,56 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Auxiliares de Autenticação e Papéis
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUserData().role == 'admin';
+    }
+
+    function isPartner() {
+      return isSignedIn() && getUserData().role == 'partner';
+    }
+
+    function isStaff() {
+      return isAdmin() || isPartner();
+    }
+
+    // Regras para Mídias de Eventos (Landing Pages)
+    // Permite leitura pública para que convidados vejam as fotos/vídeos
+    match /events/{eventId}/assets/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // Regras para Comprovantes de Pagamento (Privado)
+    match /events/{eventId}/payment_proofs/{allPaths=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Regras para Branding (Logo da Agência)
+    match /branding/{allPaths=**} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // Regras para Catálogo de Locação
+    match /rental_items/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+    }
+    
+    // Bloqueio padrão para qualquer outro caminho não especificado
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
