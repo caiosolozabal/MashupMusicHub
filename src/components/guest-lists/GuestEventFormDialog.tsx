@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
-import { Loader2, Upload, Image as ImageIcon, Video, X, CheckCircle2 } from 'lucide-react';
+import { Loader2, Upload, Image as ImageIcon, Video, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -112,7 +112,12 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
           null, 
           (error) => {
             console.error("Upload error:", error);
-            toast({ variant: 'destructive', title: 'Erro no upload', description: 'Verifique as permissões de CORS no Storage.' });
+            // Mensagem de erro mais instrutiva para CORS
+            toast({ 
+              variant: 'destructive', 
+              title: 'Erro no upload', 
+              description: 'Ocorreu um erro de permissão (CORS) ou o Storage não está ativado no Console do Firebase.' 
+            });
             setter(false);
             reject(error);
           }, 

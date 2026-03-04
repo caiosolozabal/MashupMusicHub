@@ -8,7 +8,8 @@ const firebaseConfig = {
   apiKey: "AIzaSyCDNFpKdz_S6xwrWSF9M5h-yp9ZqoO6Gtg",
   authDomain: "mashup-music-hub.firebaseapp.com",
   projectId: "mashup-music-hub",
-  storageBucket: "mashup-music-hub.appspot.com",
+  // Tenta o novo padrão do Firebase se o antigo der 404
+  storageBucket: "mashup-music-hub.firebasestorage.app",
   messagingSenderId: "700921932715",
   appId: "1:700921932715:web:34178bd2fd9116a64dc0ee"
 };
