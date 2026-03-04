@@ -19,7 +19,8 @@ import {
   Trash2, 
   Loader2,
   MoreVertical,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Eye
 } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -27,6 +28,7 @@ import { ptBR } from 'date-fns/locale';
 import type { GuestEvent, GuestList } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import GuestListFormDialog from '@/components/guest-lists/GuestListFormDialog';
+import SubmissionsDialog from '@/components/guest-lists/SubmissionsDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
@@ -39,13 +41,15 @@ export default function GuestEventDetailPage() {
   const [event, setEvent] = useState<GuestEvent | null>(null);
   const [lists, setLists] = useState<GuestList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Dialogs
   const [isListFormOpen, setIsListFormOpen] = useState(false);
+  const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<GuestList | null>(null);
 
   useEffect(() => {
     if (!eventId || !userDetails) return;
 
-    // Listener do Evento
     const unsubEvent = onSnapshot(doc(db, 'guest_events', eventId as string), (snap) => {
       if (snap.exists()) {
         setEvent({ id: snap.id, ...snap.data() } as GuestEvent);
@@ -54,7 +58,6 @@ export default function GuestEventDetailPage() {
       }
     });
 
-    // Listener das Listas
     const q = query(collection(db, 'guest_events', eventId as string, 'lists'), orderBy('name', 'asc'));
     const unsubLists = onSnapshot(q, (snapshot) => {
       setLists(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GuestList)));
@@ -108,10 +111,6 @@ export default function GuestEventDetailPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Settings className="mr-2 h-4 w-4" />
-              Editar Evento
-            </Button>
             <Button size="sm" onClick={() => { setSelectedList(null); setIsListFormOpen(true); }}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Criar Nova Lista
@@ -133,7 +132,7 @@ export default function GuestEventDetailPage() {
             {lists.length === 0 ? (
               <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
                 <p className="text-muted-foreground">Nenhuma lista criada para este evento.</p>
-                <Button variant="link" onClick={() => setIsListOpen(true)} className="text-primary font-bold">Criar minha primeira lista</Button>
+                <Button variant="link" onClick={() => setIsListFormOpen(true)} className="text-primary font-bold">Criar minha primeira lista</Button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -155,13 +154,17 @@ export default function GuestEventDetailPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => { setSelectedList(list); setIsSubmissionsOpen(true); }}>
+                          <Eye className="mr-2 h-3.5 w-3.5" />
+                          Ver Inscritos
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => copyToClipboard(publicUrl, 'Link da lista')}>
                           <Copy className="mr-2 h-3.5 w-3.5" />
-                          Link Público
+                          Link
                         </Button>
                         <Button variant="outline" size="sm" onClick={() => copyToClipboard(statsUrl, 'Link de estatísticas')}>
                           <BarChart3 className="mr-2 h-3.5 w-3.5" />
-                          Link Stats
+                          Stats
                         </Button>
                         
                         <DropdownMenu>
@@ -198,6 +201,12 @@ export default function GuestEventDetailPage() {
         isOpen={isListFormOpen} 
         onClose={() => setIsListFormOpen(false)} 
         eventId={eventId as string}
+        list={selectedList}
+      />
+
+      <SubmissionsDialog
+        isOpen={isSubmissionsOpen}
+        onClose={() => setIsSubmissionsOpen(false)}
         list={selectedList}
       />
     </div>

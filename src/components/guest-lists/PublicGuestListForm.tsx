@@ -6,13 +6,26 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, updateDoc, increment, doc } from 'firebase/firestore';
+import { 
+  collection, 
+  addDoc, 
+  serverTimestamp, 
+  updateDoc, 
+  increment, 
+  doc, 
+  getDocs, 
+  query, 
+  where,
+  limit,
+  setDoc
+} from 'firebase/firestore';
 import type { GuestEvent, GuestList } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 const submissionSchema = z.object({
   name: z.string().min(3, 'Nome é obrigatório'),
@@ -37,26 +50,77 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
     resolver: zodResolver(submissionSchema),
   });
 
+  const updateCRM = async (data: SubmissionFormValues) => {
+    try {
+      let contactId = null;
+      const emailLower = data.email?.toLowerCase();
+      const waDigits = data.whatsapp?.replace(/\D/g, '');
+
+      // 1. Tentar encontrar por WhatsApp ou Email para deduplicar
+      if (waDigits) {
+        const waSnap = await getDocs(query(collection(db, 'contacts'), where('whatsapp', '==', waDigits), limit(1)));
+        if (!waSnap.empty) contactId = waSnap.docs[0].id;
+      }
+      
+      if (!contactId && emailLower) {
+        const emSnap = await getDocs(query(collection(db, 'contacts'), where('email', '==', emailLower), limit(1)));
+        if (!emSnap.empty) contactId = emSnap.docs[0].id;
+      }
+
+      // 2. Criar ou Atualizar Contato
+      const finalContactId = contactId || uuidv4();
+      const contactRef = doc(db, 'contacts', finalContactId);
+      
+      await setDoc(contactRef, {
+        name: data.name,
+        whatsapp: waDigits || null,
+        instagram: data.instagram || null,
+        email: emailLower || null,
+        lastActivity: serverTimestamp(),
+        attendanceCount: increment(1),
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+
+      // 3. Registrar RSVP (histórico)
+      await addDoc(collection(db, 'contacts', finalContactId, 'rsvp'), {
+        eventId: event.id,
+        listId: list.id,
+        eventName: event.name,
+        listName: list.name,
+        submittedAt: serverTimestamp(),
+      });
+
+      return finalContactId;
+    } catch (e) {
+      console.warn("CRM Update failed (non-critical):", e);
+      return null;
+    }
+  };
+
   const onSubmit = async (data: SubmissionFormValues) => {
     setIsSubmitting(true);
     try {
-      // 1. Criar a submissão
+      // 1. Atualizar CRM (em paralelo, sem travar o usuário)
+      const contactId = await updateCRM(data);
+
+      // 2. Criar a submissão oficial da lista
       const subRef = await addDoc(collection(db, 'guest_submissions'), {
         name: data.name,
         whatsapp: data.whatsapp || null,
         instagram: data.instagram || null,
-        email: data.email || null,
+        email: data.email?.toLowerCase() || null,
         eventId: event.id,
         listId: list.id,
+        contactId: contactId,
         submittedAt: serverTimestamp(),
       });
 
-      // 2. Incrementar contador na lista
+      // 3. Incrementar contador na lista
       await updateDoc(doc(db, 'guest_events', event.id, 'lists', list.id), {
         submissionCount: increment(1)
       });
 
-      // 3. Sucesso
+      // 4. Sucesso
       onSuccess(subRef.id);
     } catch (e: any) {
       console.error(e);
@@ -101,7 +165,7 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">E-mail</Label>
+        <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">E-mail (Opcional)</Label>
         <Input 
           id="email" 
           {...register('email')} 
