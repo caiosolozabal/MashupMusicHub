@@ -90,6 +90,31 @@ service cloud.firestore {
       allow delete: if isStaff() || isCreator();
     }
 
+    // Regras para o Módulo de Captação de Convidados
+    match /guest_events/{eventId} {
+      allow read: if true; // Acesso público para páginas de inscrição
+      allow list, create, update, delete: if isAdmin() || isPartner();
+      
+      match /lists/{listId} {
+        allow read: if true; // Acesso público para verificar slug/capacidade
+        allow list, create, update, delete: if isAdmin() || isPartner();
+      }
+    }
+
+    match /guest_submissions/{submissionId} {
+      allow create: if true; // Inscrição pública
+      allow read, list, update, delete: if isAdmin() || isPartner();
+    }
+
+    match /contacts/{contactId} {
+      allow read, list, create, update, delete: if isAdmin() || isPartner();
+    }
+
+    match /slugs/{slug} {
+      allow read: if true; // Resolução de URL pública
+      allow create, update, delete: if isAdmin() || isPartner();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

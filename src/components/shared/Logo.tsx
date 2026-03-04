@@ -15,6 +15,7 @@ const Logo = ({ className }: { className?: string }) => {
             src="/logo.png"
             alt="Mashup Music Hub"
             fill
+            priority
             className="object-contain object-left transition-transform group-hover:scale-105"
             onError={() => setImageError(true)}
             unoptimized

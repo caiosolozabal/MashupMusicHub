@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -17,9 +16,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 
 const guestEventSchema = z.object({
   name: z.string().min(3, 'Nome é obrigatório'),
@@ -43,13 +43,7 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<GuestEventFormValues>({
     resolver: zodResolver(guestEventSchema),
-    defaultValues: event ? {
-      name: event.name,
-      date: event.date ? format(event.date.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
-      location: event.location,
-      promoText: event.promoText || '',
-      curfewAt: event.curfewAt ? format(event.curfewAt.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
-    } : {
+    defaultValues: {
       name: '',
       date: '',
       location: '',
@@ -57,6 +51,26 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
       curfewAt: '',
     }
   });
+
+  useEffect(() => {
+    if (event && isOpen) {
+      reset({
+        name: event.name,
+        date: event.date ? format(event.date.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
+        location: event.location,
+        promoText: event.promoText || '',
+        curfewAt: event.curfewAt ? format(event.curfewAt.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
+      });
+    } else if (isOpen) {
+      reset({
+        name: '',
+        date: '',
+        location: '',
+        promoText: '',
+        curfewAt: '',
+      });
+    }
+  }, [event, isOpen, reset]);
 
   const onSubmit = async (data: GuestEventFormValues) => {
     setIsSubmitting(true);
