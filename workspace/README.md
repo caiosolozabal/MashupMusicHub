@@ -26,6 +26,14 @@ Este módulo substitui o Google Forms e centraliza a inteligência de público d
 5. **Magic Links (Promoters)**: Páginas de estatísticas em tempo real via token (sem login).
 6. **CRM de Frequentadores**: Base global de contatos com histórico de RSVP e ranking de engajamento.
 
+### 🎨 Personalização Visual e Mídia:
+Cada evento na Mashup pode ter uma **identidade visual única** que é herdada por todas as suas listas:
+*   **Mídia Principal**: Suporte nativo para Vídeo (MP4), GIFs animados ou Imagens de destaque.
+*   **Ambientação**: Imagem de fundo (Background) customizável com overlay de gradiente para garantir legibilidade.
+*   **Conteúdo**: Título dinâmico e campo de texto promocional para instruções e regras da lista.
+*   **Fallback Inteligente**: Caso nenhuma mídia seja enviada, o sistema aplica um visual padrão dinâmico para manter a estética premium.
+*   **Armazenamento**: Todos os arquivos são hospedados no Firebase Storage da agência.
+
 ---
 
 ## 📸 Fotos da "Audio Experience" (Locação)
