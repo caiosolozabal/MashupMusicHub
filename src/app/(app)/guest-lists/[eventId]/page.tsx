@@ -21,7 +21,8 @@ import {
   MoreVertical,
   Link as LinkIcon,
   Eye,
-  Layers
+  Layers,
+  Edit
 } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -31,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import GuestListFormDialog from '@/components/guest-lists/GuestListFormDialog';
 import SubmissionsDialog from '@/components/guest-lists/SubmissionsDialog';
 import BatchListDialog from '@/components/guest-lists/BatchListDialog';
+import GuestEventFormDialog from '@/components/guest-lists/GuestEventFormDialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
 
@@ -45,6 +47,7 @@ export default function GuestEventDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   // Dialogs
+  const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
   const [isBatchOpen, setIsBatchOpen] = useState(false);
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
@@ -114,6 +117,10 @@ export default function GuestEventDetailPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsEventFormOpen(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Configurar Evento
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setIsBatchOpen(true)}>
               <Layers className="mr-2 h-4 w-4" />
               Criar em Lote
@@ -213,6 +220,12 @@ export default function GuestEventDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      <GuestEventFormDialog 
+        isOpen={isEventFormOpen} 
+        onClose={() => setIsEventFormOpen(false)} 
+        event={event}
+      />
 
       <GuestListFormDialog 
         isOpen={isListFormOpen} 

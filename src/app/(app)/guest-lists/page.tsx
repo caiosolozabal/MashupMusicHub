@@ -7,7 +7,7 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, getDoc
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Ticket, Calendar, MapPin, Loader2, ChevronRight, Copy, MoreVertical, Trash2 } from 'lucide-react';
+import { PlusCircle, Ticket, Calendar, MapPin, Loader2, ChevronRight, Copy, MoreVertical, Trash2, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -23,6 +23,7 @@ export default function GuestListsAdminPage() {
   const [events, setEvents] = useState<GuestEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<GuestEvent | null>(null);
   const [isDuplicating, setIsDuplicating] = useState<string | null>(null);
 
   useEffect(() => {
@@ -95,6 +96,16 @@ export default function GuestListsAdminPage() {
     }
   };
 
+  const handleOpenEdit = (event: GuestEvent) => {
+    setSelectedEvent(event);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setSelectedEvent(null);
+    setIsFormOpen(false);
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -111,7 +122,7 @@ export default function GuestListsAdminPage() {
           <h1 className="text-3xl font-bold tracking-tight font-headline">Captação de Convidados</h1>
           <p className="text-muted-foreground">Gerencie as listas de nomes para seus eventos.</p>
         </div>
-        <Button onClick={() => setIsFormOpen(true)} className="bg-primary text-primary-foreground">
+        <Button onClick={() => { setSelectedEvent(null); setIsFormOpen(true); }} className="bg-primary text-primary-foreground">
           <PlusCircle className="mr-2 h-4 w-4" />
           Novo Evento
         </Button>
@@ -163,6 +174,9 @@ export default function GuestListsAdminPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleOpenEdit(event); }}>
+                      <Edit className="h-4 w-4 mr-2" /> Editar Evento
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={(e) => { e.preventDefault(); handleDuplicateEvent(event); }}>
                       {isDuplicating === event.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
                       Nova Edição (Duplicar)
@@ -175,7 +189,11 @@ export default function GuestListsAdminPage() {
         )}
       </div>
 
-      <GuestEventFormDialog isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} />
+      <GuestEventFormDialog 
+        isOpen={isFormOpen} 
+        onClose={handleCloseForm} 
+        event={selectedEvent}
+      />
     </div>
   );
 }
