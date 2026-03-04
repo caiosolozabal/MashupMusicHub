@@ -15,7 +15,8 @@
         "promoText": { "type": "string", "description": "Texto descritivo do evento." },
         "curfewAt": { "type": "string", "format": "date-time", "description": "Horário de fechamento automático das listas." },
         "isActive": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
     "GuestList": {
@@ -29,7 +30,8 @@
         "slug": { "type": "string", "description": "Slug único para a URL pública." },
         "capacity": { "type": "number", "description": "Limite opcional de nomes." },
         "statsToken": { "type": "string", "description": "Token para acesso às estatísticas sem login." },
-        "customMediaUrl": { "type": "string", "description": "Sobrescreve a mídia do evento se necessário." }
+        "customMediaUrl": { "type": "string", "description": "Sobrescreve a mídia do evento se necessário." },
+        "submissionCount": { "type": "number", "default": 0 }
       }
     },
     "GuestSubmission": {
@@ -53,13 +55,24 @@
       "description": "CRM Global - Dados consolidados do frequentador.",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "ID baseado no número do WhatsApp para deduplicação." },
+        "id": { "type": "string", "description": "UUID gerado pelo sistema." },
         "name": { "type": "string" },
         "whatsapp": { "type": "string" },
         "instagram": { "type": "string" },
         "email": { "type": "string" },
-        "tags": { "type": "array", "items": { "type": "string" }, "description": "Tags de comportamento (ex: 'house', 'vip-frequente')." },
-        "lastActivity": { "type": "string", "format": "date-time" }
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "lastActivity": { "type": "string", "format": "date-time" },
+        "attendanceCount": { "type": "number" }
+      }
+    },
+    "UrlSlug": {
+      "title": "UrlSlug",
+      "description": "Índice de slugs para busca rápida de páginas públicas.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["list"] },
+        "eventId": { "type": "string" },
+        "listId": { "type": "string" }
       }
     }
   },
@@ -83,6 +96,10 @@
       {
         "path": "/contacts/{contactId}",
         "definition": { "entityName": "Contact", "description": "Base de dados consolidada (CRM)." }
+      },
+      {
+        "path": "/slugs/{slug}",
+        "definition": { "entityName": "UrlSlug", "description": "Mapeamento de URLs amigáveis." }
       }
     ]
   }

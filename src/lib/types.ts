@@ -47,13 +47,14 @@ export interface GuestList {
   statsToken: string;
   customMediaUrl?: string | null;
   customPromoText?: string | null;
+  submissionCount: number;
 }
 
 export interface GuestSubmission {
   id: string;
   eventId: string;
   listId: string;
-  contactId: string;
+  contactId?: string | null;
   name: string;
   whatsapp?: string | null;
   instagram?: string | null;
@@ -62,14 +63,20 @@ export interface GuestSubmission {
 }
 
 export interface Contact {
-  id: string; // Document ID should be the cleaned WhatsApp number
+  id: string; // UUID
   name: string;
-  whatsapp: string;
+  whatsapp?: string | null;
   instagram?: string | null;
   email?: string | null;
   tags?: string[];
   lastActivity: Timestamp;
   attendanceCount: number;
+}
+
+export interface UrlSlug {
+  type: 'list';
+  eventId: string;
+  listId: string;
 }
 
 // --- EXISTING TYPES ---

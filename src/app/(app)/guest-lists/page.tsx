@@ -1,0 +1,104 @@
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, onSnapshot, query, orderBy, Timestamp } from 'firebase/firestore';
+import { useAuth } from '@/hooks/useAuth';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { PlusCircle, Ticket, Calendar, MapPin, Loader2, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import type { GuestEvent } from '@/lib/types';
+import GuestEventFormDialog from '@/components/guest-lists/GuestEventFormDialog';
+
+export default function GuestListsAdminPage() {
+  const { userDetails } = useAuth();
+  const [events, setEvents] = useState<GuestEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  useEffect(() => {
+    if (!userDetails || (userDetails.role !== 'admin' && userDetails.role !== 'partner')) return;
+
+    const q = query(collection(db, 'guest_events'), orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const eventList = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as GuestEvent));
+      setEvents(eventList);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userDetails]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-muted-foreground">Carregando eventos de captação...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Captação de Convidados</h1>
+          <p className="text-muted-foreground">Gerencie as listas de nomes para seus eventos.</p>
+        </div>
+        <Button onClick={() => setIsFormOpen(true)} className="bg-primary text-primary-foreground">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Novo Evento
+        </Button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {events.length === 0 ? (
+          <Card className="col-span-full border-dashed bg-muted/30">
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <Ticket className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <p className="text-lg font-medium text-muted-foreground">Nenhum evento criado</p>
+              <p className="text-sm text-muted-foreground max-w-xs mb-6">Crie seu primeiro evento para começar a captar nomes em listas personalizadas.</p>
+              <Button onClick={() => setIsFormOpen(true)} variant="outline">Criar meu primeiro evento</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          events.map((event) => (
+            <Link key={event.id} href={`/guest-lists/${event.id}`}>
+              <Card className="hover:border-primary transition-all cursor-pointer group">
+                <CardHeader className="pb-3">
+                  <div className="flex justify-between items-start">
+                    <CardTitle className="font-headline text-xl group-hover:text-primary transition-colors">{event.name}</CardTitle>
+                    <div className={`h-2 w-2 rounded-full ${event.isActive ? 'bg-green-500' : 'bg-muted-foreground'}`} />
+                  </div>
+                  <CardDescription className="flex items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {format(event.date.toDate(), "dd 'de' MMMM", { locale: ptBR })}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4">
+                    <MapPin className="h-3.5 w-3.5" />
+                    <span className="truncate">{event.location}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ver Listas</span>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))
+        )}
+      </div>
+
+      <GuestEventFormDialog isOpen={isFormOpen} onClose={() => setIsFormOpen(false)} />
+    </div>
+  );
+}
