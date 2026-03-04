@@ -71,6 +71,7 @@ export interface Contact {
   tags?: string[];
   lastActivity: Timestamp;
   attendanceCount: number;
+  updatedAt?: Timestamp;
 }
 
 export interface UrlSlug {
