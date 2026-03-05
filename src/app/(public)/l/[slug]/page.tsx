@@ -132,7 +132,7 @@ export default function PublicGuestListPage() {
                 <Badge className="bg-primary text-black px-6 py-1.5 rounded-full font-black uppercase tracking-[0.2em] text-[10px] shadow-[0_0_15px_rgba(132,255,30,0.3)]">
                   {list.name}
                 </Badge>
-                <div className="flex items-center gap-2 text-white/40">
+                <div className="flex items-center gap-2 text-white/60">
                   <Tag className="h-3 w-3" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Código: {slug}</span>
                 </div>
@@ -143,11 +143,11 @@ export default function PublicGuestListPage() {
               </h1>
               
               <div className="flex flex-wrap justify-center gap-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/80 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white bg-black/40 px-3 py-1.5 rounded-lg border border-white/10">
                   <Calendar className="h-3.5 w-3.5 text-primary" /> 
                   {format(event.date.toDate(), "dd 'de' MMMM", { locale: ptBR })}
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/80 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white bg-black/40 px-3 py-1.5 rounded-lg border border-white/10">
                   <MapPin className="h-3.5 w-3.5 text-primary" /> 
                   {event.location}
                 </div>
@@ -156,10 +156,10 @@ export default function PublicGuestListPage() {
 
             {isClosed ? (
               <div className="py-12 text-center space-y-6">
-                <Clock className="h-12 w-12 text-muted-foreground mx-auto" />
+                <Clock className="h-12 w-12 text-white/60 mx-auto" />
                 <div className="space-y-2">
-                  <h2 className="text-2xl font-black font-headline uppercase tracking-tight">Lista Encerrada</h2>
-                  <p className="text-sm text-muted-foreground font-medium">
+                  <h2 className="text-2xl font-black font-headline uppercase tracking-tight text-white">Lista Encerrada</h2>
+                  <p className="text-sm text-white/70 font-medium">
                     {closeReason === 'capacity' 
                       ? 'Infelizmente esta lista já atingiu o limite de nomes.' 
                       : 'O horário limite para envio de nomes nesta lista já passou.'}
@@ -189,10 +189,10 @@ export default function PublicGuestListPage() {
                 {/* Texto Geral do Evento */}
                 {event.promoText && (
                   <div className="pt-8 border-t border-white/10">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/40 mb-4 flex items-center gap-2">
-                      <Info className="h-4 w-4" /> Sobre o Evento
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/80 mb-4 flex items-center gap-2">
+                      <Info className="h-4 w-4 text-primary" /> Sobre o Evento
                     </h3>
-                    <p className="text-sm text-muted-foreground font-medium whitespace-pre-wrap leading-relaxed">
+                    <p className="text-sm text-white/90 font-medium whitespace-pre-wrap leading-relaxed">
                       {event.promoText}
                     </p>
                   </div>
@@ -202,9 +202,9 @@ export default function PublicGuestListPage() {
           </CardContent>
         </Card>
 
-        {/* Rodapé sutil */}
+        {/* Rodapé sutil com mais contraste */}
         <div className="text-center py-8">
-          <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/20">
+          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50">
             Powered by Mashup Music Hub
           </p>
         </div>
