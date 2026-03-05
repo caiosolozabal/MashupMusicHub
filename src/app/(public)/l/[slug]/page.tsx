@@ -102,7 +102,7 @@ export default function PublicGuestListPage() {
 
   return (
     <div className="relative min-h-screen text-white flex flex-col items-center overflow-x-hidden">
-      {/* Background Camada 1: Imagem nítida e visível (z-0) */}
+      {/* Background Camada 0: Imagem nítida e visível (z-0) */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         {bgUrl.includes('mp4') ? (
           <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-60" />
