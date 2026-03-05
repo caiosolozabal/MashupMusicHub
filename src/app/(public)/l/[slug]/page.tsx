@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -102,8 +101,8 @@ export default function PublicGuestListPage() {
 
   return (
     <div className="relative min-h-screen bg-black text-white flex flex-col items-center overflow-x-hidden">
-      {/* Background Camada 1: Imagem nítida ocupando toda a tela */}
-      <div className="fixed inset-0 z-0">
+      {/* Background Camada 1: Imagem nítida ocupando toda a tela. pointer-events-none impede que bloqueie o rodapé */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
         {bgUrl.includes('mp4') ? (
           <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-60 blur-[4px] scale-105" />
         ) : (
@@ -116,7 +115,6 @@ export default function PublicGuestListPage() {
             unoptimized 
           />
         )}
-        {/* Camada 2: Overlay Gradiente para garantir legibilidade dos textos sobre a imagem nítida */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
       </div>
 
@@ -132,7 +130,7 @@ export default function PublicGuestListPage() {
                 <Badge className="bg-primary text-black px-6 py-1.5 rounded-full font-black uppercase tracking-[0.2em] text-[10px] shadow-[0_0_15px_rgba(132,255,30,0.3)]">
                   {list.name}
                 </Badge>
-                <div className="flex items-center gap-2 text-white/60">
+                <div className="flex items-center gap-2 text-white/80">
                   <Tag className="h-3 w-3" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Código: {slug}</span>
                 </div>
@@ -201,13 +199,6 @@ export default function PublicGuestListPage() {
             )}
           </CardContent>
         </Card>
-
-        {/* Rodapé sutil com mais contraste */}
-        <div className="text-center py-8">
-          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/50">
-            Powered by Mashup Music Hub
-          </p>
-        </div>
       </div>
     </div>
   );
