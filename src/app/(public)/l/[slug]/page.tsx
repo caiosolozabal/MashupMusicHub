@@ -102,24 +102,31 @@ export default function PublicGuestListPage() {
 
   return (
     <div className="relative min-h-screen bg-black text-white flex flex-col items-center overflow-x-hidden">
-      {/* Background Camada 1: Imagem com tratamento imersivo */}
+      {/* Background Camada 1: Imagem nítida ocupando toda a tela */}
       <div className="fixed inset-0 z-0">
         {bgUrl.includes('mp4') ? (
-          <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-50 blur-[30px] scale-110" />
+          <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-60 blur-[4px] scale-105" />
         ) : (
-          <Image src={bgUrl} alt="Background" fill className="object-cover opacity-50 blur-[30px] scale-110" priority unoptimized />
+          <Image 
+            src={bgUrl} 
+            alt="Background" 
+            fill 
+            className="object-cover opacity-60 blur-[4px] scale-105" 
+            priority 
+            unoptimized 
+          />
         )}
-        {/* Camada 2: Gradient Overlay suave para contraste solicitado */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/20 to-black" />
+        {/* Camada 2: Overlay Gradiente para garantir legibilidade dos textos sobre a imagem nítida */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
       </div>
 
-      <div className="relative z-10 w-full max-w-2xl px-4 py-12 md:py-20 flex flex-col items-center min-h-screen">
+      <div className="relative z-10 w-full max-w-2xl px-4 py-8 md:py-16 flex flex-col items-center min-h-screen">
         
-        {/* Card Flutuante com Glassmorphism (Specs Lucas) */}
-        <Card className="w-full border-white/[0.08] bg-[#0a0a0a]/65 backdrop-blur-[16px] shadow-2xl rounded-[16px] overflow-hidden ring-1 ring-white/5">
+        {/* Card Flutuante com Glassmorphism Rigoroso */}
+        <Card className="w-full border-white/[0.08] bg-[#0a0a0a]/65 backdrop-blur-[16px] shadow-2xl rounded-[16px] overflow-hidden">
           <CardContent className="p-6 md:p-10 space-y-8">
             
-            {/* Cabeçalho do Evento - Agora dentro do card para contraste garantido */}
+            {/* Cabeçalho do Evento */}
             <div className="text-center space-y-4">
               <div className="inline-flex flex-col items-center gap-2">
                 <Badge className="bg-primary text-black px-6 py-1.5 rounded-full font-black uppercase tracking-[0.2em] text-[10px] shadow-[0_0_15px_rgba(132,255,30,0.3)]">
@@ -136,11 +143,11 @@ export default function PublicGuestListPage() {
               </h1>
               
               <div className="flex flex-wrap justify-center gap-4">
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/80 bg-black/20 px-3 py-1.5 rounded-lg border border-white/5">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/80 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
                   <Calendar className="h-3.5 w-3.5 text-primary" /> 
                   {format(event.date.toDate(), "dd 'de' MMMM", { locale: ptBR })}
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/80 bg-black/20 px-3 py-1.5 rounded-lg border border-white/5">
+                <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/80 bg-black/40 px-3 py-1.5 rounded-lg border border-white/5">
                   <MapPin className="h-3.5 w-3.5 text-primary" /> 
                   {event.location}
                 </div>
