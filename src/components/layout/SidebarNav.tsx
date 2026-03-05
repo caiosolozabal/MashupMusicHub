@@ -23,10 +23,10 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Painel', icon: LayoutDashboard, roles: ['admin', 'partner', 'dj'] },
   { href: '/schedule', label: 'Agenda de Eventos', icon: CalendarDays, roles: ['admin', 'partner', 'dj'] },
-  { href: '/guest-lists', label: 'Captação de Listas', icon: Ticket, roles: ['admin', 'partner'] },
-  { href: '/contacts', label: 'CRM Contatos', icon: Contact2, roles: ['admin', 'partner'] },
+  { href: '/guest-lists', label: 'Captação de Listas', icon: Ticket, roles: ['admin', 'partner'], exact: false },
+  { href: '/contacts', label: 'CRM Contatos', icon: Contact2, roles: ['admin', 'partner'], exact: false },
   { href: '/tasks', label: 'Avisos e tarefas', icon: ClipboardList, roles: ['admin', 'partner', 'dj'] },
-  { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'] },
+  { href: '/settlements', label: 'Fechamentos', icon: DollarSign, roles: ['admin', 'partner', 'dj'], exact: false },
   { href: '/rental', label: 'Locação', icon: Package, roles: ['admin', 'partner'], exact: false },
   { href: '/djs', label: 'Vitrine de DJs', icon: Users, roles: ['admin', 'partner', 'dj'], exact: false },
   { href: '/settings', label: 'Configurações', icon: Settings, roles: ['admin', 'partner', 'dj'], exact: false },

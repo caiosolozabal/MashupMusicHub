@@ -15,7 +15,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="theme-neon flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
+    <div className="theme-neon flex min-h-screen flex-col text-foreground transition-colors duration-300">
       <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-black/95 backdrop-blur-md">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between">
