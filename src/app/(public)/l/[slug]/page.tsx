@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -101,17 +100,17 @@ export default function PublicGuestListPage() {
   const bgUrl = event.backgroundUrl || event.mediaUrl || 'https://picsum.photos/seed/mashup-bg/1920/1080';
 
   return (
-    <div className="relative min-h-screen text-white flex flex-col items-center overflow-x-hidden">
-      {/* Background Camada 0: Imagem nítida e visível */}
+    <div className="relative min-h-screen flex flex-col items-center overflow-x-hidden">
+      {/* Background Camada 0: Imagem nítida */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         {bgUrl.includes('mp4') ? (
-          <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-60" />
+          <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover" />
         ) : (
           <Image 
             src={bgUrl} 
             alt="Background" 
             fill 
-            className="object-cover opacity-60" 
+            className="object-cover" 
             priority 
             unoptimized 
           />
@@ -119,13 +118,10 @@ export default function PublicGuestListPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
       </div>
 
+      {/* Conteúdo Camada 10: Glassmorphism */}
       <div className="relative z-10 w-full max-w-2xl px-4 py-8 md:py-16 flex flex-col items-center min-h-screen">
-        
-        {/* Card Flutuante com Glassmorphism */}
         <Card className="w-full border-white/[0.08] bg-[#0a0a0a]/65 backdrop-blur-[16px] shadow-2xl rounded-[16px] overflow-hidden">
           <CardContent className="p-6 md:p-10 space-y-8">
-            
-            {/* Cabeçalho do Evento */}
             <div className="text-center space-y-4">
               <div className="inline-flex flex-col items-center gap-2">
                 <Badge className="bg-primary text-black px-6 py-1.5 rounded-full font-black uppercase tracking-[0.2em] text-[10px] shadow-[0_0_15px_rgba(132,255,30,0.3)]">
@@ -158,7 +154,7 @@ export default function PublicGuestListPage() {
                 <Clock className="h-12 w-12 text-white/60 mx-auto" />
                 <div className="space-y-2">
                   <h2 className="text-2xl font-black font-headline uppercase tracking-tight text-white">Lista Encerrada</h2>
-                  <p className="text-sm text-white font-medium">
+                  <p className="text-sm text-white/80 font-medium">
                     {closeReason === 'capacity' 
                       ? 'Infelizmente esta lista já atingiu o limite de nomes.' 
                       : 'O horário limite para envio de nomes nesta lista já passou.'}
@@ -167,7 +163,6 @@ export default function PublicGuestListPage() {
               </div>
             ) : (
               <>
-                {/* Valores e Regras da Lista */}
                 {list.customPromoText && (
                   <div className="p-6 bg-primary/10 border border-primary/20 rounded-2xl space-y-4">
                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
@@ -185,7 +180,6 @@ export default function PublicGuestListPage() {
                   onSuccess={(id) => router.push(`/l/${slug}/success?id=${id}`)} 
                 />
 
-                {/* Texto Geral do Evento */}
                 {event.promoText && (
                   <div className="pt-8 border-t border-white/10">
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-4 flex items-center gap-2">
