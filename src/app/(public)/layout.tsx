@@ -16,7 +16,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="theme-neon flex min-h-screen flex-col bg-background text-foreground transition-colors duration-300">
-      <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-black/95 backdrop-blur-md">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-12">
@@ -42,16 +42,16 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main className="flex-1 relative z-10">
         {children}
       </main>
 
-      <footer className="relative z-10 border-t border-white/10 bg-black/90 py-16">
+      <footer className="relative z-20 border-t border-white/10 bg-black py-16">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="flex flex-col items-start space-y-6">
               <Logo />
-              <p className="text-sm text-white/70 max-w-xs font-body leading-relaxed">
+              <p className="text-sm text-white max-w-xs font-body leading-relaxed">
                 A agência que conecta os melhores talentos da música aos eventos mais exclusivos do Brasil.
               </p>
             </div>
@@ -59,9 +59,9 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
             <div className="flex flex-col items-start space-y-6">
               <h4 className="text-xs font-black uppercase tracking-[0.2em] text-primary">Navegação</h4>
               <nav className="flex flex-col gap-3">
-                <Link href="/djs" className="text-sm text-white/60 hover:text-primary transition-colors font-body">Elenco</Link>
-                <Link href="/equipamentos" className="text-sm text-white/60 hover:text-primary transition-colors font-body">Audio Experience</Link>
-                <Link href="/login" className="text-sm text-white/60 hover:text-primary transition-colors font-body">Área Restrita</Link>
+                <Link href="/djs" className="text-sm text-white hover:text-primary transition-colors font-body">Elenco</Link>
+                <Link href="/equipamentos" className="text-sm text-white hover:text-primary transition-colors font-body">Audio Experience</Link>
+                <Link href="/login" className="text-sm text-white hover:text-primary transition-colors font-body">Área Restrita</Link>
               </nav>
             </div>
 
@@ -71,7 +71,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                 <Link 
                   href="https://instagram.com/mashuprio" 
                   target="_blank" 
-                  className="text-white/70 hover:text-primary transition-colors"
+                  className="text-white hover:text-primary transition-colors"
                   aria-label="Instagram"
                 >
                   <Instagram className="h-6 w-6" />
@@ -79,7 +79,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
                 <Link 
                   href="https://wa.me/5521976950231" 
                   target="_blank" 
-                  className="text-white/70 hover:text-primary transition-colors"
+                  className="text-white hover:text-primary transition-colors"
                   aria-label="WhatsApp"
                 >
                   <MessageCircle className="h-6 w-6" />
@@ -89,7 +89,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           </div>
           
           <div className="mt-16 border-t border-white/5 pt-8 text-center md:text-left">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-white/40 font-black">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-white/60 font-black">
               © {isMounted ? new Date().getFullYear() : ''} Mashup Music Hub. Todos os direitos reservados.
             </p>
           </div>

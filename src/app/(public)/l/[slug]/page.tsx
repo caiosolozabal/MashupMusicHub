@@ -101,16 +101,16 @@ export default function PublicGuestListPage() {
 
   return (
     <div className="relative min-h-screen bg-black text-white flex flex-col items-center overflow-x-hidden">
-      {/* Background Camada 1: Imagem nítida ocupando toda a tela. pointer-events-none impede que bloqueie o rodapé */}
-      <div className="fixed inset-0 z-0 pointer-events-none">
+      {/* Background Camada 1: Imagem nítida e atrás de tudo (-z-10) */}
+      <div className="fixed inset-0 -z-10 pointer-events-none">
         {bgUrl.includes('mp4') ? (
-          <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-60 blur-[4px] scale-105" />
+          <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-60" />
         ) : (
           <Image 
             src={bgUrl} 
             alt="Background" 
             fill 
-            className="object-cover opacity-60 blur-[4px] scale-105" 
+            className="object-cover opacity-60" 
             priority 
             unoptimized 
           />
@@ -130,8 +130,8 @@ export default function PublicGuestListPage() {
                 <Badge className="bg-primary text-black px-6 py-1.5 rounded-full font-black uppercase tracking-[0.2em] text-[10px] shadow-[0_0_15px_rgba(132,255,30,0.3)]">
                   {list.name}
                 </Badge>
-                <div className="flex items-center gap-2 text-white/80">
-                  <Tag className="h-3 w-3" />
+                <div className="flex items-center gap-2 text-white">
+                  <Tag className="h-3 w-3 text-primary" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Código: {slug}</span>
                 </div>
               </div>
@@ -157,7 +157,7 @@ export default function PublicGuestListPage() {
                 <Clock className="h-12 w-12 text-white/60 mx-auto" />
                 <div className="space-y-2">
                   <h2 className="text-2xl font-black font-headline uppercase tracking-tight text-white">Lista Encerrada</h2>
-                  <p className="text-sm text-white/70 font-medium">
+                  <p className="text-sm text-white font-medium">
                     {closeReason === 'capacity' 
                       ? 'Infelizmente esta lista já atingiu o limite de nomes.' 
                       : 'O horário limite para envio de nomes nesta lista já passou.'}
@@ -187,10 +187,10 @@ export default function PublicGuestListPage() {
                 {/* Texto Geral do Evento */}
                 {event.promoText && (
                   <div className="pt-8 border-t border-white/10">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white/80 mb-4 flex items-center gap-2">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-4 flex items-center gap-2">
                       <Info className="h-4 w-4 text-primary" /> Sobre o Evento
                     </h3>
-                    <p className="text-sm text-white/90 font-medium whitespace-pre-wrap leading-relaxed">
+                    <p className="text-sm text-white font-medium whitespace-pre-wrap leading-relaxed">
                       {event.promoText}
                     </p>
                   </div>
