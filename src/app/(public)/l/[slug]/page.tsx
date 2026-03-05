@@ -102,7 +102,7 @@ export default function PublicGuestListPage() {
 
   return (
     <div className="relative min-h-screen text-white flex flex-col items-center overflow-x-hidden">
-      {/* Background Camada 0: Imagem nítida e visível (z-0) */}
+      {/* Background Camada 0: Imagem nítida e visível */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         {bgUrl.includes('mp4') ? (
           <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-60" />
@@ -121,7 +121,7 @@ export default function PublicGuestListPage() {
 
       <div className="relative z-10 w-full max-w-2xl px-4 py-8 md:py-16 flex flex-col items-center min-h-screen">
         
-        {/* Card Flutuante com Glassmorphism Rigoroso */}
+        {/* Card Flutuante com Glassmorphism */}
         <Card className="w-full border-white/[0.08] bg-[#0a0a0a]/65 backdrop-blur-[16px] shadow-2xl rounded-[16px] overflow-hidden">
           <CardContent className="p-6 md:p-10 space-y-8">
             
@@ -191,7 +191,7 @@ export default function PublicGuestListPage() {
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-4 flex items-center gap-2">
                       <Info className="h-4 w-4 text-primary" /> Sobre o Evento
                     </h3>
-                    <p className="text-sm text-white font-medium whitespace-pre-wrap leading-relaxed">
+                    <p className="text-sm text-white/90 font-medium whitespace-pre-wrap leading-relaxed">
                       {event.promoText}
                     </p>
                   </div>

@@ -90,7 +90,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
           </div>
           
           <div className="mt-16 border-t border-white/5 pt-8 text-center md:text-left">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-white/60 font-black">
+            <p className="text-[10px] uppercase tracking-[0.3em] text-white font-black">
               © {isMounted ? new Date().getFullYear() : ''} Mashup Music Hub. Todos os direitos reservados.
             </p>
           </div>

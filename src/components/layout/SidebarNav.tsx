@@ -39,14 +39,11 @@ export default function SidebarNav() {
   const { setOpenMobile, isMobile } = useSidebar();
 
   const canView = (itemRoles: UserRole[]): boolean => {
-    if (loading) {
-      return false;
-    }
+    if (loading) return false;
     const userRole = userDetails?.role ?? null;
     return itemRoles.includes(userRole);
   };
 
-  // FECHAMENTO MANUAL: Chamado apenas quando o usuário clica em um link no mobile.
   const handleLinkClick = () => {
     if (isMobile) {
       setOpenMobile(false);
