@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -100,9 +101,9 @@ export default function PublicGuestListPage() {
   const bgUrl = event.backgroundUrl || event.mediaUrl || 'https://picsum.photos/seed/mashup-bg/1920/1080';
 
   return (
-    <div className="relative min-h-screen bg-black text-white flex flex-col items-center overflow-x-hidden">
-      {/* Background Camada 1: Imagem nítida e atrás de tudo (-z-10) */}
-      <div className="fixed inset-0 -z-10 pointer-events-none">
+    <div className="relative min-h-screen text-white flex flex-col items-center overflow-x-hidden">
+      {/* Background Camada 1: Imagem nítida e visível (z-0) */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
         {bgUrl.includes('mp4') ? (
           <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover opacity-60" />
         ) : (
