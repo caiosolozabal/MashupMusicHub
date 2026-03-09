@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, writeBatch, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +25,7 @@ interface BatchListDialogProps {
   onClose: (created?: boolean) => void;
   eventId: string;
   eventName: string;
+  eventSlug: string;
 }
 
 interface ListPackage {
@@ -40,7 +41,7 @@ const INITIAL_PACKAGES: ListPackage[] = [
   { id: uuidv4(), name: 'Aniversariante: Nome', values: 'CONVIDADO: R$ 50\nANIVERSARIANTE: VIP' },
 ];
 
-export default function BatchListDialog({ isOpen, onClose, eventId, eventName }: BatchListDialogProps) {
+export default function BatchListDialog({ isOpen, onClose, eventId, eventName, eventSlug }: BatchListDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [step, setStep] = useState<'form' | 'success'>('form');
@@ -107,11 +108,9 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
         let baseSlug = slugify(item.name);
         if (slugPrefix) baseSlug = `${slugify(slugPrefix)}-${baseSlug}`;
         
+        // No novo sistema hierárquico, o slug da lista não precisa ser validado globalmente,
+        // mas aqui mantemos uma limpeza básica.
         let finalSlug = baseSlug;
-        const slugCheck = await getDoc(doc(db, 'slugs', finalSlug));
-        if (slugCheck.exists()) {
-          finalSlug = `${baseSlug}-${Math.floor(Math.random() * 1000)}`;
-        }
 
         const listData = {
           id: listId,
@@ -126,11 +125,10 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
         };
 
         batch.set(doc(db, 'guest_events', eventId, 'lists', listId), listData);
-        batch.set(doc(db, 'slugs', finalSlug), { type: 'list', eventId, listId });
 
         resultSummary.push({
           ...listData,
-          publicUrl: `${window.location.origin}/l/${finalSlug}`,
+          publicUrl: `${window.location.origin}/l/${eventSlug}/${finalSlug}`,
         });
       }
 
@@ -169,7 +167,7 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
         {step === 'form' ? (
           <div className="flex-1 overflow-y-auto p-6 pt-0 space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="prefix">Prefixo dos Links (Opcional - Ex: farra-mar)</Label>
+              <Label htmlFor="prefix">Prefixo dos Identificadores (Opcional - Ex: promoter)</Label>
               <Input id="prefix" placeholder="Omitir para usar apenas o nome da lista" value={slugPrefix} onChange={(e) => setPrefix(e.target.value)} />
             </div>
 
@@ -204,7 +202,7 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
                       </div>
                       <div className="space-y-1">
                         <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1 flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> Valores por Horário (Uma faixa por linha)
+                          <Clock className="h-3 w-3" /> Valores por Horário
                         </Label>
                         <Textarea 
                           value={pkg.values} 
@@ -233,7 +231,6 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName }:
                       value={promoterValues}
                       onChange={(e) => setPromoterValues(e.target.value)}
                     />
-                    <p className="text-[10px] text-muted-foreground">Este texto será replicado em todos os nomes colados abaixo.</p>
                   </div>
                 </div>
 

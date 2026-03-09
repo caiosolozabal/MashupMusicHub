@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
-import { doc, setDoc, updateDoc, serverTimestamp, collection, getDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -80,15 +80,8 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
   const onSubmit = async (data: GuestListFormValues) => {
     setIsSubmitting(true);
     try {
-      const slugRef = doc(db, 'slugs', data.slug);
-      const slugSnap = await getDoc(slugRef);
-      
-      if (slugSnap.exists() && (!list || list.slug !== data.slug)) {
-        toast({ variant: 'destructive', title: 'Slug indisponível', description: 'Este link já está sendo usado por outra lista.' });
-        setIsSubmitting(false);
-        return;
-      }
-
+      // No modelo hierárquico, a validação de slug é feita pelo contexto (Evento + Lista)
+      // Aqui simplificamos pois o slug da lista só precisa ser único dentro do evento.
       const listId = list?.id || uuidv4();
       const statsToken = list?.statsToken || uuidv4().substring(0, 8);
       
@@ -106,9 +99,6 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
       
       if (list) {
         await updateDoc(listDocRef, listPayload);
-        if (list.slug !== data.slug) {
-          await setDoc(slugRef, { type: 'list', eventId, listId });
-        }
       } else {
         await setDoc(listDocRef, {
           ...listPayload,
@@ -116,7 +106,6 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
           submissionCount: 0,
           createdAt: serverTimestamp(),
         });
-        await setDoc(slugRef, { type: 'list', eventId, listId });
       }
 
       toast({ title: list ? 'Lista atualizada!' : 'Lista criada!' });
@@ -148,10 +137,10 @@ export default function GuestListFormDialog({ isOpen, onClose, eventId, list }: 
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="slug">Link Amigável (Slug)</Label>
+            <Label htmlFor="slug">Identificador do Link (Slug)</Label>
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-sm">/l/</span>
-              <Input id="slug" {...register('slug')} placeholder="link-da-festa" />
+              <span className="text-muted-foreground text-sm">/[evento]/</span>
+              <Input id="slug" {...register('slug')} placeholder="link-da-lista" />
             </div>
             {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
           </div>

@@ -7,7 +7,7 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, getDoc
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Ticket, Calendar, MapPin, Loader2, ChevronRight, Copy, MoreVertical, Trash2, Edit } from 'lucide-react';
+import { PlusCircle, Ticket, Calendar, MapPin, Loader2, ChevronRight, Copy, MoreVertical, Trash2, Edit, Link as LinkIcon } from 'lucide-react';
 import Link from 'next/link';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -48,15 +48,23 @@ export default function GuestListsAdminPage() {
       // 1. Criar novo Evento (Data + 7 dias por padrão)
       const newEventDate = addDays(originalEvent.date.toDate(), 7);
       const newEventName = `${originalEvent.name} (Cópia)`;
+      const newEventSlug = `${originalEvent.slug}-copia-${Math.floor(Math.random() * 1000)}`;
       
       const newEventRef = await addDoc(collection(db, 'guest_events'), {
         ...originalEvent,
-        id: undefined, // Deixar o Firestore gerar
+        id: undefined, 
         name: newEventName,
+        slug: newEventSlug,
         date: newEventDate,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         isActive: true,
+      });
+
+      // Registrar Novo Slug do Evento
+      await setDoc(doc(db, 'slugs', newEventSlug), {
+        type: 'event',
+        eventId: newEventRef.id
       });
 
       // 2. Buscar e clonar Listas
@@ -65,26 +73,17 @@ export default function GuestListsAdminPage() {
       for (const listDoc of listsSnap.docs) {
         const listData = listDoc.data() as GuestList;
         const newListId = uuidv4();
-        const newSlug = `${listData.slug}-${Math.floor(Math.random() * 1000)}`;
         const newStatsToken = uuidv4().substring(0, 8);
 
-        // Salvar Lista
+        // Salvar Lista (mantém o mesmo slug da lista, pois agora é hierárquico)
         await setDoc(doc(db, 'guest_events', newEventRef.id, 'lists', newListId), {
           ...listData,
           id: newListId,
           eventId: newEventRef.id,
-          slug: newSlug,
           statsToken: newStatsToken,
           submissionCount: 0,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-        });
-
-        // Registrar Slug
-        await setDoc(doc(db, 'slugs', newSlug), {
-          type: 'list',
-          eventId: newEventRef.id,
-          listId: newListId
         });
       }
 
@@ -165,9 +164,13 @@ export default function GuestListsAdminPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-4">
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
                       <MapPin className="h-3.5 w-3.5" />
                       <span className="truncate">{event.location}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-primary font-bold uppercase tracking-widest">
+                      <LinkIcon className="h-3 w-3" />
+                      <span>/l/{event.slug}</span>
                     </div>
                     <div className="flex items-center justify-between mt-auto pt-4 border-t border-border/50">
                       <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ver Listas</span>

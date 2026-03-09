@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { db, storage } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,12 +19,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
-import { Loader2, Upload, Image as ImageIcon, Video, X, CheckCircle2, Instagram } from 'lucide-react';
+import { Loader2, Upload, Image as ImageIcon, Video, X, CheckCircle2, Instagram, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 const guestEventSchema = z.object({
   name: z.string().min(3, 'Nome é obrigatório'),
+  slug: z.string().min(3, 'Link do evento é obrigatório').regex(/^[a-z0-9-]+$/, 'Use apenas letras minúsculas, números e hífens'),
   date: z.string().min(1, 'Data é obrigatória'),
   location: z.string().min(1, 'Local é obrigatório'),
   instagramHandle: z.string().optional(),
@@ -52,6 +53,7 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
     resolver: zodResolver(guestEventSchema),
     defaultValues: {
       name: '',
+      slug: '',
       date: '',
       location: '',
       instagramHandle: '',
@@ -62,13 +64,27 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
     }
   });
 
+  const nameValue = watch('name');
   const mediaUrl = watch('mediaUrl');
   const backgroundUrl = watch('backgroundUrl');
+
+  useEffect(() => {
+    if (!event && nameValue) {
+      const generatedSlug = nameValue
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+      setValue('slug', generatedSlug);
+    }
+  }, [nameValue, event, setValue]);
 
   useEffect(() => {
     if (event && isOpen) {
       reset({
         name: event.name,
+        slug: event.slug || '',
         date: event.date ? format(event.date.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
         location: event.location,
         instagramHandle: event.instagramHandle || '',
@@ -80,6 +96,7 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
     } else if (isOpen) {
       reset({
         name: '',
+        slug: '',
         date: '',
         location: '',
         instagramHandle: '',
@@ -93,12 +110,6 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
 
   const handleFileUpload = async (file: File, type: 'media' | 'background') => {
     if (!file) return;
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ variant: 'destructive', title: 'Arquivo muito grande', description: 'O limite é de 10MB.' });
-      return;
-    }
-
     const setter = type === 'media' ? setIsUploadingMedia : setIsUploadingBg;
     const field = type === 'media' ? 'mediaUrl' : 'backgroundUrl';
     
@@ -109,30 +120,13 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
 
     try {
       const uploadTask = uploadBytesResumable(fileRef, file);
-      
-      return new Promise((resolve, reject) => {
-        uploadTask.on('state_changed', 
-          null, 
-          (error) => {
-            console.error("Upload error:", error);
-            toast({ 
-              variant: 'destructive', 
-              title: 'Erro no upload', 
-              description: 'Verifique as permissões de Storage.' 
-            });
-            setter(false);
-            reject(error);
-          }, 
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            setValue(field, downloadURL);
-            setter(false);
-            resolve(downloadURL);
-          }
-        );
-      });
+      const snapshot = await uploadTask;
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      setValue(field, downloadURL);
     } catch (e: any) {
       console.error(e);
+      toast({ variant: 'destructive', title: 'Erro no upload' });
+    } finally {
       setter(false);
     }
   };
@@ -140,8 +134,18 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
   const onSubmit = async (data: GuestEventFormValues) => {
     setIsSubmitting(true);
     try {
+      const slugRef = doc(db, 'slugs', data.slug);
+      const slugSnap = await getDoc(slugRef);
+      
+      if (slugSnap.exists() && (!event || event.slug !== data.slug)) {
+        toast({ variant: 'destructive', title: 'Slug indisponível', description: 'Este link de evento já está sendo usado.' });
+        setIsSubmitting(false);
+        return;
+      }
+
       const payload = {
         name: data.name,
+        slug: data.slug,
         date: Timestamp.fromDate(new Date(data.date)),
         location: data.location,
         instagramHandle: data.instagramHandle || null,
@@ -155,12 +159,16 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
 
       if (event) {
         await updateDoc(doc(db, 'guest_events', event.id), payload);
+        if (event.slug !== data.slug) {
+          await setDoc(slugRef, { type: 'event', eventId: event.id });
+        }
         toast({ title: 'Evento atualizado!' });
       } else {
-        await addDoc(collection(db, 'guest_events'), {
+        const newEventRef = await addDoc(collection(db, 'guest_events'), {
           ...payload,
           createdAt: serverTimestamp(),
         });
+        await setDoc(slugRef, { type: 'event', eventId: newEventRef.id });
         toast({ title: 'Evento criado com sucesso!' });
       }
       onClose();
@@ -185,6 +193,17 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
                 <Label htmlFor="name">Nome do Evento</Label>
                 <Input id="name" {...register('name')} placeholder="Ex: Farra 07/03" />
                 {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="slug" className="flex items-center gap-2">
+                  <LinkIcon className="h-3.5 w-3.5" /> Link Base do Evento (Slug)
+                </Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground text-xs">/l/</span>
+                  <Input id="slug" {...register('slug')} placeholder="link-do-evento" />
+                </div>
+                {errors.slug && <p className="text-xs text-destructive">{errors.slug.message}</p>}
               </div>
               
               <div className="grid grid-cols-1 gap-4">

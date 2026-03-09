@@ -27,9 +27,10 @@ export interface UserDetails {
 export interface GuestEvent {
   id: string;
   name: string;
+  slug: string; // Novo campo obrigatório
   date: Timestamp;
   location: string;
-  instagramHandle?: string | null; // Novo campo
+  instagramHandle?: string | null;
   mediaUrl?: string | null;
   backgroundUrl?: string | null;
   promoText?: string | null;
@@ -76,9 +77,9 @@ export interface Contact {
 }
 
 export interface UrlSlug {
-  type: 'list';
+  type: 'event' | 'list';
   eventId: string;
-  listId: string;
+  listId?: string | null;
 }
 
 // --- EXISTING TYPES ---

@@ -82,7 +82,7 @@ export default function GuestEventDetailPage() {
   };
 
   const handleDeleteList = async (listId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta lista? Todos os inscritos permanecerão no banco de dados, mas o link parará de funcionar.')) return;
+    if (!confirm('Tem certeza que deseja excluir esta lista?')) return;
     try {
       await deleteDoc(doc(db, 'guest_events', eventId as string, 'lists', listId));
       toast({ title: 'Lista excluída' });
@@ -92,7 +92,7 @@ export default function GuestEventDetailPage() {
   };
 
   const handleDeleteEvent = async () => {
-    if (!confirm('ATENÇÃO: Você está prestes a excluir o EVENTO inteiro. Isso removerá o acesso a todas as listas deste evento aqui no painel. Continuar?')) return;
+    if (!confirm('ATENÇÃO: Você está prestes a excluir o EVENTO inteiro.')) return;
     try {
       await deleteDoc(doc(db, 'guest_events', eventId as string));
       toast({ title: 'Evento excluído' });
@@ -123,9 +123,15 @@ export default function GuestEventDetailPage() {
         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight font-headline">{event.name}</h1>
-            <p className="text-muted-foreground">
-              {format(event.date.toDate(), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })} • {event.location}
-            </p>
+            <div className="flex flex-col gap-1 mt-1">
+              <p className="text-muted-foreground text-sm">
+                {format(event.date.toDate(), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })} • {event.location}
+              </p>
+              <div className="flex items-center gap-1.5 text-[10px] text-primary font-black uppercase tracking-widest">
+                <LinkIcon className="h-3 w-3" />
+                <span>Link Base: /l/{event.slug}/...</span>
+              </div>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setIsEventFormOpen(true)}>
@@ -169,8 +175,8 @@ export default function GuestEventDetailPage() {
             ) : (
               <div className="space-y-3">
                 {lists.map((list) => {
-                  const publicUrl = `${window.location.origin}/l/${list.slug}`;
-                  const statsUrl = `${window.location.origin}/stats/${list.slug}?token=${list.statsToken}`;
+                  const publicUrl = `${window.location.origin}/l/${event.slug}/${list.slug}`;
+                  const statsUrl = `${window.location.origin}/stats/${event.slug}/${list.slug}?token=${list.statsToken}`;
 
                   return (
                     <div key={list.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors gap-4">
@@ -181,7 +187,7 @@ export default function GuestEventDetailPage() {
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <LinkIcon className="h-3 w-3" />
-                          <span>/{list.slug}</span>
+                          <span>/{event.slug}/{list.slug}</span>
                         </div>
                       </div>
 
@@ -254,6 +260,7 @@ export default function GuestEventDetailPage() {
         onClose={() => setIsBatchOpen(false)}
         eventId={eventId as string}
         eventName={event.name}
+        eventSlug={event.slug}
       />
 
       <SubmissionsDialog
