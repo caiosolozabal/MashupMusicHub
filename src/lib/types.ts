@@ -29,6 +29,7 @@ export interface GuestEvent {
   name: string;
   date: Timestamp;
   location: string;
+  instagramHandle?: string | null; // Novo campo
   mediaUrl?: string | null;
   backgroundUrl?: string | null;
   promoText?: string | null;
@@ -46,7 +47,7 @@ export interface GuestList {
   capacity?: number | null;
   statsToken: string;
   customMediaUrl?: string | null;
-  customPromoText?: string | null; // Novo campo para valores/regras do lote
+  customPromoText?: string | null;
   submissionCount: number;
 }
 

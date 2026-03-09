@@ -19,15 +19,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useState, useEffect } from 'react';
-import { Loader2, Upload, Image as ImageIcon, Video, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, Upload, Image as ImageIcon, Video, X, CheckCircle2, Instagram } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import Image from 'next/image';
 
 const guestEventSchema = z.object({
   name: z.string().min(3, 'Nome é obrigatório'),
   date: z.string().min(1, 'Data é obrigatória'),
   location: z.string().min(1, 'Local é obrigatório'),
+  instagramHandle: z.string().optional(),
   promoText: z.string().optional(),
   curfewAt: z.string().optional(),
   mediaUrl: z.string().optional().nullable(),
@@ -54,6 +54,7 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
       name: '',
       date: '',
       location: '',
+      instagramHandle: '',
       promoText: '',
       curfewAt: '',
       mediaUrl: null,
@@ -70,6 +71,7 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
         name: event.name,
         date: event.date ? format(event.date.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
         location: event.location,
+        instagramHandle: event.instagramHandle || '',
         promoText: event.promoText || '',
         curfewAt: event.curfewAt ? format(event.curfewAt.toDate(), "yyyy-MM-dd'T'HH:mm") : '',
         mediaUrl: event.mediaUrl || null,
@@ -80,6 +82,7 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
         name: '',
         date: '',
         location: '',
+        instagramHandle: '',
         promoText: '',
         curfewAt: '',
         mediaUrl: null,
@@ -100,7 +103,6 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
     const field = type === 'media' ? 'mediaUrl' : 'backgroundUrl';
     
     setter(true);
-    // Garantir que temos um ID para o caminho do storage, mesmo que o evento seja novo
     const tempId = event?.id || 'temp_' + Math.random().toString(36).substring(7);
     const filePath = `events/${tempId}/assets/${Date.now()}-${file.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase()}`;
     const fileRef = storageRef(storage, filePath);
@@ -113,11 +115,10 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
           null, 
           (error) => {
             console.error("Upload error:", error);
-            // Mensagem de erro mais instrutiva para CORS e Regras
             toast({ 
               variant: 'destructive', 
               title: 'Erro no upload', 
-              description: 'Verifique se as Regras de Segurança no Console do Firebase permitem o upload ou se o CORS foi configurado.' 
+              description: 'Verifique as permissões de Storage.' 
             });
             setter(false);
             reject(error);
@@ -143,6 +144,7 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
         name: data.name,
         date: Timestamp.fromDate(new Date(data.date)),
         location: data.location,
+        instagramHandle: data.instagramHandle || null,
         promoText: data.promoText || null,
         curfewAt: data.curfewAt ? Timestamp.fromDate(new Date(data.curfewAt)) : null,
         mediaUrl: data.mediaUrl || null,
@@ -204,6 +206,13 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="instagramHandle" className="flex items-center gap-2">
+                  <Instagram className="h-3.5 w-3.5" /> Instagram do Evento (Opcional)
+                </Label>
+                <Input id="instagramHandle" {...register('instagramHandle')} placeholder="Ex: @nossodomingo" />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="promoText">Texto Promocional / Regras</Label>
                 <Textarea id="promoText" {...register('promoText')} placeholder="Instruções para o convidado..." className="min-h-[120px]" />
               </div>
@@ -220,7 +229,6 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
                   {isUploadingMedia ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10">
                       <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                      <span className="text-[10px] font-bold mt-2">Enviando...</span>
                     </div>
                   ) : mediaUrl ? (
                     <div className="h-full w-full relative">
@@ -242,7 +250,6 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
                       <Video className="h-8 w-8 mb-2 opacity-20" />
-                      <p className="text-[9px] font-bold uppercase tracking-widest">Vídeo MP4 ou Imagem</p>
                       <input 
                         type="file" 
                         className="absolute inset-0 opacity-0 cursor-pointer" 
@@ -277,7 +284,6 @@ export default function GuestEventFormDialog({ isOpen, onClose, event }: GuestEv
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
                       <ImageIcon className="h-6 w-6 mb-1 opacity-20" />
-                      <p className="text-[8px] font-bold uppercase tracking-widest">Apenas Imagem</p>
                       <input 
                         type="file" 
                         className="absolute inset-0 opacity-0 cursor-pointer" 

@@ -8,7 +8,6 @@ import * as z from 'zod';
 import { db } from '@/lib/firebase';
 import { 
   collection, 
-  addDoc, 
   serverTimestamp, 
   updateDoc, 
   increment, 
@@ -17,18 +16,20 @@ import {
   query, 
   where,
   limit,
-  setDoc
+  setDoc,
+  writeBatch
 } from 'firebase/firestore';
 import type { GuestEvent, GuestList } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 
 const submissionSchema = z.object({
-  name: z.string().min(3, 'Nome é obrigatório'),
+  names: z.string().min(3, 'Insira pelo menos um nome'),
   whatsapp: z.string().optional(),
   instagram: z.string().optional(),
   email: z.string().email('E-mail inválido').optional().or(z.literal('')),
@@ -50,13 +51,12 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
     resolver: zodResolver(submissionSchema),
   });
 
-  const updateCRM = async (data: SubmissionFormValues) => {
+  const updateCRM = async (primaryName: string, data: SubmissionFormValues) => {
     try {
       let contactId = null;
       const emailLower = data.email?.toLowerCase();
       const waDigits = data.whatsapp?.replace(/\D/g, '');
 
-      // 1. Tentar encontrar por WhatsApp ou Email para deduplicar
       if (waDigits) {
         const waSnap = await getDocs(query(collection(db, 'contacts'), where('whatsapp', '==', waDigits), limit(1)));
         if (!waSnap.empty) contactId = waSnap.docs[0].id;
@@ -67,12 +67,11 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
         if (!emSnap.empty) contactId = emSnap.docs[0].id;
       }
 
-      // 2. Criar ou Atualizar Contato
       const finalContactId = contactId || uuidv4();
       const contactRef = doc(db, 'contacts', finalContactId);
       
       await setDoc(contactRef, {
-        name: data.name,
+        name: primaryName,
         whatsapp: waDigits || null,
         instagram: data.instagram || null,
         email: emailLower || null,
@@ -81,7 +80,6 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      // 3. Registrar RSVP (histórico)
       await addDoc(collection(db, 'contacts', finalContactId, 'rsvp'), {
         eventId: event.id,
         listId: list.id,
@@ -98,30 +96,55 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
   };
 
   const onSubmit = async (data: SubmissionFormValues) => {
+    // 1. Processar nomes do Textarea
+    const nameList = data.names
+      .split('\n')
+      .map(n => n.trim())
+      .filter(n => n.length >= 3);
+
+    if (nameList.length === 0) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Por favor, insira nomes válidos (mínimo 3 caracteres).' });
+      return;
+    }
+
     setIsSubmitting(true);
+    const batch = writeBatch(db);
+    let primarySubmissionId = '';
+
     try {
-      // 1. Atualizar CRM (em paralelo, sem travar o usuário)
-      const contactId = await updateCRM(data);
+      // 2. Atualizar CRM apenas para o primeiro nome
+      const contactId = await updateCRM(nameList[0], data);
 
-      // 2. Criar a submissão oficial da lista
-      const subRef = await addDoc(collection(db, 'guest_submissions'), {
-        name: data.name,
-        whatsapp: data.whatsapp || null,
-        instagram: data.instagram || null,
-        email: data.email?.toLowerCase() || null,
-        eventId: event.id,
-        listId: list.id,
-        contactId: contactId,
-        submittedAt: serverTimestamp(),
+      // 3. Gerar submissões em lote
+      nameList.forEach((name, index) => {
+        const subRef = doc(collection(db, 'guest_submissions'));
+        if (index === 0) primarySubmissionId = subRef.id;
+
+        const submissionData = {
+          name,
+          eventId: event.id,
+          listId: list.id,
+          submittedAt: serverTimestamp(),
+          // Dados de contato apenas no primeiro nome
+          contactId: index === 0 ? contactId : null,
+          whatsapp: index === 0 ? (data.whatsapp || null) : null,
+          instagram: index === 0 ? (data.instagram || null) : null,
+          email: index === 0 ? (data.email?.toLowerCase() || null) : null,
+        };
+
+        batch.set(subRef, submissionData);
       });
 
-      // 3. Incrementar contador na lista
-      await updateDoc(doc(db, 'guest_events', event.id, 'lists', list.id), {
-        submissionCount: increment(1)
+      // 4. Incrementar contador na lista pelo total de nomes
+      batch.update(doc(db, 'guest_events', event.id, 'lists', list.id), {
+        submissionCount: increment(nameList.length)
       });
 
-      // 4. Sucesso
-      onSuccess(subRef.id);
+      // 5. Commit das gravações
+      await batch.commit();
+
+      // 6. Redirecionar usando o ID da primeira submissão para o Ticket
+      onSuccess(primarySubmissionId);
     } catch (e: any) {
       console.error(e);
       toast({ variant: 'destructive', title: 'Erro ao enviar', description: 'Por favor, tente novamente.' });
@@ -133,19 +156,22 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Nome Completo *</Label>
-        <Input 
-          id="name" 
-          {...register('name')} 
-          placeholder="Ex: João da Silva" 
-          className="bg-white/5 border-white/10 h-12 rounded-xl focus:ring-primary focus:border-primary placeholder:text-white/20"
+        <Label htmlFor="names" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1 flex items-center gap-2">
+          <Users className="h-3 w-3" /> Nomes Completos *
+        </Label>
+        <Textarea 
+          id="names" 
+          {...register('names')} 
+          placeholder="João da Silva&#10;Maria Souza&#10;Pedro Oliveira" 
+          className="bg-white/5 border-white/10 min-h-[120px] rounded-xl focus:ring-primary focus:border-primary placeholder:text-white/20 text-sm"
         />
-        {errors.name && <p className="text-[10px] text-destructive font-bold uppercase">{errors.name.message}</p>}
+        <p className="text-[9px] text-white/40 font-bold uppercase ml-1">Você pode colocar mais de um nome. Coloque um nome por linha.</p>
+        {errors.names && <p className="text-[10px] text-destructive font-bold uppercase">{errors.names.message}</p>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="whatsapp" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">WhatsApp</Label>
+          <Label htmlFor="whatsapp" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Seu WhatsApp</Label>
           <Input 
             id="whatsapp" 
             {...register('whatsapp')} 
@@ -154,7 +180,7 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="instagram" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Instagram</Label>
+          <Label htmlFor="instagram" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Seu Instagram</Label>
           <Input 
             id="instagram" 
             {...register('instagram')} 
@@ -165,7 +191,7 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">E-mail (Opcional)</Label>
+        <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Seu E-mail (Opcional)</Label>
         <Input 
           id="email" 
           {...register('email')} 

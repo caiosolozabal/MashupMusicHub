@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { GuestEvent, GuestList, UrlSlug } from '@/lib/types';
-import { Loader2, Calendar, MapPin, Clock, AlertCircle, Ticket, Info, Tag, Sparkles } from 'lucide-react';
+import { Loader2, Calendar, MapPin, Clock, AlertCircle, Ticket, Info, Tag, Sparkles, Instagram } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import PublicGuestListForm from '@/components/guest-lists/PublicGuestListForm';
 import Image from 'next/image';
@@ -101,7 +102,7 @@ export default function PublicGuestListPage() {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center overflow-x-hidden">
-      {/* Background Camada 0: Imagem nítida */}
+      {/* Background fixed */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         {bgUrl.includes('mp4') ? (
           <video src={bgUrl} autoPlay loop muted playsInline className="h-full w-full object-cover" />
@@ -118,7 +119,7 @@ export default function PublicGuestListPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80" />
       </div>
 
-      {/* Conteúdo Camada 10: Glassmorphism */}
+      {/* Content z-10 */}
       <div className="relative z-10 w-full max-w-2xl px-4 py-8 md:py-16 flex flex-col items-center min-h-screen">
         <Card className="w-full border-white/[0.08] bg-[#0a0a0a]/65 backdrop-blur-[16px] shadow-2xl rounded-[16px] overflow-hidden">
           <CardContent className="p-6 md:p-10 space-y-8">
@@ -146,6 +147,17 @@ export default function PublicGuestListPage() {
                   <MapPin className="h-3.5 w-3.5 text-primary" /> 
                   {event.location}
                 </div>
+                {event.instagramHandle && (
+                  <a 
+                    href={`https://instagram.com/${event.instagramHandle.replace('@', '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white bg-primary/20 px-3 py-1.5 rounded-lg border border-primary/30 hover:bg-primary/30 transition-colors"
+                  >
+                    <Instagram className="h-3.5 w-3.5 text-primary" /> 
+                    Siga: {event.instagramHandle}
+                  </a>
+                )}
               </div>
             </div>
 
@@ -163,6 +175,19 @@ export default function PublicGuestListPage() {
               </div>
             ) : (
               <>
+                {/* 1. Contexto do Evento (Texto Explicativo) */}
+                {event.promoText && (
+                  <div className="pt-2">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-4 flex items-center gap-2">
+                      <Info className="h-4 w-4 text-primary" /> Sobre o Evento
+                    </h3>
+                    <p className="text-sm text-white/90 font-medium whitespace-pre-wrap leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5">
+                      {event.promoText}
+                    </p>
+                  </div>
+                )}
+
+                {/* 2. Valores & Horários da Lista */}
                 {list.customPromoText && (
                   <div className="p-6 bg-primary/10 border border-primary/20 rounded-2xl space-y-4">
                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2">
@@ -174,22 +199,17 @@ export default function PublicGuestListPage() {
                   </div>
                 )}
 
-                <PublicGuestListForm 
-                  event={event} 
-                  list={list} 
-                  onSuccess={(id) => router.push(`/l/${slug}/success?id=${id}`)} 
-                />
-
-                {event.promoText && (
-                  <div className="pt-8 border-t border-white/10">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-4 flex items-center gap-2">
-                      <Info className="h-4 w-4 text-primary" /> Sobre o Evento
-                    </h3>
-                    <p className="text-sm text-white/90 font-medium whitespace-pre-wrap leading-relaxed">
-                      {event.promoText}
-                    </p>
-                  </div>
-                )}
+                {/* 3. Formulário de Inscrição */}
+                <div className="pt-4">
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-6 flex items-center gap-2">
+                    <Ticket className="h-4 w-4 text-primary" /> Coloque seus nomes
+                  </h3>
+                  <PublicGuestListForm 
+                    event={event} 
+                    list={list} 
+                    onSuccess={(id) => router.push(`/l/${slug}/success?id=${id}`)} 
+                  />
+                </div>
               </>
             )}
           </CardContent>
