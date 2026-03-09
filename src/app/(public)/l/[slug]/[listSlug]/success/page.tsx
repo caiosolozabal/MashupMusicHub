@@ -11,26 +11,24 @@ import ConfirmationTicket from '@/components/guest-lists/ConfirmationTicket';
 import Link from 'next/link';
 
 function SuccessContent() {
-  const params = useParams();
+  const { slug, listSlug } = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const eventSlug = params.slug as string;
-  const listSlug = params.listSlug as string;
   const submissionId = searchParams.get('id');
 
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<{ event: GuestEvent; list: GuestList; submission: GuestSubmission } | null>(null);
 
   useEffect(() => {
-    if (!eventSlug || !listSlug || !submissionId) {
-      router.push(`/l/${eventSlug}/${listSlug}`);
+    if (!slug || !listSlug || !submissionId) {
+      router.push(`/l/${slug}/${listSlug}`);
       return;
     }
 
     const fetchData = async () => {
       try {
-        const eventQuery = query(collection(db, 'guest_events'), where('slug', '==', eventSlug), limit(1));
+        const eventQuery = query(collection(db, 'guest_events'), where('slug', '==', slug), limit(1));
         const eventSnap = await getDocs(eventQuery);
         
         if (eventSnap.empty) return;
@@ -61,7 +59,7 @@ function SuccessContent() {
     };
 
     fetchData();
-  }, [eventSlug, listSlug, submissionId, router]);
+  }, [slug, listSlug, submissionId, router]);
 
   if (isLoading) {
     return (
@@ -99,7 +97,7 @@ function SuccessContent() {
           <div className="grid grid-cols-1 gap-3">
             <button 
               onClick={() => {
-                const text = `Acabei de entrar na lista para o evento ${data.event.name}! 🚀\n\nGaranta seu lugar aqui: ${window.location.origin}/l/${eventSlug}/${listSlug}`;
+                const text = `Acabei de entrar na lista para o evento ${data.event.name}! 🚀\n\nGaranta seu lugar aqui: ${window.location.origin}/l/${slug}/${listSlug}`;
                 const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
                 window.open(url, '_blank');
               }}
@@ -109,7 +107,7 @@ function SuccessContent() {
             </button>
             
             <Link 
-              href={`/l/${eventSlug}/${listSlug}`}
+              href={`/l/${slug}/${listSlug}`}
               className="w-full flex items-center justify-center gap-2 bg-white/5 text-white font-bold text-xs tracking-widest py-4 rounded-2xl border border-white/10 hover:bg-white/10"
             >
               <ArrowLeft className="h-4 w-4" /> Voltar para a Página

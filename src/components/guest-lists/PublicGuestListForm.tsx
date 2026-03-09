@@ -9,7 +9,6 @@ import { db } from '@/lib/firebase';
 import { 
   collection, 
   serverTimestamp, 
-  updateDoc, 
   increment, 
   doc, 
   getDocs, 
@@ -17,7 +16,8 @@ import {
   where,
   limit,
   setDoc,
-  writeBatch
+  writeBatch,
+  addDoc
 } from 'firebase/firestore';
 import type { GuestEvent, GuestList } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -96,7 +96,6 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
   };
 
   const onSubmit = async (data: SubmissionFormValues) => {
-    // 1. Processar nomes do Textarea
     const nameList = data.names
       .split('\n')
       .map(n => n.trim())
@@ -112,10 +111,8 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
     let primarySubmissionId = '';
 
     try {
-      // 2. Atualizar CRM apenas para o primeiro nome
       const contactId = await updateCRM(nameList[0], data);
 
-      // 3. Gerar submissões em lote
       nameList.forEach((name, index) => {
         const subRef = doc(collection(db, 'guest_submissions'));
         if (index === 0) primarySubmissionId = subRef.id;
@@ -125,7 +122,6 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
           eventId: event.id,
           listId: list.id,
           submittedAt: serverTimestamp(),
-          // Dados de contato apenas no primeiro nome
           contactId: index === 0 ? contactId : null,
           whatsapp: index === 0 ? (data.whatsapp || null) : null,
           instagram: index === 0 ? (data.instagram || null) : null,
@@ -135,15 +131,11 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
         batch.set(subRef, submissionData);
       });
 
-      // 4. Incrementar contador na lista pelo total de nomes
       batch.update(doc(db, 'guest_events', event.id, 'lists', list.id), {
         submissionCount: increment(nameList.length)
       });
 
-      // 5. Commit das gravações
       await batch.commit();
-
-      // 6. Redirecionar usando o ID da primeira submissão para o Ticket
       onSuccess(primarySubmissionId);
     } catch (e: any) {
       console.error(e);
