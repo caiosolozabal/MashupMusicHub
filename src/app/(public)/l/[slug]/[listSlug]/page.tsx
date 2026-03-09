@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,13 +14,8 @@ import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 
 export default function HierarchicalGuestListPage() {
-  const params = useParams();
+  const { slug, listSlug } = useParams();
   const router = useRouter();
-  
-  // No Next.js, o nome do parâmetro é definido pelo nome da pasta.
-  // Padronizamos para 'slug' (evento) e 'listSlug' (lista).
-  const eventSlug = params.slug as string;
-  const listSlug = params.listSlug as string;
   
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,12 +25,11 @@ export default function HierarchicalGuestListPage() {
   const [closeReason, setCloseReason] = useState<'curfew' | 'capacity' | null>(null);
 
   useEffect(() => {
-    if (!eventSlug || !listSlug) return;
+    if (!slug || !listSlug) return;
 
     const fetchData = async () => {
       try {
-        // 1. Buscar o Evento pelo Slug do evento
-        const eventQuery = query(collection(db, 'guest_events'), where('slug', '==', eventSlug), limit(1));
+        const eventQuery = query(collection(db, 'guest_events'), where('slug', '==', slug), limit(1));
         const eventSnap = await getDocs(eventQuery);
         
         if (eventSnap.empty) {
@@ -49,7 +42,6 @@ export default function HierarchicalGuestListPage() {
         const eventData = { id: eventDoc.id, ...eventDoc.data() } as GuestEvent;
         setEvent(eventData);
 
-        // 2. Buscar a Lista dentro do Evento (sub-coleção) usando listSlug
         const listQuery = query(collection(db, 'guest_events', eventData.id, 'lists'), where('slug', '==', listSlug), limit(1));
         const listSnap = await getDocs(listQuery);
 
@@ -63,7 +55,6 @@ export default function HierarchicalGuestListPage() {
         const listData = { id: listDoc.id, ...listDoc.data() } as GuestList;
         setList(listData);
 
-        // 3. Verificação de Encerramento
         const now = new Date();
         if (eventData.curfewAt && eventData.curfewAt.toDate() < now) {
           setIsClosed(true);
@@ -85,7 +76,7 @@ export default function HierarchicalGuestListPage() {
     };
 
     fetchData();
-  }, [eventSlug, listSlug]);
+  }, [slug, listSlug]);
 
   if (isLoading) {
     return (
@@ -130,7 +121,7 @@ export default function HierarchicalGuestListPage() {
                 </Badge>
                 <div className="flex items-center gap-2 text-white">
                   <Tag className="h-3 w-3 text-primary" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">CÓDIGO: {eventSlug}/{listSlug}</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest">CÓDIGO: {slug}/{listSlug}</span>
                 </div>
               </div>
 
@@ -198,7 +189,7 @@ export default function HierarchicalGuestListPage() {
                   <PublicGuestListForm 
                     event={event} 
                     list={list} 
-                    onSuccess={(id) => router.push(`/l/${eventSlug}/${listSlug}/success?id=${id}`)} 
+                    onSuccess={(id) => router.push(`/l/${slug}/${listSlug}/success?id=${id}`)} 
                   />
                 </div>
               </>

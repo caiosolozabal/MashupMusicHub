@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -14,11 +13,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 function StatsContent() {
-  const params = useParams();
+  const { slug, listSlug } = useParams();
   const searchParams = useSearchParams();
-  
-  const eventSlug = params.slug as string;
-  const listSlug = params.listSlug as string;
   const token = searchParams.get('token');
 
   const [isLoading, setIsLoading] = useState(true);
@@ -29,7 +25,7 @@ function StatsContent() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (!eventSlug || !listSlug || !token) {
+    if (!slug || !listSlug || !token) {
       setError('Link inválido ou sem token de acesso.');
       setIsLoading(false);
       return;
@@ -37,7 +33,7 @@ function StatsContent() {
 
     const fetchData = async () => {
       try {
-        const eventQuery = query(collection(db, 'guest_events'), where('slug', '==', eventSlug), limit(1));
+        const eventQuery = query(collection(db, 'guest_events'), where('slug', '==', slug), limit(1));
         const eventSnap = await getDocs(eventQuery);
         
         if (eventSnap.empty) {
@@ -91,7 +87,7 @@ function StatsContent() {
     };
 
     fetchData();
-  }, [eventSlug, listSlug, token]);
+  }, [slug, listSlug, token]);
 
   const filteredSubmissions = submissions.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
