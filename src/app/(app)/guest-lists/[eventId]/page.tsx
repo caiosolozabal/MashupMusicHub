@@ -45,6 +45,7 @@ export default function GuestEventDetailPage() {
   const [event, setEvent] = useState<GuestEvent | null>(null);
   const [lists, setLists] = useState<GuestList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [origin, setOrigin] = useState('');
   
   // Dialogs
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
@@ -52,6 +53,10 @@ export default function GuestEventDetailPage() {
   const [isBatchOpen, setIsBatchOpen] = useState(false);
   const [isSubmissionsOpen, setIsSubmissionsOpen] = useState(false);
   const [selectedList, setSelectedList] = useState<GuestList | null>(null);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     if (!eventId || !userDetails) return;
@@ -175,8 +180,8 @@ export default function GuestEventDetailPage() {
             ) : (
               <div className="space-y-3">
                 {lists.map((list) => {
-                  const publicUrl = `${window.location.origin}/l/${event.slug}/${list.slug}`;
-                  const statsUrl = `${window.location.origin}/stats/${event.slug}/${list.slug}?token=${list.statsToken}`;
+                  const publicUrl = origin ? `${origin}/l/${event.slug}/${list.slug}` : '';
+                  const statsUrl = origin ? `${origin}/stats/${event.slug}/${list.slug}?token=${list.statsToken}` : '';
 
                   return (
                     <div key={list.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors gap-4">
@@ -196,13 +201,14 @@ export default function GuestEventDetailPage() {
                           <Eye className="mr-2 h-3.5 w-3.5" />
                           Ver Inscritos
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(publicUrl, 'Link da lista')}>
+                        <Button variant="outline" size="sm" onClick={() => copyToClipboard(publicUrl, 'Link da lista')} disabled={!origin}>
                           <Copy className="mr-2 h-3.5 w-3.5" />
                           Link
                         </Button>
                         <Button 
                           variant="outline" 
                           size="sm" 
+                          disabled={!origin}
                           onClick={() => { 
                             copyToClipboard(statsUrl, 'Link de estatísticas');
                             window.open(statsUrl, '_blank');
@@ -219,7 +225,7 @@ export default function GuestEventDetailPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
+                            <DropdownMenuItem asChild disabled={!origin}>
                               <a href={publicUrl} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="mr-2 h-4 w-4" /> Ver Página
                               </a>
