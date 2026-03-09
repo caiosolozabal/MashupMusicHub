@@ -14,8 +14,11 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 function StatsContent() {
-  const { slug, listSlug } = useParams();
+  const params = useParams();
   const searchParams = useSearchParams();
+  
+  const eventSlug = params.slug as string;
+  const listSlug = params.listSlug as string;
   const token = searchParams.get('token');
 
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +29,7 @@ function StatsContent() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    if (!slug || !listSlug || !token) {
+    if (!eventSlug || !listSlug || !token) {
       setError('Link inválido ou sem token de acesso.');
       setIsLoading(false);
       return;
@@ -34,7 +37,7 @@ function StatsContent() {
 
     const fetchData = async () => {
       try {
-        const eventQuery = query(collection(db, 'guest_events'), where('slug', '==', slug), limit(1));
+        const eventQuery = query(collection(db, 'guest_events'), where('slug', '==', eventSlug), limit(1));
         const eventSnap = await getDocs(eventQuery);
         
         if (eventSnap.empty) {
@@ -88,7 +91,7 @@ function StatsContent() {
     };
 
     fetchData();
-  }, [slug, listSlug, token]);
+  }, [eventSlug, listSlug, token]);
 
   const filteredSubmissions = submissions.filter(s => 
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,7 +139,7 @@ function StatsContent() {
           </div>
         </div>
 
-        <Card className="bg-white/5 border-white/10 text-white rounded-3xl overflow-hidden">
+        <Card className="bg-white/5 border border-white/10 text-white rounded-3xl overflow-hidden">
           <CardHeader className="border-b border-white/10 pb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
@@ -204,7 +207,7 @@ function StatsContent() {
   );
 }
 
-export default function HierarchicalPromoterStatsPage() {
+export default function PromoterStatsPage() {
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center bg-black"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>}>
       <StatsContent />
