@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -161,7 +160,6 @@ export default function HierarchicalGuestListPage() {
               </div>
             ) : (
               <>
-                {/* 1. Contexto do Evento (Texto Explicativo) - AGORA PRIMEIRO */}
                 {event.promoText && (
                   <div className="pt-2">
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-4 flex items-center gap-2">
@@ -173,7 +171,6 @@ export default function HierarchicalGuestListPage() {
                   </div>
                 )}
 
-                {/* 2. Valores & Horários da Lista */}
                 {list.customPromoText && (
                   <div className="p-6 bg-primary/10 border border-primary/20 rounded-2xl">
                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 mb-2">
@@ -185,7 +182,6 @@ export default function HierarchicalGuestListPage() {
                   </div>
                 )}
 
-                {/* 3. Formulário de Inscrição - AGORA DEPOIS */}
                 <div className="pt-4">
                   <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-6 flex items-center gap-2">
                     <Ticket className="h-4 w-4 text-primary" /> Coloque seus nomes

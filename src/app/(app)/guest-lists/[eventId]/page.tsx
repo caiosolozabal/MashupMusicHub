@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -47,7 +46,6 @@ export default function GuestEventDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [origin, setOrigin] = useState('');
   
-  // Dialogs
   const [isEventFormOpen, setIsEventFormOpen] = useState(false);
   const [isListFormOpen, setIsListFormOpen] = useState(false);
   const [isBatchOpen, setIsBatchOpen] = useState(false);
@@ -55,7 +53,9 @@ export default function GuestEventDetailPage() {
   const [selectedList, setSelectedList] = useState<GuestList | null>(null);
 
   useEffect(() => {
-    setOrigin(window.location.origin);
+    if (typeof window !== 'undefined') {
+      setOrigin(window.location.origin);
+    }
   }, []);
 
   useEffect(() => {
@@ -91,17 +91,6 @@ export default function GuestEventDetailPage() {
     try {
       await deleteDoc(doc(db, 'guest_events', eventId as string, 'lists', listId));
       toast({ title: 'Lista excluída' });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: 'Erro ao excluir', description: e.message });
-    }
-  };
-
-  const handleDeleteEvent = async () => {
-    if (!confirm('ATENÇÃO: Você está prestes a excluir o EVENTO inteiro.')) return;
-    try {
-      await deleteDoc(doc(db, 'guest_events', eventId as string));
-      toast({ title: 'Evento excluído' });
-      router.push('/guest-lists');
     } catch (e: any) {
       toast({ variant: 'destructive', title: 'Erro ao excluir', description: e.message });
     }
@@ -143,10 +132,6 @@ export default function GuestEventDetailPage() {
               <Edit className="mr-2 h-4 w-4" />
               Configurar Evento
             </Button>
-            <Button variant="outline" size="sm" className="text-destructive border-destructive/20 hover:bg-destructive/10" onClick={handleDeleteEvent}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Excluir Evento
-            </Button>
             <Button variant="outline" size="sm" onClick={() => setIsBatchOpen(true)}>
               <Layers className="mr-2 h-4 w-4" />
               Criar em Lote
@@ -172,10 +157,6 @@ export default function GuestEventDetailPage() {
             {lists.length === 0 ? (
               <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
                 <p className="text-muted-foreground">Nenhuma lista criada para este evento.</p>
-                <div className="mt-4 flex justify-center gap-2">
-                  <Button variant="link" onClick={() => setIsListFormOpen(true)} className="text-primary font-bold">Criar lista individual</Button>
-                  <Button variant="link" onClick={() => setIsBatchOpen(true)} className="text-primary font-bold">Criar em lote</Button>
-                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -248,32 +229,10 @@ export default function GuestEventDetailPage() {
         </Card>
       </div>
 
-      <GuestEventFormDialog 
-        isOpen={isEventFormOpen} 
-        onClose={() => setIsEventFormOpen(false)} 
-        event={event}
-      />
-
-      <GuestListFormDialog 
-        isOpen={isListFormOpen} 
-        onClose={() => setIsListFormOpen(false)} 
-        eventId={eventId as string}
-        list={selectedList}
-      />
-
-      <BatchListDialog
-        isOpen={isBatchOpen}
-        onClose={() => setIsBatchOpen(false)}
-        eventId={eventId as string}
-        eventName={event.name}
-        eventSlug={event.slug}
-      />
-
-      <SubmissionsDialog
-        isOpen={isSubmissionsOpen}
-        onClose={() => setIsSubmissionsOpen(false)}
-        list={selectedList}
-      />
+      <GuestEventFormDialog isOpen={isEventFormOpen} onClose={() => setIsEventFormOpen(false)} event={event} />
+      <GuestListFormDialog isOpen={isListFormOpen} onClose={() => setIsListFormOpen(false)} eventId={eventId as string} list={selectedList} />
+      <BatchListDialog isOpen={isBatchOpen} onClose={() => setIsBatchOpen(false)} eventId={eventId as string} eventName={event.name} eventSlug={event.slug} />
+      <SubmissionsDialog isOpen={isSubmissionsOpen} onClose={() => setIsSubmissionsOpen(false)} list={selectedList} />
     </div>
   );
 }

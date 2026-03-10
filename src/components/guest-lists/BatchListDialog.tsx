@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -38,7 +37,6 @@ const INITIAL_PACKAGES: ListPackage[] = [
   { id: uuidv4(), name: 'Lista VIP', values: 'ATÉ 23H: VIP\nAPÓS 23H: R$ 50' },
   { id: uuidv4(), name: 'Lista Promocional', values: 'ATÉ 00H: R$ 60\nAPÓS 00H: R$ 80' },
   { id: uuidv4(), name: 'Lista Geral', values: 'VALOR ÚNICO: R$ 100' },
-  { id: uuidv4(), name: 'Aniversariante: Nome', values: 'CONVIDADO: R$ 50\nANIVERSARIANTE: VIP' },
 ];
 
 export default function BatchListDialog({ isOpen, onClose, eventId, eventName, eventSlug }: BatchListDialogProps) {
@@ -47,13 +45,11 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName, e
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [createdLists, setCreatedLists] = useState<any[]>([]);
 
-  // Form State
   const [packages, setPackages] = useState<ListPackage[]>(INITIAL_PACKAGES);
   const [promoterNames, setPromoterNames] = useState('');
   const [promoterValues, setPromoterValues] = useState('ATÉ 23H: VIP\nATÉ 00H: R$ 70');
   const [slugPrefix, setPrefix] = useState('');
 
-  // Helpers
   const slugify = (text: string) => {
     return text
       .toLowerCase()
@@ -63,36 +59,22 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName, e
       .replace(/(^-|-$)+/g, '');
   };
 
-  const addPackage = () => {
-    setPackages([...packages, { id: uuidv4(), name: 'Nova Lista', values: '' }]);
-  };
-
-  const updatePackage = (id: string, field: 'name' | 'values', val: string) => {
-    setPackages(packages.map(p => p.id === id ? { ...p, [field]: val } : p));
-  };
-
-  const removePackage = (id: string) => {
-    setPackages(packages.filter(p => p.id !== id));
-  };
-
   const handleCreateBatch = async () => {
     const finalItemsToCreate: { name: string; values: string }[] = [];
 
-    // 1. Pacotes Individuais
     packages.forEach(p => {
       if (p.name.trim()) {
         finalItemsToCreate.push({ name: p.name, values: p.values });
       }
     });
 
-    // 2. Promoters em Lote
     const bulkNames = promoterNames.split('\n').map(n => n.trim()).filter(n => n !== '');
     bulkNames.forEach(name => {
       finalItemsToCreate.push({ name, values: promoterValues });
     });
 
     if (finalItemsToCreate.length === 0) {
-      toast({ variant: 'destructive', title: 'Nenhuma lista configurada', description: 'Adicione pelo menos uma lista ou nome de promoter.' });
+      toast({ variant: 'destructive', title: 'Nenhuma lista configurada' });
       return;
     }
 
@@ -108,15 +90,11 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName, e
         let baseSlug = slugify(item.name);
         if (slugPrefix) baseSlug = `${slugify(slugPrefix)}-${baseSlug}`;
         
-        // No novo sistema hierárquico, o slug da lista não precisa ser validado globalmente,
-        // mas aqui mantemos uma limpeza básica.
-        let finalSlug = baseSlug;
-
         const listData = {
           id: listId,
           eventId,
           name: item.name,
-          slug: finalSlug,
+          slug: baseSlug,
           statsToken,
           customPromoText: item.values || null,
           submissionCount: 0,
@@ -128,7 +106,7 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName, e
 
         resultSummary.push({
           ...listData,
-          publicUrl: `${window.location.origin}/l/${eventSlug}/${finalSlug}`,
+          publicUrl: `${window.location.origin}/l/${eventSlug}/${baseSlug}`,
         });
       }
 
@@ -157,9 +135,9 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName, e
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="font-headline text-2xl flex items-center gap-2">
             {step === 'form' ? (
-              <><Sparkles className="h-6 w-6 text-primary" /> Gerador de Listas Premium</>
+              <><Sparkles className="h-6 w-6 text-primary" /> Gerador de Listas Hierárquico</>
             ) : (
-              <><CheckCircle2 className="h-6 w-6 text-green-500" /> Listas Prontas!</>
+              <><CheckCircle2 className="h-6 w-6 text-green-500" /> Listas Geradas!</>
             )}
           </DialogTitle>
         </DialogHeader>
@@ -167,126 +145,81 @@ export default function BatchListDialog({ isOpen, onClose, eventId, eventName, e
         {step === 'form' ? (
           <div className="flex-1 overflow-y-auto p-6 pt-0 space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="prefix">Prefixo dos Identificadores (Opcional - Ex: promoter)</Label>
-              <Input id="prefix" placeholder="Omitir para usar apenas o nome da lista" value={slugPrefix} onChange={(e) => setPrefix(e.target.value)} />
+              <Label>Prefixo dos Identificadores (Opcional)</Label>
+              <Input placeholder="Ex: promoter" value={slugPrefix} onChange={(e) => setPrefix(e.target.value)} />
             </div>
 
             <Tabs defaultValue="packages">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="packages">Pacotes & Aniversariantes</TabsTrigger>
-                <TabsTrigger value="promoters">Promoters em Lote</TabsTrigger>
+                <TabsTrigger value="packages">Listas Padrão</TabsTrigger>
+                <TabsTrigger value="promoters">Nomes de Promoters</TabsTrigger>
               </TabsList>
               
               <TabsContent value="packages" className="pt-4 space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  {packages.map((pkg) => (
-                    <div key={pkg.id} className="flex flex-col gap-3 p-4 border rounded-2xl bg-muted/20 relative group">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 space-y-1">
-                          <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1">Identificação da Lista</Label>
-                          <Input 
-                            value={pkg.name} 
-                            onChange={(e) => updatePackage(pkg.id, 'name', e.target.value)}
-                            placeholder="Ex: VIP ou Aniversário do João"
-                            className="bg-background font-bold"
-                          />
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="text-destructive hover:bg-destructive/10 h-8 w-8 shrink-0 self-end"
-                          onClick={() => removePackage(pkg.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] font-black uppercase text-muted-foreground ml-1 flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> Valores por Horário
-                        </Label>
-                        <Textarea 
-                          value={pkg.values} 
-                          onChange={(e) => updatePackage(pkg.id, 'values', e.target.value)}
-                          placeholder="Ex: ATÉ 23H: VIP&#10;ATÉ 00H: R$ 70"
-                          className="bg-background min-h-[80px] text-xs"
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button variant="outline" className="w-full border-dashed py-6 rounded-2xl" onClick={addPackage}>
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar Outra Lista / Aniversariante
+                {packages.map((pkg) => (
+                  <div key={pkg.id} className="flex flex-col gap-3 p-4 border rounded-2xl bg-muted/20">
+                    <Input 
+                      value={pkg.name} 
+                      onChange={(e) => setPackages(packages.map(p => p.id === pkg.id ? { ...p, name: e.target.value } : p))}
+                      placeholder="Nome da Lista"
+                    />
+                    <Textarea 
+                      value={pkg.values} 
+                      onChange={(e) => setPackages(packages.map(p => p.id === pkg.id ? { ...p, values: e.target.value } : p))}
+                      placeholder="Valores por horário..."
+                    />
+                  </div>
+                ))}
+                <Button variant="outline" className="w-full" onClick={() => setPackages([...packages, { id: uuidv4(), name: '', values: '' }])}>
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar Outra
                 </Button>
               </TabsContent>
 
-              <TabsContent value="promoters" className="pt-4 space-y-6">
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                      <Clock className="h-4 w-4" /> Valores Padrão para este Lote
-                    </Label>
-                    <Textarea 
-                      placeholder="Ex: ATÉ 23H: VIP&#10;ATÉ 00H: R$ 70" 
-                      className="min-h-[100px] bg-background border-primary/20"
-                      value={promoterValues}
-                      onChange={(e) => setPromoterValues(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="font-bold">Nomes dos Promoters (Um por linha)</Label>
-                  <Textarea 
-                    placeholder="Lucas Silva&#10;João Pereira&#10;Carol DJ" 
-                    className="min-h-[200px]"
-                    value={promoterNames}
-                    onChange={(e) => setPromoterNames(e.target.value)}
-                  />
-                </div>
+              <TabsContent value="promoters" className="pt-4 space-y-4">
+                <Textarea 
+                  placeholder="Valores padrão para os promoters..." 
+                  value={promoterValues}
+                  onChange={(e) => setPromoterValues(e.target.value)}
+                />
+                <Textarea 
+                  placeholder="Nomes dos promoters (um por linha)..." 
+                  className="min-h-[200px]"
+                  value={promoterNames}
+                  onChange={(e) => setPromoterNames(e.target.value)}
+                />
               </TabsContent>
             </Tabs>
           </div>
         ) : (
-          <div className="p-6 space-y-6">
-            <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl flex items-center gap-3">
-              <Ticket className="h-5 w-5 text-primary" />
-              <p className="text-sm font-bold">Geradas {createdLists.length} listas para o evento {eventName}.</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Resumo de Links</Label>
-              <div className="relative">
-                <Textarea 
-                  readOnly 
-                  className="min-h-[250px] text-[11px] font-mono bg-muted/30"
-                  value={createdLists.map(l => `${l.name}: ${l.publicUrl}`).join('\n')}
-                />
-                <Button 
-                  size="sm" 
-                  className="absolute bottom-2 right-2"
-                  onClick={() => {
-                    const text = createdLists.map(l => `📌 ${l.name}\n🔗 ${l.publicUrl}`).join('\n\n');
-                    navigator.clipboard.writeText(text);
-                    toast({ title: 'Copiado!' });
-                  }}
-                >
-                  <Copy className="mr-2 h-3.5 w-3.5" /> Copiar Tudo
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            {createdLists.map(l => (
+              <div key={l.id} className="p-3 border rounded-lg flex justify-between items-center gap-2">
+                <div className="min-w-0">
+                  <p className="font-bold text-sm truncate">{l.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{l.publicUrl}</p>
+                </div>
+                <Button size="icon" variant="ghost" onClick={() => {
+                  navigator.clipboard.writeText(l.publicUrl);
+                  toast({ title: 'Copiado!' });
+                }}>
+                  <Copy className="h-4 w-4" />
                 </Button>
               </div>
-            </div>
+            ))}
           </div>
         )}
 
         <DialogFooter className="p-6 border-t bg-muted/5">
           {step === 'form' ? (
             <>
-              <Button variant="outline" onClick={() => onClose()} disabled={isSubmitting}>Cancelar</Button>
-              <Button onClick={handleCreateBatch} disabled={isSubmitting} className="min-w-[150px] bg-primary text-black font-black">
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Gerar Listas
+              <Button variant="outline" onClick={() => onClose()}>Cancelar</Button>
+              <Button onClick={handleCreateBatch} disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Gerar Todas
               </Button>
             </>
           ) : (
-            <Button className="w-full" onClick={handleReset}>Concluir e Voltar</Button>
+            <Button className="w-full" onClick={handleReset}>Concluir</Button>
           )}
         </DialogFooter>
       </DialogContent>

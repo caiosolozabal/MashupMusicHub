@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -164,31 +163,31 @@ export default function PublicGuestListForm({ event, list, onSuccess }: PublicGu
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="whatsapp" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Seu WhatsApp</Label>
-          <Input 
+          <input 
             id="whatsapp" 
             {...register('whatsapp')} 
             placeholder="(21) 99999-9999" 
-            className="bg-white/5 border-white/10 h-12 rounded-xl focus:ring-primary focus:border-primary placeholder:text-white/20"
+            className="flex h-12 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor="instagram" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Seu Instagram</Label>
-          <Input 
+          <input 
             id="instagram" 
             {...register('instagram')} 
             placeholder="@usuario" 
-            className="bg-white/5 border-white/10 h-12 rounded-xl focus:ring-primary focus:border-primary placeholder:text-white/20"
+            className="flex h-12 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Seu E-mail (Opcional)</Label>
-        <Input 
+        <input 
           id="email" 
           {...register('email')} 
           placeholder="seu@email.com" 
-          className="bg-white/5 border-white/10 h-12 rounded-xl focus:ring-primary focus:border-primary placeholder:text-white/20"
+          className="flex h-12 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         />
         {errors.email && <p className="text-[10px] text-destructive font-bold uppercase">{errors.email.message}</p>}
       </div>
