@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
-import type { GuestEvent, GuestList } from '@/lib/types';
+import type { GuestEvent, GuestList, PriceRule } from '@/lib/types';
 import { Loader2, Calendar, MapPin, Clock, AlertCircle, Ticket, Info, Tag, Instagram, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import PublicGuestListForm from '@/components/guest-lists/PublicGuestListForm';
@@ -100,6 +100,14 @@ export default function HierarchicalGuestListPage() {
   }
 
   const bgUrl = event.backgroundUrl || event.mediaUrl || 'https://picsum.photos/seed/mashup-bg/1920/1080';
+  
+  // Lógica de Independência: Se a lista tem seu próprio texto, ignora o do evento.
+  const displayPromoText = list.customPromoText || event.promoText;
+  
+  // Lógica de Valores: Prioriza as regras da lista. Se vazias, tenta as do evento.
+  const displayPriceRules = (list.priceRules && list.priceRules.length > 0) 
+    ? list.priceRules 
+    : (event.priceRules || []);
 
   return (
     <div className="relative min-h-screen flex flex-col items-center overflow-x-hidden">
@@ -161,24 +169,31 @@ export default function HierarchicalGuestListPage() {
               </div>
             ) : (
               <>
-                {event.promoText && (
+                {displayPromoText && (
                   <div className="pt-2">
                     <h3 className="text-xs font-black uppercase tracking-[0.2em] text-white mb-4 flex items-center gap-2">
                       <Info className="h-4 w-4 text-primary" /> Sobre o Evento
                     </h3>
                     <p className="text-sm text-white/90 font-medium whitespace-pre-wrap leading-relaxed bg-white/5 p-4 rounded-xl border border-white/5">
-                      {event.promoText}
+                      {displayPromoText}
                     </p>
                   </div>
                 )}
 
-                {list.customPromoText && (
+                {displayPriceRules.length > 0 && (
                   <div className="p-6 bg-primary/10 border border-primary/20 rounded-2xl">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 mb-2">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary flex items-center gap-2 mb-4">
                       <Sparkles className="h-3 w-3" /> Valores & Horários:
                     </h3>
-                    <div className="text-sm font-bold text-white uppercase whitespace-pre-wrap">
-                      {list.customPromoText}
+                    <div className="space-y-3">
+                      {displayPriceRules.map((rule: PriceRule, idx: number) => (
+                        <div key={idx} className="flex justify-between items-center border-b border-white/5 pb-2 last:border-0 last:pb-0">
+                          <span className="text-[10px] font-black uppercase text-white/60 tracking-widest flex items-center gap-1.5">
+                            <Clock className="h-3 w-3" /> ATÉ {rule.time}
+                          </span>
+                          <span className="text-sm font-black text-white uppercase italic">{rule.label}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

@@ -24,16 +24,22 @@ export interface UserDetails {
 
 // --- GUEST LIST MODULE TYPES ---
 
+export interface PriceRule {
+  time: string;
+  label: string;
+}
+
 export interface GuestEvent {
   id: string;
   name: string;
-  slug: string; // Novo campo obrigatório
+  slug: string;
   date: Timestamp;
   location: string;
   instagramHandle?: string | null;
   mediaUrl?: string | null;
   backgroundUrl?: string | null;
   promoText?: string | null;
+  priceRules?: PriceRule[] | null;
   curfewAt?: Timestamp | null;
   isActive: boolean;
   createdAt: Timestamp;
@@ -49,6 +55,7 @@ export interface GuestList {
   statsToken: string;
   customMediaUrl?: string | null;
   customPromoText?: string | null;
+  priceRules?: PriceRule[] | null;
   submissionCount: number;
 }
 
@@ -65,7 +72,7 @@ export interface GuestSubmission {
 }
 
 export interface Contact {
-  id: string; // UUID
+  id: string;
   name: string;
   whatsapp?: string | null;
   instagram?: string | null;
