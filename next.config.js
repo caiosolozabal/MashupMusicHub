@@ -32,6 +32,7 @@ const nextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: [
+        "*.cloudworkstations.dev",
         "6000-firebase-studio-1749752097045.cluster-duylic2g3fbzerqpzxxbw6helm.cloudworkstations.dev",
         "mashup-music-hub.web.app",
         "mashup-music-hub.firebaseapp.com",

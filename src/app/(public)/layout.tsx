@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ReactNode } from 'react';
@@ -42,7 +43,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 relative z-10">
+      <main className="flex-1 relative z-10 bg-background">
         {children}
       </main>
 
@@ -88,10 +89,11 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           
-          <div className="mt-16 border-t border-white/5 pt-8 text-center md:text-left">
+          <div className="mt-16 border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-[10px] uppercase tracking-[0.3em] text-white/30 font-black">
               © {isMounted ? new Date().getFullYear() : ''} Mashup Music Hub. Todos os direitos reservados.
             </p>
+            <span className="text-[10px] font-black text-primary/40 tracking-widest uppercase">Preview Mode v1.1</span>
           </div>
         </div>
       </footer>
