@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,9 +22,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn, getDayOfWeek } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 import type { Event, EventFile, UserDetails } from '@/lib/types';
-import { Timestamp, doc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, getDocs, orderBy, startAt, endAt, documentId, getDoc } from 'firebase/firestore';
+import { Timestamp, doc, updateDoc, arrayUnion, serverTimestamp, collection, query, where, getDocs, orderBy, getDoc } from 'firebase/firestore';
 import { Separator } from '@/components/ui/separator';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db, storage } from '@/lib/firebase';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
@@ -46,9 +47,9 @@ const eventFormSchema = z.object({
   conta_que_recebeu: z.enum(['agencia', 'dj'], { required_error: 'Selecione quem recebeu o sinal.' }),
   status_pagamento: z.enum(['pendente', 'parcial', 'pago', 'vencido', 'cancelado'], { required_error: 'Status do pagamento é obrigatório.' }),
   tipo_servico: z.enum(['servico_dj', 'locacao_equipamento'], { required_error: 'O tipo de serviço é obrigatório.'}),
-  dj_nome: z.string().min(2, { message: 'Nome do DJ é obrigatório.' }),
-  dj_id: z.string().min(1, { message: 'ID do DJ é obrigatório.' }),
-  dj_costs: z.coerce.number().min(0, { message: 'Custos do DJ não podem ser negativos.' }).default(0).optional(),
+  dj_nome: z.string().min(2, { message: 'Nome do prestador é obrigatório.' }),
+  dj_id: z.string().min(1, { message: 'ID do prestador é obrigatório.' }),
+  dj_costs: z.coerce.number().min(0, { message: 'Custos não podem ser negativos.' }).default(0).optional(),
   linkedEventId: z.string().optional().nullable(),
   linkedEventName: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -86,13 +87,14 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
       if (isUserAdminOrPartner && db) {
         setIsLoadingDjs(true);
         try {
+          // Busca todos os usuários que têm permissão de prestador
           const djsQuery = query(collection(db, 'users'), where('role', '==', 'dj'));
           const querySnapshot = await getDocs(djsQuery);
           const djsList = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserDetails));
           setAvailableDjs(djsList);
         } catch (error) {
           console.error("Error fetching DJs: ", error);
-          toast({ variant: 'destructive', title: 'Erro ao buscar DJs', description: (error as Error).message });
+          toast({ variant: 'destructive', title: 'Erro ao buscar prestadores' });
         } finally {
           setIsLoadingDjs(false);
         }
@@ -136,7 +138,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
         ...event,
         nome_evento: event.nome_evento || '',
         local: event.local || '',
-        data_evento: eventDate as Date, // Ensure it's a Date object
+        data_evento: eventDate as Date,
         horario_inicio: event.horario_inicio ?? '',
         horario_fim: event.horario_fim ?? '',
         contratante_nome: event.contratante_nome || '',
@@ -179,15 +181,15 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
           setIsSearching(true);
           try {
               const eventsRef = collection(db, "events");
-              const q = query(eventsRef, orderBy('data_evento', 'desc')); // Fetch recent events first
+              const q = query(eventsRef, orderBy('data_evento', 'desc'));
 
               const querySnapshot = await getDocs(q);
               const allEvents = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), data_evento: doc.data().data_evento.toDate() } as Event));
 
               const lowerCaseQuery = searchQuery.toLowerCase();
               let results = allEvents.filter(e => 
-                e.nome_evento.toLowerCase().includes(lowerCaseQuery) && // Filter client-side
-                e.id !== event?.id // Exclude the current event
+                e.nome_evento.toLowerCase().includes(lowerCaseQuery) && 
+                e.id !== event?.id
               );
 
               if(form.getValues('linkedEventId')) {
@@ -197,7 +199,6 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
               setSearchResults(results);
           } catch (error) {
               console.error("Error searching events:", error);
-              toast({ variant: 'destructive', title: 'Erro na busca', description: (error as Error).message });
           } finally {
               setIsSearching(false);
           }
@@ -212,7 +213,6 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
 
 
   const handleSubmit = async (values: EventFormValues) => {
-    // If an event is linked, we may need to update the other event too
     if (values.linkedEventId && event?.id) {
         const otherEventRef = doc(db, 'events', values.linkedEventId);
         await updateDoc(otherEventRef, {
@@ -220,7 +220,6 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             linkedEventName: values.nome_evento
         });
     } else if (!values.linkedEventId && event?.linkedEventId) {
-        // If link was removed, update the other event
         const otherEventRef = doc(db, 'events', event.linkedEventId);
         const otherEventSnap = await getDoc(otherEventRef);
         if(otherEventSnap.exists() && otherEventSnap.data().linkedEventId === event.id) {
@@ -251,7 +250,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
 
  const handleProofUpload = async () => {
     if (!selectedProofFile || !event?.id || !storage || !db) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não é possível enviar o comprovante. Verifique se o evento está salvo e o arquivo selecionado.' });
+      toast({ variant: 'destructive', title: 'Erro', description: 'Salve o evento primeiro.' });
       return;
     }
 
@@ -264,9 +263,8 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
     try {
       const uploadTask = uploadBytesResumable(fileSRef, selectedProofFile);
       uploadTask.on('state_changed',
-        (snapshot) => { /* Progress */ },
+        null,
         (error) => { 
-          console.error("Firebase Storage Upload Error:", error);
           toast({ variant: 'destructive', title: 'Falha no Upload', description: error.message });
           setIsUploadingProof(false);
         },
@@ -287,7 +285,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
               updated_at: serverTimestamp(),
             });
             
-            toast({ title: 'Comprovante Enviado!', description: `${selectedProofFile.name} foi enviado com sucesso.` });
+            toast({ title: 'Comprovante Enviado!' });
             setSelectedProofFile(null); 
             
             if (onSuccessfulProofUpload) {
@@ -298,20 +296,14 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
               };
               onSuccessfulProofUpload(updatedEventWithNewProof);
             }
-            
-           const fileInput = document.getElementById('payment-proof-upload') as HTMLInputElement;
-           if (fileInput) fileInput.value = '';
           } catch (firestoreError: any) {
-            console.error("Firestore Update Error (after upload):", firestoreError);
-            toast({ variant: 'destructive', title: 'Erro ao Salvar Comprovante', description: firestoreError.message });
+            toast({ variant: 'destructive', title: 'Erro ao Salvar Comprovante' });
           } finally {
             setIsUploadingProof(false);
           }
         }
       );
     } catch (initialError: any) { 
-      console.error("Error initiating proof upload:", initialError);
-      toast({ variant: 'destructive', title: 'Erro Crítico no Upload', description: initialError.message });
       setIsUploadingProof(false);
     }
   };
@@ -363,11 +355,10 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="servico_dj">Serviço de DJ</SelectItem>
+                    <SelectItem value="servico_dj">Serviço de DJ/Profissional</SelectItem>
                     <SelectItem value="locacao_equipamento">Locação de Equipamento</SelectItem>
                   </SelectContent>
                 </Select>
-                 <FormDescription>Classifique o serviço principal deste evento.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -379,8 +370,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo de Serviço</FormLabel>
-                     <Input disabled value="Serviço de DJ" />
-                      <FormDescription>Você não tem permissão para criar eventos de locação.</FormDescription>
+                     <Input disabled value="Serviço de DJ/Profissional" />
                      <Input type="hidden" {...field} value="servico_dj" />
                      <FormMessage />
                   </FormItem>
@@ -433,7 +423,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
               name="horario_inicio"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Horário Início (Opcional)</FormLabel>
+                  <FormLabel>Horário Início</FormLabel>
                   <FormControl>
                     <Input type="time" {...field} value={field.value ?? ''} />
                   </FormControl>
@@ -463,9 +453,9 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             name="contratante_contato"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Contato do Contratante (Opcional)</FormLabel>
+                <FormLabel>Contato do Contratante</FormLabel>
                 <FormControl>
-                  <Input placeholder="Ex: (11) 99999-9999 ou email@example.com" {...field} value={field.value ?? ''} />
+                  <Input placeholder="Ex: (21) 99999-9999" {...field} value={field.value ?? ''} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -481,7 +471,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
               <FormLabel>Anotações do Evento</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Detalhes acordados com o contratante, observações sobre o evento, etc."
+                  placeholder="Instruções para o prestador, cronograma, etc."
                   className="resize-y"
                   {...field}
                   value={field.value ?? ''}
@@ -549,7 +539,6 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                       </CommandList>
                     </Command>
                   )}
-                  <FormDescription>Vincule este evento a outro (ex: Serviço de DJ com Locação).</FormDescription>
                 </FormItem>
               )}
             />
@@ -590,11 +579,10 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             name="dj_costs"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Custos do DJ (R$)</FormLabel>
+                <FormLabel>Custos Logísticos (R$)</FormLabel>
                 <FormControl>
                   <Input type="number" step="0.01" placeholder="Ex: 100.00" {...field} />
                 </FormControl>
-                <FormDescription>Custos como transporte, etc.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -607,16 +595,16 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             name="conta_que_recebeu"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Conta que Recebeu o Sinal</FormLabel>
+                <FormLabel>Sinal Recebido Por:</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione a conta" />
+                      <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="agencia">Agência</SelectItem>
-                    <SelectItem value="dj">DJ</SelectItem>
+                    <SelectItem value="dj">Prestador</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -628,11 +616,11 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             name="status_pagamento"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Status do Pagamento</FormLabel>
+                <FormLabel>Status Financeiro (Cliente)</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione o status" />
+                      <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -655,7 +643,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
             name="dj_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Atribuir DJ</FormLabel>
+                <FormLabel>Atribuir Responsável</FormLabel>
                 <Select
                   value={field.value || ''} 
                   onValueChange={(value) => {
@@ -663,33 +651,27 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                     if (selectedDj) {
                       form.setValue('dj_id', selectedDj.uid, { shouldValidate: true });
                       form.setValue('dj_nome', selectedDj.displayName || '', { shouldValidate: true });
-                    } else {
-                       form.setValue('dj_id', '', { shouldValidate: true });
-                       form.setValue('dj_nome', '', { shouldValidate: true });
                     }
                   }}
                   disabled={isLoadingDjs}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={isLoadingDjs ? "Carregando DJs..." : "Selecione um DJ"} />
+                      <SelectValue placeholder={isLoadingDjs ? "Carregando..." : "Selecione o profissional"} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {isLoadingDjs ? (
-                      <SelectItem value="loading" disabled>Carregando...</SelectItem>
-                    ) : availableDjs.length > 0 ? (
+                    {availableDjs.length > 0 ? (
                       availableDjs.map((dj) => (
                         <SelectItem key={dj.uid} value={dj.uid}>
-                          {dj.displayName}
+                          [{dj.professionalType || 'Prestador'}] {dj.displayName}
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="no-djs" disabled>Nenhum DJ cadastrado</SelectItem>
+                      <SelectItem value="no-djs" disabled>Nenhum prestador cadastrado</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
-                <FormDescription>Selecione o DJ responsável pelo evento.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -697,27 +679,22 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
         ) : (
           event?.dj_id && (
             <div className="space-y-2">
-                <div>
-                    <FormLabel>DJ Atribuído</FormLabel>
-                    <p className="text-sm text-muted-foreground p-2 border rounded-md bg-muted">
-                        {form.getValues('dj_nome')}
-                    </p>
-                </div>
-                <FormField control={form.control} name="dj_nome" render={({ field }) => <Input {...field} type="hidden" />} />
-                <FormField control={form.control} name="dj_id" render={({ field }) => <Input {...field} type="hidden" />} />
+                <FormLabel>Responsável</FormLabel>
+                <p className="text-sm font-bold p-2 border rounded-md bg-muted">
+                    {form.getValues('dj_nome')}
+                </p>
+                <Input {...form.register('dj_nome')} type="hidden" />
+                <Input {...form.register('dj_id')} type="hidden" />
             </div>
           )
-        )}
-        {isUserAdminOrPartner && form.formState.errors.dj_nome && !form.getValues('dj_id') && (
-             <p className="text-sm font-medium text-destructive">{form.formState.errors.dj_nome.message}</p>
         )}
 
 
         <Separator />
 
         <div>
-          <h3 className="text-lg font-medium mb-2">Comprovantes de Pagamento do DJ</h3>
-          {event?.payment_proofs && event.payment_proofs.length > 0 ? (
+          <h3 className="text-lg font-medium mb-2">Comprovantes</h3>
+          {event?.payment_proofs && event.payment_proofs.length > 0 && (
             <ul className="space-y-2 mb-3">
               {event.payment_proofs.map((proof, index) => (
                 <li key={proof.id || index} className="flex items-center justify-between p-2 border rounded-md">
@@ -726,16 +703,12 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                     <a href={proof.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
                       {proof.name}
                     </a>
-                    <span className="text-xs text-muted-foreground">({format(proof.uploadedAt instanceof Timestamp ? proof.uploadedAt.toDate() : new Date(proof.uploadedAt), 'dd/MM/yy')})</span>
                   </div>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground mb-3">Nenhum comprovante enviado ainda.</p>
           )}
           <FormItem>
-            <FormLabel htmlFor="payment-proof-upload">Enviar Novo Comprovante</FormLabel>
             <div className="flex items-center gap-2">
               <FormControl>
                 <Input 
@@ -757,8 +730,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                 Upload
               </Button>
             </div>
-            <FormDescription>Selecione o arquivo do comprovante (PDF, JPG, PNG). Máx 5MB.</FormDescription>
-             { !event?.id && <FormDescription className="text-destructive">Salve o evento primeiro para poder enviar comprovantes.</FormDescription>}
+             { !event?.id && <FormDescription className="text-primary font-bold">Salve o evento primeiro para habilitar o upload.</FormDescription>}
           </FormItem>
         </div>
 

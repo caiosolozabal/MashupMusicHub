@@ -5,7 +5,7 @@ import { auth, db } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import type { ReactNode } from 'react';
 import { createContext, useEffect, useState, useMemo } from 'react';
-import { doc, onSnapshot, getDoc, setDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserDetails } from '@/lib/types';
 import { generateRandomPastelColor } from '@/lib/utils';
 
@@ -32,7 +32,8 @@ const createNewUserProfile = async (user: User) => {
   const newUserDetails: Omit<UserDetails, 'uid'> = {
     email: user.email,
     displayName: user.displayName || user.email?.split('@')[0] || 'Novo Usuário',
-    role: 'dj', // Default role for new users
+    role: 'dj', // Default technical role
+    professionalType: 'DJ', // Default display function
     dj_percentual: 0.7, // Default 70%
     rental_percentual: 0.2, // Default 20%
     pode_locar: false,

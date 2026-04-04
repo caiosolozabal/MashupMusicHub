@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Event, UserDetails } from '@/lib/types';
@@ -59,8 +60,8 @@ export default function ScheduleListView({
              const dayLabel = event.dia_da_semana || getDayOfWeek(event.data_evento);
              const djColor = dj?.dj_color || '#e2e8f0';
              
-             // Identificação do DJ com fallback robusto
-             const djDisplayName = event.dj_nome || dj?.displayName || dj?.email?.split('@')[0] || 'DJ não definido';
+             const djDisplayName = event.dj_nome || dj?.displayName || 'N/A';
+             const profType = dj?.professionalType || (dj?.role === 'admin' ? 'Admin' : 'DJ');
 
             return(
             <TableRow 
@@ -89,10 +90,11 @@ export default function ScheduleListView({
                         </span>
                         {isClosed && <Lock className="h-2.5 w-2.5 text-muted-foreground shrink-0" />}
                     </div>
-                    {/* Identificação clara do DJ responsável */}
                     <div className="flex items-center gap-1.5 mt-0.5">
-                        <div className="h-2 w-2 rounded-full shrink-0 border border-black/10" style={{ backgroundColor: djColor }}></div>
-                        <span className="text-[10px] sm:text-[11px] font-black text-primary uppercase tracking-wider">
+                        <Badge variant="outline" className="text-[8px] h-3.5 px-1 uppercase font-black tracking-tighter leading-none border-primary/20 text-primary/80">
+                          {profType}
+                        </Badge>
+                        <span className="text-[10px] sm:text-[11px] font-bold text-foreground/80 truncate">
                             {djDisplayName}
                         </span>
                     </div>

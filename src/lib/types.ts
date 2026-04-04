@@ -7,6 +7,7 @@ export interface UserDetails {
   email: string | null;
   displayName: string | null;
   role: UserRole;
+  professionalType?: string | null; // Novo campo: DJ, Fotógrafo, Filmmaker, etc.
   dj_percentual?: number | null;
   rental_percentual?: number | null;
   dj_color?: string | null;

@@ -22,18 +22,19 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserDetails, UserRole } from '@/lib/types';
-import { Loader2, PackageCheck } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { generateRandomPastelColor } from '@/lib/utils';
 import { Separator } from '../ui/separator';
 import { Switch } from '../ui/switch';
 
 const editUserFormSchema = z.object({
   displayName: z.string().min(1, 'Nome é obrigatório.'),
-  role: z.enum(['admin', 'partner', 'dj', 'financeiro']), // Adjust as per your roles
+  role: z.enum(['admin', 'partner', 'dj', 'financeiro']),
+  professionalType: z.string().min(1, 'Função profissional é obrigatória.'),
   pode_locar: z.boolean().default(false),
   dj_percentual: z.preprocess(
     (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
-    z.number().min(0).max(1).nullable().optional() // Percentage between 0 and 1
+    z.number().min(0).max(1).nullable().optional()
   ),
   rental_percentual: z.preprocess(
     (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
@@ -71,7 +72,8 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
     resolver: zodResolver(editUserFormSchema),
     defaultValues: {
       displayName: user.displayName || '',
-      role: user.role || 'dj', // Default to 'dj' if no role
+      role: user.role || 'dj',
+      professionalType: user.professionalType || 'DJ',
       pode_locar: user.pode_locar || false,
       dj_percentual: user.dj_percentual ?? null,
       rental_percentual: user.rental_percentual ?? null,
@@ -86,11 +88,11 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
   });
 
   useEffect(() => {
-    // Reset form when user prop changes (e.g., opening dialog for a different user)
     if (user) {
       reset({
         displayName: user.displayName || '',
         role: user.role || 'dj',
+        professionalType: user.professionalType || 'DJ',
         pode_locar: user.pode_locar || false,
         dj_percentual: user.dj_percentual ?? null,
         rental_percentual: user.rental_percentual ?? null,
@@ -116,6 +118,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       const updateData: Partial<UserDetails> = {
         displayName: data.displayName,
         role: data.role as UserRole, 
+        professionalType: data.professionalType,
         updatedAt: serverTimestamp(),
       };
 
@@ -130,23 +133,11 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         updateData.bankAccountType = data.bankAccountType || null;
         updateData.bankDocument = data.bankDocument || null;
         updateData.pixKey = data.pixKey || null;
-      } else {
-        // Clear DJ specific fields if role is not DJ
-        updateData.pode_locar = false;
-        updateData.dj_percentual = null;
-        updateData.rental_percentual = null;
-        updateData.dj_color = null;
-        updateData.bankName = null;
-        updateData.bankAgency = null;
-        updateData.bankAccount = null;
-        updateData.bankAccountType = null;
-        updateData.bankDocument = null;
-        updateData.pixKey = null;
       }
 
       await updateDoc(userRef, updateData);
       toast({ title: 'Usuário Atualizado!', description: `${data.displayName} foi atualizado com sucesso.` });
-      onClose(true); // Pass true to indicate an update occurred
+      onClose(true);
     } catch (error) {
       console.error('Error updating user:', error);
       toast({ variant: 'destructive', title: 'Erro ao atualizar usuário', description: (error as Error).message });
@@ -160,7 +151,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-headline">Editar Usuário: {user.displayName || user.email}</DialogTitle>
-          <DialogDescription>Modifique os detalhes e permissões do usuário.</DialogDescription>
+          <DialogDescription>Modifique os detalhes e a função profissional do usuário.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
           <div>
@@ -169,26 +160,49 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
             {errors.displayName && <p className="text-sm text-destructive mt-1">{errors.displayName.message}</p>}
           </div>
 
-          <div>
-            <Label htmlFor="role">Função (Role)</Label>
-            <Controller
-              name="role"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value as string | undefined}>
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Selecione a função" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="partner">Sócio</SelectItem>
-                    <SelectItem value="dj">DJ</SelectItem>
-                    {/* <SelectItem value="financeiro">Financeiro</SelectItem> */}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="role">Nível de Acesso</Label>
+              <Controller
+                name="role"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value as string | undefined}>
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="partner">Sócio</SelectItem>
+                      <SelectItem value="dj">Prestador</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            <div>
+              <Label htmlFor="professionalType">Função Profissional</Label>
+              <Controller
+                name="professionalType"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DJ">DJ</SelectItem>
+                      <SelectItem value="Fotógrafo">Fotógrafo</SelectItem>
+                      <SelectItem value="Filmmaker">Filmmaker</SelectItem>
+                      <SelectItem value="Técnico de Som">Técnico de Som</SelectItem>
+                      <SelectItem value="Técnico de Luz">Técnico de Luz</SelectItem>
+                      <SelectItem value="Promoter">Promoter</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
           </div>
 
           {selectedRole === 'dj' && (
@@ -202,7 +216,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                       <div className="space-y-0.5">
                         <Label htmlFor="pode-locar-switch" className="text-base">Permissão de Locação</Label>
                          <DialogDescription>
-                          Ative se este DJ pode criar eventos de locação de equipamentos.
+                          Habilita criação de orçamentos de equipamentos.
                         </DialogDescription>
                       </div>
                       <Switch
@@ -214,10 +228,10 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                   )}
                 />
               <div className="mt-4">
-                <h3 className="text-md font-semibold mb-2 text-primary">Detalhes Financeiros e de Agenda do DJ</h3>
+                <h3 className="text-md font-semibold mb-2 text-primary">Cálculos e Agenda</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <Label htmlFor="dj_percentual">Percentual Serviço DJ (Ex: 0.7)</Label>
+                        <Label htmlFor="dj_percentual">Comissão Serviço (Ex: 0.7)</Label>
                         <Input
                             id="dj_percentual"
                             type="number"
@@ -229,7 +243,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                         {errors.dj_percentual && <p className="text-sm text-destructive mt-1">{errors.dj_percentual.message}</p>}
                     </div>
                      <div>
-                        <Label htmlFor="rental_percentual">Percentual Locação (Ex: 0.2)</Label>
+                        <Label htmlFor="rental_percentual">Comissão Locação (Ex: 0.2)</Label>
                         <Input
                             id="rental_percentual"
                             type="number"
@@ -242,17 +256,17 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                     </div>
                 </div>
                  <div className="mt-4">
-                    <Label>Cor do DJ na Agenda</Label>
+                    <Label>Cor na Agenda</Label>
                     <div className="flex items-center gap-2 mt-1 p-2 border rounded-md bg-muted/50 h-10">
                         <div className="h-6 w-6 rounded-full border" style={{ backgroundColor: watch('dj_color') || 'transparent' }}></div>
-                        <span className="text-sm text-muted-foreground font-mono">{watch('dj_color') || 'Cor será gerada ao salvar'}</span>
+                        <span className="text-sm text-muted-foreground font-mono">{watch('dj_color') || 'N/A'}</span>
                     </div>
                 </div>
               </div>
 
               <Separator className="my-4" />
               <div className="space-y-4">
-                <h4 className="text-md font-semibold text-primary">Dados Bancários do DJ</h4>
+                <h4 className="text-md font-semibold text-primary">Dados Bancários</h4>
                 <div>
                   <Label htmlFor="bankName">Nome do Banco</Label>
                   <Input id="bankName" {...register('bankName')} />
@@ -263,19 +277,19 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                     <Input id="bankAgency" {...register('bankAgency')} />
                   </div>
                   <div>
-                    <Label htmlFor="bankAccount">Conta (com dígito)</Label>
+                    <Label htmlFor="bankAccount">Conta</Label>
                     <Input id="bankAccount" {...register('bankAccount')} />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="bankAccountType">Tipo de Conta</Label>
+                  <Label htmlFor="bankAccountType">Tipo</Label>
                    <Controller
                     name="bankAccountType"
                     control={control}
                     render={({ field }) => (
                         <Select onValueChange={field.onChange} value={field.value || undefined}>
                         <SelectTrigger id="bankAccountType">
-                            <SelectValue placeholder="Selecione o tipo" />
+                            <SelectValue placeholder="Selecione..." />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="corrente">Corrente</SelectItem>
@@ -286,13 +300,8 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                     />
                 </div>
                 <div>
-                  <Label htmlFor="bankDocument">CPF ou CNPJ</Label>
-                  <Input id="bankDocument" {...register('bankDocument')} />
-                </div>
-                <div>
                   <Label htmlFor="pixKey">Chave PIX</Label>
                   <Input id="pixKey" {...register('pixKey')} />
-                  {errors.pixKey && <p className="text-sm text-destructive mt-1">{errors.pixKey.message}</p>}
                 </div>
               </div>
             </>

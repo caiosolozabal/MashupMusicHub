@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -19,7 +20,6 @@ export default function UserManagementTab() {
   const [users, setUsers] = useState<UserDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Estados para os diálogos
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
@@ -126,11 +126,10 @@ export default function UserManagementTab() {
             <TableRow>
               <TableHead>Nome</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Função</TableHead>
-              <TableHead>% Serviço DJ</TableHead>
+              <TableHead>Função Hub</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>% Serviço</TableHead>
               <TableHead>% Locação</TableHead>
-              <TableHead>Pode Locar?</TableHead>
-              <TableHead>Cor</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
@@ -138,38 +137,25 @@ export default function UserManagementTab() {
             {users.map((user) => (
               <TableRow key={user.uid}>
                 <TableCell className="font-medium">{user.displayName || 'N/A'}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell className="capitalize">{user.role || 'N/A'}</TableCell>
+                <TableCell className="text-xs">{user.email}</TableCell>
                 <TableCell>
-                  {user.role === 'dj' ? (user.dj_percentual ? `${(user.dj_percentual * 100).toFixed(0)}%` : 'Não definido') : 'N/A'}
+                  <Badge variant="outline" className="font-bold text-[10px] uppercase">
+                    {user.professionalType || (user.role === 'admin' ? 'Admin' : 'DJ')}
+                  </Badge>
                 </TableCell>
-                <TableCell>
-                  {user.role === 'dj' ? (user.rental_percentual ? `${(user.rental_percentual * 100).toFixed(0)}%` : 'N/D') : 'N/A'}
+                <TableCell className="capitalize text-xs text-muted-foreground">{user.role || 'N/A'}</TableCell>
+                <TableCell className="text-xs">
+                  {user.role === 'dj' ? (user.dj_percentual ? `${(user.dj_percentual * 100).toFixed(0)}%` : '---') : 'N/A'}
                 </TableCell>
-                <TableCell>
-                  {user.role === 'dj' ? (
-                     <Badge variant={user.pode_locar ? 'default' : 'outline'}>
-                      {user.pode_locar ? <CheckCircle2 className="h-4 w-4 mr-1"/> : <XCircle className="h-4 w-4 mr-1"/>}
-                      {user.pode_locar ? 'Sim' : 'Não'}
-                    </Badge>
-                  ) : 'N/A'}
-                </TableCell>
-                <TableCell>
-                  {user.role === 'dj' && user.dj_color ? (
-                    <div className="flex items-center gap-2">
-                      <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: user.dj_color }}></div>
-                      <span className="font-mono text-xs">{user.dj_color}</span>
-                    </div>
-                  ) : 'N/A'}
+                <TableCell className="text-xs">
+                  {user.role === 'dj' ? (user.rental_percentual ? `${(user.rental_percentual * 100).toFixed(0)}%` : '---') : 'N/A'}
                 </TableCell>
                 <TableCell className="text-right space-x-1">
-                  <Button variant="outline" size="sm" onClick={() => handleEditUser(user)}>
-                    <Edit className="mr-1 h-4 w-4" />
-                    Editar
+                  <Button variant="outline" size="sm" className="h-8" onClick={() => handleEditUser(user)}>
+                    <Edit className="h-3.5 w-3.5" />
                   </Button>
-                   <Button variant="secondary" size="sm" onClick={() => openPasswordResetConfirm(user)}>
-                    <KeyRound className="mr-1 h-4 w-4" />
-                    Resetar Senha
+                   <Button variant="secondary" size="sm" className="h-8" onClick={() => openPasswordResetConfirm(user)}>
+                    <KeyRound className="h-3.5 w-3.5" />
                   </Button>
                 </TableCell>
               </TableRow>
@@ -193,7 +179,7 @@ export default function UserManagementTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Redefinição de Senha</AlertDialogTitle>
             <AlertDialogDescription>
-              Um e-mail de redefinição de senha será enviado para <span className="font-semibold">{selectedUser?.email}</span>. O usuário precisará clicar no link contido no e-mail para criar uma nova senha. Você confirma o envio?
+              Um e-mail de redefinição de senha será enviado para <span className="font-semibold">{selectedUser?.email}</span>. Você confirma o envio?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

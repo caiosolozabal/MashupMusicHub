@@ -22,18 +22,17 @@ import { useToast } from '@/hooks/use-toast';
 import { db, auth } from '@/lib/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserRole } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { generateRandomPastelColor } from '@/lib/utils';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
-
 
 const inviteUserFormSchema = z.object({
   email: z.string().email('Email inválido.'),
   password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres.'),
   displayName: z.string().min(1, 'Nome é obrigatório.'),
   role: z.enum(['admin', 'partner', 'dj']),
+  professionalType: z.string().min(1, 'Selecione a função profissional.'),
 });
 
 type InviteUserFormValues = z.infer<typeof inviteUserFormSchema>;
@@ -61,6 +60,7 @@ export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogPr
       password: '',
       displayName: '',
       role: 'dj',
+      professionalType: 'DJ',
     },
   });
 
@@ -70,7 +70,6 @@ export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogPr
     try {
       if (!auth || !db) throw new Error('Firebase não inicializado.');
 
-      // 1. Criar o usuário no Firebase Authentication
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const newUser = userCredential.user;
 
@@ -80,26 +79,26 @@ export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogPr
       
       const { uid } = newUser;
 
-      // 2. Criar o documento de perfil no Firestore
       const userRef = doc(db, 'users', uid);
       const userProfileData = {
         uid: uid,
         email: data.email,
         displayName: data.displayName,
         role: data.role as UserRole,
+        professionalType: data.professionalType,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         dj_color: data.role === 'dj' ? generateRandomPastelColor() : null,
         pode_locar: false,
-        dj_percentual: data.role === 'dj' ? 0.7 : null, // Default de 70% para novos DJs
-        rental_percentual: data.role === 'dj' ? 0.2 : null, // Default de 20% para locação
+        dj_percentual: data.role === 'dj' ? 0.7 : null,
+        rental_percentual: data.role === 'dj' ? 0.2 : null,
       };
       
       await setDoc(userRef, userProfileData);
 
       toast({ title: 'Usuário Criado!', description: `${data.displayName} foi convidado e criado com sucesso.` });
       reset();
-      onClose(true); // Indica que um usuário foi criado
+      onClose(true);
 
     } catch (err: any) {
       console.error('Error creating user:', err);
@@ -119,7 +118,7 @@ export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogPr
   };
 
   const handleDialogClose = () => {
-    reset(); // Reseta o formulário ao fechar
+    reset();
     setError(null);
     onClose(false);
   }
@@ -130,7 +129,7 @@ export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogPr
         <DialogHeader>
           <DialogTitle className="font-headline">Convidar Novo Usuário</DialogTitle>
           <DialogDescription>
-            Crie uma nova conta de usuário no Firebase e um perfil correspondente no Firestore.
+            Crie uma nova conta de usuário e defina sua função no hub.
           </DialogDescription>
         </DialogHeader>
 
@@ -158,26 +157,52 @@ export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogPr
             <Input id="password" type="password" {...register('password')} />
             {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
           </div>
-          <div>
-            <Label htmlFor="role">Função (Role)</Label>
-            <Controller
-              name="role"
-              control={control}
-              render={({ field }) => (
-                <Select onValueChange={field.onChange} value={field.value as string | undefined}>
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Selecione a função" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="partner">Sócio</SelectItem>
-                    <SelectItem value="dj">DJ</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            />
-            {errors.role && <p className="text-sm text-destructive mt-1">{errors.role.message}</p>}
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="role">Nível de Acesso (Role)</Label>
+              <Controller
+                name="role"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="partner">Sócio</SelectItem>
+                      <SelectItem value="dj">Prestador (DJ/Staff)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            <div>
+              <Label htmlFor="professionalType">Função Profissional</Label>
+              <Controller
+                name="professionalType"
+                control={control}
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DJ">DJ</SelectItem>
+                      <SelectItem value="Fotógrafo">Fotógrafo</SelectItem>
+                      <SelectItem value="Filmmaker">Filmmaker</SelectItem>
+                      <SelectItem value="Técnico de Som">Técnico de Som</SelectItem>
+                      <SelectItem value="Técnico de Luz">Técnico de Luz</SelectItem>
+                      <SelectItem value="Promoter">Promoter</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
           </div>
+
           <DialogFooter className="pt-4">
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={handleDialogClose} disabled={isSubmitting}>
