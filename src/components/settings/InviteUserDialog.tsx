@@ -190,6 +190,7 @@ export default function InviteUserDialog({ isOpen, onClose }: InviteUserDialogPr
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="DJ">DJ</SelectItem>
+                      <SelectItem value="Cantor">Cantor</SelectItem>
                       <SelectItem value="Fotógrafo">Fotógrafo</SelectItem>
                       <SelectItem value="Filmmaker">Filmmaker</SelectItem>
                       <SelectItem value="Técnico de Som">Técnico de Som</SelectItem>
