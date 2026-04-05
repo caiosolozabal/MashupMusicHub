@@ -1,3 +1,4 @@
+npm run deploy
 
 # Mashup Music Hub 🎧
 
