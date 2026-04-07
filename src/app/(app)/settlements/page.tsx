@@ -731,7 +731,7 @@ export default function SettlementsPage() {
                  <CardTitle className="text-sm font-bold">Resumo do Fechamento</CardTitle>
               </CardHeader>
               <CardContent className="p-3 pt-0 space-y-3">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 text-center">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 text-center">
                   <div className="bg-background/50 p-1.5 rounded-md border border-border/50">
                     <p className="text-[10px] text-muted-foreground uppercase">Eventos</p>
                     <p className="text-sm font-bold">{eventsForCalculation.length}</p>
@@ -739,6 +739,10 @@ export default function SettlementsPage() {
                   <div className="bg-background/50 p-1.5 rounded-md border border-border/50">
                     <p className="text-[10px] text-muted-foreground uppercase">Bruto</p>
                     <p className="text-sm font-bold">{financialSummary.totalBruto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
+                  </div>
+                  <div className="bg-background/50 p-1.5 rounded-md border border-border/50">
+                    <p className="text-[10px] text-muted-foreground uppercase">Custos</p>
+                    <p className="text-sm font-bold">{financialSummary.totalCustos.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p>
                   </div>
                   <div className="bg-background/50 p-1.5 rounded-md border border-border/50">
                     <p className="text-[10px] text-muted-foreground uppercase">Cachê DJ</p>
