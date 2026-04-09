@@ -5,17 +5,20 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import type { GuestEvent, GuestList, GuestSubmission, UrlSlug } from '@/lib/types';
-import { Loader2, Users, Calendar, MapPin, Search, Download, AlertTriangle } from 'lucide-react';
+import { Loader2, Users, Search, AlertTriangle, Copy, CheckCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 function StatsContent() {
   const { slug } = useParams();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +26,7 @@ function StatsContent() {
   const [list, setList] = useState<GuestList | null>(null);
   const [submissions, setSubmissions] = useState<GuestSubmission[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     if (!slug || !token) {
@@ -96,6 +100,21 @@ function StatsContent() {
     (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  const handleCopyNames = () => {
+    if (filteredSubmissions.length === 0) return;
+    
+    const namesText = filteredSubmissions.map(s => s.name).join('\n');
+    navigator.clipboard.writeText(namesText);
+    
+    setIsCopied(true);
+    toast({
+      title: 'Nomes Copiados!',
+      description: `${filteredSubmissions.length} nomes copiados para o formato AzList.`,
+    });
+    
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-black">
@@ -137,21 +156,33 @@ function StatsContent() {
           </div>
         </div>
 
-        <Card className="bg-white/5 border-white/10 text-white rounded-3xl overflow-hidden">
+        <Card className="bg-white/5 border border-white/10 text-white rounded-3xl overflow-hidden">
           <CardHeader className="border-b border-white/10 pb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <CardTitle className="font-headline uppercase italic">Lista de Inscritos</CardTitle>
                 <CardDescription className="text-muted-foreground">Estes nomes entrarão automaticamente no sistema.</CardDescription>
               </div>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Buscar nome..." 
-                  className="bg-black/40 border-white/10 pl-10 h-10 rounded-xl"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                <Button 
+                  onClick={handleCopyNames} 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full sm:w-auto bg-primary/10 border-primary/20 text-primary hover:bg-primary/20 font-black uppercase text-[10px] tracking-widest h-10"
+                  disabled={filteredSubmissions.length === 0}
+                >
+                  {isCopied ? <CheckCheck className="mr-2 h-4 w-4" /> : <Copy className="mr-2 h-4 w-4" />}
+                  {isCopied ? 'Copiado!' : 'Copiar Nomes (AzList)'}
+                </Button>
+                <div className="relative w-full sm:w-64">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    placeholder="Buscar nome..." 
+                    className="bg-black/40 border-white/10 pl-10 h-10 rounded-xl"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>

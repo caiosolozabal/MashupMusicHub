@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,9 +12,10 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, Download, Users } from 'lucide-react';
+import { Loader2, Search, Download, Users, Copy, CheckCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import type { GuestSubmission, GuestList } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface SubmissionsDialogProps {
   isOpen: boolean;
@@ -24,9 +24,11 @@ interface SubmissionsDialogProps {
 }
 
 export default function SubmissionsDialog({ isOpen, onClose, list }: SubmissionsDialogProps) {
+  const { toast } = useToast();
   const [submissions, setSubmissions] = useState<GuestSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     if (!list || !isOpen) return;
@@ -50,6 +52,21 @@ export default function SubmissionsDialog({ isOpen, onClose, list }: Submissions
     s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const handleCopyNames = () => {
+    if (filteredSubmissions.length === 0) return;
+    
+    const namesText = filteredSubmissions.map(s => s.name).join('\n');
+    navigator.clipboard.writeText(namesText);
+    
+    setIsCopied(true);
+    toast({
+      title: 'Nomes Copiados!',
+      description: `${filteredSubmissions.length} nomes formatados para AzList.`,
+    });
+    
+    setTimeout(() => setIsCopied(false), 2000);
+  };
 
   const handleExportCSV = () => {
     if (submissions.length === 0) return;
@@ -93,10 +110,16 @@ export default function SubmissionsDialog({ isOpen, onClose, list }: Submissions
                 Total de {submissions.length} nomes registrados.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={submissions.length === 0}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar CSV
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleCopyNames} disabled={filteredSubmissions.length === 0}>
+                {isCopied ? <CheckCheck className="mr-2 h-4 w-4 text-green-500" /> : <Copy className="mr-2 h-4 w-4" />}
+                Copiar Nomes (AzList)
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={submissions.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar CSV
+              </Button>
+            </div>
           </div>
         </DialogHeader>
 
