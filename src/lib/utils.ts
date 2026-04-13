@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-const pastelColors = [
+export const pastelColors = [
   'hsl(38, 100%, 80%)', // Light Orange
   'hsl(60, 100%, 80%)', // Light Yellow
   'hsl(90, 100%, 85%)', // Light Green
@@ -18,7 +18,17 @@ const pastelColors = [
   'hsl(300, 100%, 85%)', // Light Purple
   'hsl(340, 100%, 85%)', // Light Pink
   'hsl(0, 90%, 85%)',   // Light Salmon
-  'hsl(210, 90%, 85%)'  // Light Steel Blue
+  'hsl(210, 90%, 85%)',  // Light Steel Blue
+  'hsl(45, 100%, 85%)',  // Champagne
+  'hsl(120, 100%, 90%)', // Tea Green
+  'hsl(180, 100%, 85%)', // Pale Turquoise
+  'hsl(280, 100%, 90%)', // Mauve
+  'hsl(25, 100%, 85%)',  // Apricot
+  'hsl(200, 100%, 90%)', // Sky Blue
+  'hsl(150, 100%, 90%)', // Aquamarine
+  'hsl(330, 100%, 90%)', // Fairy Pink
+  'hsl(10, 100%, 90%)',  // Misty Rose
+  'hsl(220, 100%, 90%)'  // Powder Blue
 ];
 
 
@@ -27,18 +37,12 @@ export function generateRandomPastelColor(): string {
   return pastelColors[randomIndex];
 }
 
-/**
- * Retorna o dia da semana por extenso em português.
- */
 export function getDayOfWeek(date: Date | undefined): string {
   if (!date) return '';
   const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
   return days[date.getDay()];
 }
 
-/**
- * Define o estado operacional de um evento baseado em tempo, pagamento e settlement.
- */
 export type EventOperationalState = 'active' | 'closed' | 'overdue' | 'cancelled';
 
 export function getEventOperationalState(
@@ -47,24 +51,21 @@ export function getEventOperationalState(
   if (event.status_pagamento === 'cancelado') return 'cancelled';
 
   const now = new Date();
-  const thresholdDate = startOfDay(subDays(now, 1)); // Margem D+1
+  const thresholdDate = startOfDay(subDays(now, 1)); 
   const eventDate = event.data_evento;
 
   const isPast = isBefore(eventDate, thresholdDate);
   const isClientPaid = event.status_pagamento === 'pago';
-  const isSettled = !!event.settlementId; // O vínculo com Settlement é prova irreversível de quitação do DJ
+  const isSettled = !!event.settlementId; 
 
-  // ENCERRADO: Passado + Pago pelo cliente + Vinculado a um Settlement
   if (isPast && isClientPaid && isSettled) {
     return 'closed';
   }
 
-  // EM ATRASO: Passado + Cliente não pagou integralmente
   if (isPast && !isClientPaid) {
     return 'overdue';
   }
 
-  // ATIVO: Qualquer outra condição (futuros ou passados aguardando settlement ou pagamento)
   return 'active';
 }
 

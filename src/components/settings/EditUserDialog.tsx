@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -22,10 +21,11 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import type { UserDetails, UserRole } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
-import { generateRandomPastelColor } from '@/lib/utils';
+import { Loader2, Check } from 'lucide-react';
+import { generateRandomPastelColor, pastelColors } from '@/lib/utils';
 import { Separator } from '../ui/separator';
 import { Switch } from '../ui/switch';
+import { cn } from '@/lib/utils';
 
 const editUserFormSchema = z.object({
   displayName: z.string().min(1, 'Nome é obrigatório.'),
@@ -40,7 +40,7 @@ const editUserFormSchema = z.object({
     (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
     z.number().min(0).max(1).nullable().optional()
   ),
-  dj_color: z.string().optional().nullable(),
+  dj_color: z.string().min(1, 'Cor é obrigatória.'),
   bankName: z.string().optional().nullable(),
   bankAgency: z.string().optional().nullable(),
   bankAccount: z.string().optional().nullable(),
@@ -67,6 +67,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
     control,
     watch,
     reset,
+    setValue,
     formState: { errors },
   } = useForm<EditUserFormValues>({
     resolver: zodResolver(editUserFormSchema),
@@ -77,7 +78,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       pode_locar: user.pode_locar || false,
       dj_percentual: user.dj_percentual ?? null,
       rental_percentual: user.rental_percentual ?? null,
-      dj_color: user.dj_color || null,
+      dj_color: user.dj_color || generateRandomPastelColor(),
       bankName: user.bankName || '',
       bankAgency: user.bankAgency || '',
       bankAccount: user.bankAccount || '',
@@ -96,7 +97,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         pode_locar: user.pode_locar || false,
         dj_percentual: user.dj_percentual ?? null,
         rental_percentual: user.rental_percentual ?? null,
-        dj_color: user.dj_color || null,
+        dj_color: user.dj_color || generateRandomPastelColor(),
         bankName: user.bankName || '',
         bankAgency: user.bankAgency || '',
         bankAccount: user.bankAccount || '',
@@ -108,6 +109,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
   }, [user, reset]);
 
   const selectedRole = watch('role');
+  const currentColor = watch('dj_color');
 
   const onSubmit = async (data: EditUserFormValues) => {
     setIsSubmitting(true);
@@ -126,7 +128,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         updateData.pode_locar = data.pode_locar;
         updateData.dj_percentual = data.dj_percentual;
         updateData.rental_percentual = data.rental_percentual;
-        updateData.dj_color = (data.dj_color && data.dj_color.startsWith('hsl')) ? data.dj_color : generateRandomPastelColor();
+        updateData.dj_color = data.dj_color;
         updateData.bankName = data.bankName || null;
         updateData.bankAgency = data.bankAgency || null;
         updateData.bankAccount = data.bankAccount || null;
@@ -228,8 +230,33 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                     </div>
                   )}
                 />
-              <div className="mt-4">
-                <h3 className="text-md font-semibold mb-2 text-primary">Cálculos e Agenda</h3>
+              <div className="mt-4 space-y-4">
+                <h3 className="text-md font-semibold text-primary">Cálculos e Agenda</h3>
+                
+                <div className="space-y-2">
+                  <Label>Cor de Identificação na Agenda</Label>
+                  <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
+                    {pastelColors.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={cn(
+                          "h-8 w-8 rounded-full border-2 transition-all flex items-center justify-center",
+                          currentColor === color ? "border-primary scale-110 shadow-sm" : "border-transparent hover:scale-105"
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setValue('dj_color', color)}
+                      >
+                        {currentColor === color && <Check className="h-4 w-4 text-slate-900" />}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="h-6 w-6 rounded-full border" style={{ backgroundColor: currentColor }}></div>
+                    <span className="text-xs text-muted-foreground">Visualização da cor selecionada</span>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <Label htmlFor="dj_percentual">Comissão Serviço (Ex: 0.7)</Label>
@@ -254,13 +281,6 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                             {...register('rental_percentual')}
                         />
                         {errors.rental_percentual && <p className="text-sm text-destructive mt-1">{errors.rental_percentual.message}</p>}
-                    </div>
-                </div>
-                 <div className="mt-4">
-                    <Label>Cor na Agenda</Label>
-                    <div className="flex items-center gap-2 mt-1 p-2 border rounded-md bg-muted/50 h-10">
-                        <div className="h-6 w-6 rounded-full border" style={{ backgroundColor: watch('dj_color') || 'transparent' }}></div>
-                        <span className="text-sm text-muted-foreground font-mono">{watch('dj_color') || 'N/A'}</span>
                     </div>
                 </div>
               </div>
