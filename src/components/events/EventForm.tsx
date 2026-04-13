@@ -1,4 +1,3 @@
-
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -664,7 +663,7 @@ export default function EventForm({ event, onSubmit, onCancel, isLoading, onSucc
                     {availableDjs.length > 0 ? (
                       availableDjs.map((dj) => (
                         <SelectItem key={dj.uid} value={dj.uid}>
-                          [{dj.professionalType || 'Prestador'}] {dj.displayName}
+                          [{dj.professionalType || 'DJ'}] {dj.displayName}
                         </SelectItem>
                       ))
                     ) : (
