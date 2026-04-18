@@ -1,144 +1,162 @@
 
 'use client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import { BarChart, CalendarClock, ListChecks, Users, Loader2, AlertCircle, ClipboardList, CheckCircle2, ArrowRight } from 'lucide-react';
+import { 
+  BarChart, 
+  CalendarClock, 
+  Users, 
+  Loader2, 
+  ClipboardList, 
+  ArrowRight, 
+  ChevronLeft, 
+  ChevronRight,
+  Info,
+  TrendingUp,
+  TrendingDown,
+  Target,
+  DollarSign,
+  Wallet,
+  CalendarDays
+} from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, onSnapshot } from 'firebase/firestore';
-import type { Event, Task } from '@/lib/types';
-import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths, addMonths, isSameDay, isBefore, startOfDay } from 'date-fns';
+import { collection, getDocs, query, where, Timestamp, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import type { Event, Task, UserDetails } from '@/lib/types';
+import { 
+  format, 
+  startOfMonth, 
+  endOfMonth, 
+  subMonths, 
+  addMonths, 
+  isSameDay, 
+  getYear, 
+  getMonth,
+  startOfDay
+} from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-import { getEventOperationalState } from '@/lib/utils';
+import { calculateDjCut, getEventOperationalState } from '@/lib/utils';
 import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-
-interface StatCardData {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  description?: string;
+interface FinancialMetrics {
+  grossRevenue: number;
+  netRevenue: number;
+  received: number;
+  pending: number;
+  eventCount: number;
+  avgTicket: number;
 }
+
+const months = [
+  { value: '0', label: 'Janeiro' }, { value: '1', label: 'Fevereiro' }, { value: '2', label: 'Março' },
+  { value: '3', label: 'Abril' }, { value: '4', label: 'Maio' }, { value: '5', label: 'Junho' },
+  { value: '6', label: 'Julho' }, { value: '7', label: 'Agosto' }, { value: '8', label: 'Setembro' },
+  { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
+];
 
 export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  
+  // States de UI e Filtros
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<StatCardData[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
+  const [selectedYear, setSelectedYear] = useState<number>(getYear(new Date()));
+  
+  // Data States
+  const [monthEvents, setMonthEvents] = useState<Event[]>([]);
+  const [prevMonthEvents, setPrevMonthEvents] = useState<Event[]>([]);
+  const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   const [recentActivities, setRecentActivities] = useState<Event[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
-  
   const [ownerTasks, setOwnerTasks] = useState<Task[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
 
+  const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+
+  // 1. Fetch de DJs (Para cálculo de lucro do admin)
+  useEffect(() => {
+    if (isStaff && !authLoading) {
+      const fetchDjs = async () => {
+        const q = query(collection(db, 'users'), where('role', '==', 'dj'));
+        const snap = await getDocs(q);
+        setAllDjs(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails)));
+      };
+      fetchDjs();
+    }
+  }, [isStaff, authLoading]);
+
+  // 2. Fetch de Eventos Baseado no Filtro
   useEffect(() => {
     const fetchData = async () => {
+      if (!user || !userDetails) return;
       setIsLoading(true);
-      if (!db || !user || !userDetails) {
-        setIsLoading(false);
-        return;
-      }
 
       try {
-        const eventsCollectionRef = collection(db, 'events');
-        const now = new Date();
+        const currentStart = startOfMonth(new Date(selectedYear, selectedMonth));
+        const currentEnd = endOfMonth(new Date(selectedYear, selectedMonth));
+        const prevStart = startOfMonth(subMonths(currentStart, 1));
+        const prevEnd = endOfMonth(subMonths(currentStart, 1));
+
+        const eventsRef = collection(db, 'events');
         
-        const windowStart = startOfMonth(subMonths(now, 6));
-        const windowEnd = endOfMonth(addMonths(now, 3));
+        // Função auxiliar para montar query filtrada por role
+        const getBaseQuery = (start: Date, end: Date) => {
+          let q = query(
+            eventsRef,
+            where('data_evento', '>=', Timestamp.fromDate(start)),
+            where('data_evento', '<=', Timestamp.fromDate(end))
+          );
+          if (userDetails.role === 'dj') {
+            q = query(q, where('dj_id', '==', user.uid));
+          }
+          return q;
+        };
 
-        let eventsQuery;
-        const activeStatuses = ['pago', 'parcial', 'pendente', 'vencido'];
+        const [currSnap, prevSnap] = await Promise.all([
+          getDocs(getBaseQuery(currentStart, currentEnd)),
+          getDocs(getBaseQuery(prevStart, prevEnd))
+        ]);
 
-        if (userDetails.role === 'admin' || userDetails.role === 'partner') {
-            eventsQuery = query(
-              eventsCollectionRef, 
-              where('status_pagamento', 'in', activeStatuses),
-              where('data_evento', '>=', Timestamp.fromDate(windowStart)),
-              where('data_evento', '<=', Timestamp.fromDate(windowEnd))
-            );
-        } else if (userDetails.role === 'dj') {
-            eventsQuery = query(
-              eventsCollectionRef, 
-              where('dj_id', '==', user.uid), 
-              where('status_pagamento', 'in', activeStatuses),
-              where('data_evento', '>=', Timestamp.fromDate(windowStart)),
-              where('data_evento', '<=', Timestamp.fromDate(windowEnd))
-            );
-        } else {
-            eventsQuery = null;
+        const mapDocToEvent = (doc: any) => ({
+          id: doc.id,
+          ...doc.data(),
+          data_evento: doc.data().data_evento.toDate()
+        } as Event);
+
+        setMonthEvents(currSnap.docs.map(mapDocToEvent));
+        setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent));
+
+        // Fetch Widgets (Independente do filtro principal)
+        if (recentActivities.length === 0) {
+           const recentQ = query(eventsRef, orderBy('updated_at', 'desc'), limit(3));
+           const upcomingQ = query(eventsRef, where('data_evento', '>=', Timestamp.fromDate(new Date())), orderBy('data_evento', 'asc'), limit(3));
+           const [rSnap, uSnap] = await Promise.all([getDocs(recentQ), getDocs(upcomingQ)]);
+           setRecentActivities(rSnap.docs.map(mapDocToEvent));
+           setUpcomingEvents(uSnap.docs.map(mapDocToEvent));
         }
-
-        let fetchedEvents: Event[] = [];
-        if (eventsQuery) {
-            const eventsSnapshot = await getDocs(eventsQuery);
-            fetchedEvents = eventsSnapshot.docs.map(doc => {
-                const data = doc.data();
-                return {
-                    id: doc.id,
-                    ...data,
-                    data_evento: data.data_evento instanceof Timestamp ? data.data_evento.toDate() : new Date(data.data_evento),
-                    created_at: data.created_at instanceof Timestamp ? data.created_at.toDate() : new Date(),
-                    updated_at: data.updated_at instanceof Timestamp ? data.updated_at.toDate() : new Date(),
-                } as Event;
-            });
-        }
-
-        const operationalActiveEvents = fetchedEvents.filter(event => {
-          const state = getEventOperationalState(event);
-          return state === 'active' || state === 'overdue';
-        });
-
-        const overdueCount = fetchedEvents.filter(event => {
-          return getEventOperationalState(event) === 'overdue';
-        }).length;
-
-        const upcomingGigs = fetchedEvents.filter(event => event.data_evento > now);
-        
-        const currentMonthStart = startOfMonth(now);
-        const currentMonthEnd = endOfMonth(now);
-        const monthlyRevenue = fetchedEvents
-          .filter(event => isWithinInterval(event.data_evento, { start: currentMonthStart, end: currentMonthEnd }))
-          .reduce((sum, event) => sum + (event.valor_total || 0), 0);
-
-        let newStats: StatCardData[] = [];
-        
-        if (userDetails.role === 'dj') {
-          newStats = [
-            { title: 'Pendências Operacionais', value: operationalActiveEvents.length, icon: CalendarClock, color: 'text-primary' },
-            { title: 'Pagamentos em Atraso', value: overdueCount, icon: AlertCircle, color: 'text-destructive' },
-            { title: 'Próximos Agendamentos', value: upcomingGigs.length, icon: ListChecks, color: 'text-green-500' },
-            { title: `Receita (${format(now, 'MM/yy')})`, value: monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: BarChart, color: 'text-blue-500' },
-          ];
-        } else {
-          const djsSnapshot = await getDocs(query(collection(db, 'users'), where('role', '==', 'dj')));
-          newStats = [
-            { title: 'Eventos em Aberto', value: operationalActiveEvents.length, icon: CalendarClock, color: 'text-primary' },
-            { title: 'DJs Cadastrados', value: djsSnapshot.size, icon: Users, color: 'text-primary' },
-            { title: 'Pendências de Cobrança', value: overdueCount, icon: AlertCircle, color: 'text-destructive' },
-            { title: `Faturamento (${format(now, 'MM/yy')})`, value: monthlyRevenue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), icon: BarChart, color: 'text-blue-500' },
-          ];
-        }
-        setStats(newStats);
-
-        setRecentActivities(fetchedEvents.sort((a, b) => b.updated_at!.getTime() - a.updated_at!.getTime()).slice(0, 3));
-        setUpcomingEvents(upcomingGigs.sort((a, b) => a.data_evento.getTime() - b.data_evento.getTime()).slice(0, 3));
 
       } catch (error: any) {
         console.error("Dashboard error:", error);
-        toast({ variant: 'destructive', title: 'Erro ao carregar dados', description: error.message });
+        toast({ variant: 'destructive', title: 'Erro ao carregar dados financeiros' });
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (!authLoading && user && userDetails) {
-      fetchData();
-      
-      // Listeners para Tasks no Dashboard
+    if (!authLoading && user) fetchData();
+  }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast]);
+
+  // 3. Listeners de Tarefas
+  useEffect(() => {
+    if (!authLoading && user) {
       const unsubA = onSnapshot(queryMyOpenTasks(user.uid), (snap) => {
         setOwnerTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
@@ -147,145 +165,270 @@ export default function DashboardPage() {
       });
       return () => { unsubA(); unsubB(); };
     }
-  }, [user, userDetails, authLoading, toast]);
+  }, [user, authLoading]);
+
+  // 4. Lógica de Cálculo de Métricas
+  const calculateMetrics = (events: Event[]): FinancialMetrics => {
+    let metrics = { grossRevenue: 0, netRevenue: 0, received: 0, pending: 0, eventCount: 0, avgTicket: 0 };
+    
+    events.filter(e => e.status_pagamento !== 'cancelado').forEach(event => {
+      metrics.eventCount++;
+      metrics.grossRevenue += event.valor_total;
+      
+      // Cálculo do Líquido (Regra da Agência)
+      const dj = allDjs.find(d => d.uid === event.dj_id) || (event.dj_id === user?.uid ? userDetails as UserDetails : undefined);
+      const djCut = calculateDjCut(event, dj);
+      metrics.netRevenue += (event.valor_total - djCut);
+
+      // Cálculo de Caixa
+      if (event.status_pagamento === 'pago') {
+        metrics.received += event.valor_total;
+      } else if (event.status_pagamento === 'parcial') {
+        metrics.received += (event.valor_sinal || 0);
+      }
+    });
+
+    metrics.pending = metrics.grossRevenue - metrics.received;
+    metrics.avgTicket = metrics.eventCount > 0 ? metrics.grossRevenue / metrics.eventCount : 0;
+    
+    return metrics;
+  };
+
+  const currentMetrics = useMemo(() => calculateMetrics(monthEvents), [monthEvents, allDjs, user, userDetails]);
+  const prevMetrics = useMemo(() => calculateMetrics(prevMonthEvents), [prevMonthEvents, allDjs, user, userDetails]);
 
   const tasksSummary = useMemo(() => {
     const all = [...ownerTasks, ...assignedTasks];
     const map = new Map<string, Task>();
     all.forEach(t => map.set(t.id, t));
     const merged = Array.from(map.values());
-    
     const now = new Date();
-    
     return {
       total: merged.length,
-      overdue: merged.filter(t => {
-        const date = t.dueDate?.toDate?.() || new Date(0);
-        return date < now;
-      }).length,
-      today: merged.filter(t => {
-        const date = t.dueDate?.toDate?.() || null;
-        return date ? isSameDay(date, now) : false;
-      }).length,
-      topTasks: merged.sort((a, b) => {
-        const aTime = a.dueDate?.toMillis?.() || 0;
-        const bTime = b.dueDate?.toMillis?.() || 0;
-        return aTime - bTime;
-      }).slice(0, 3)
+      overdue: merged.filter(t => t.dueDate.toDate() < now).length,
+      today: merged.filter(t => isSameDay(t.dueDate.toDate(), now)).length,
+      topTasks: merged.sort((a, b) => a.dueDate.toMillis() - b.dueDate.toMillis()).slice(0, 3)
     };
   }, [ownerTasks, assignedTasks]);
 
-  if (isLoading || authLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full space-y-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="text-muted-foreground">Carregando painel...</p>
-      </div>
-    );
+  const handlePrevMonth = () => {
+    if (selectedMonth === 0) {
+      setSelectedMonth(11);
+      setSelectedYear(selectedYear - 1);
+    } else {
+      setSelectedMonth(selectedMonth - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 11) {
+      setSelectedMonth(0);
+      setSelectedYear(selectedYear + 1);
+    } else {
+      setSelectedMonth(selectedMonth + 1);
+    }
+  };
+
+  if (authLoading) {
+    return <div className="flex h-full items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
+  const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const growth = currentMetrics.grossRevenue - prevMetrics.grossRevenue;
+
   return (
-    <div className="flex flex-col space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
-        <p className="text-muted-foreground">Foco nas pendências operacionais e próximos agendamentos.</p>
+    <div className="flex flex-col space-y-8 pb-12">
+      {/* Header e Filtros */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
+          <p className="text-muted-foreground">Aqui está o desempenho da Mashup no período.</p>
+        </div>
+        
+        <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+          <div className="flex items-center gap-2 px-2">
+            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+              <SelectTrigger className="h-8 border-0 bg-transparent font-bold focus:ring-0 w-[120px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+              <SelectTrigger className="h-8 border-0 bg-transparent font-bold focus:ring-0 w-[80px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title} className="shadow-sm hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className={`h-5 w-5 ${stat.color}`} />
+      {/* Camada 1: Competência */}
+      <div className="space-y-4">
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+          <Target className="h-4 w-4" /> Competência do Mês
+        </h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card className="bg-primary/5 border-primary/20 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10"><BarChart className="h-24 w-24" /></div>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Faturamento Bruto</CardTitle>
+              <CardDescription>Total contratado para {months[selectedMonth].label}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-3xl font-black">{formatCurrency(currentMetrics.grossRevenue)}</div>
+              <div className="flex items-center gap-2 mt-2">
+                {growth >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
+                <span className={`text-xs font-bold ${growth >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  {formatCurrency(Math.abs(growth))} em relação ao mês anterior
+                </span>
+              </div>
             </CardContent>
           </Card>
-        ))}
+
+          {isStaff && (
+            <Card className="bg-green-500/[0.03] border-green-500/20 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10"><Target className="h-24 w-24" /></div>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-medium">Faturamento Líquido</CardTitle>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger><Info className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
+                      <TooltipContent><p className="max-w-xs text-xs">Valor que permanece com a agência após repasse aos DJs e custos do evento.</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <CardDescription>Margem gerencial pós-operacional</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-black text-green-600">{formatCurrency(currentMetrics.netRevenue)}</div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Representa <strong>{currentMetrics.grossRevenue > 0 ? ((currentMetrics.netRevenue / currentMetrics.grossRevenue) * 100).toFixed(1) : 0}%</strong> do bruto total.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-1 border-primary/20 bg-primary/5">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="font-headline text-lg">Suas Tarefas</CardTitle>
-            <ClipboardList className="h-5 w-5 text-primary" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <div className="flex-1 bg-background p-2 rounded-md border text-center">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
-                <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
-              </div>
-              <div className="flex-1 bg-background p-2 rounded-md border text-center">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
-                <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
-              </div>
+      {/* Camada 2: Caixa e Estatísticas */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <div className="md:col-span-2 space-y-4">
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+            <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Já Recebido</CardTitle></CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="text-lg font-bold text-green-600">{formatCurrency(currentMetrics.received)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Falta Receber</CardTitle></CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="text-lg font-bold text-destructive">{formatCurrency(currentMetrics.pending)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Qtd Eventos</CardTitle></CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="text-lg font-bold">{currentMetrics.eventCount}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Ticket Médio</CardTitle></CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="text-lg font-bold">{formatCurrency(currentMetrics.avgTicket)}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Estado Vazio Amigável */}
+          {currentMetrics.eventCount === 0 && !isLoading && (
+            <div className="flex flex-col items-center justify-center py-12 bg-muted/20 border-2 border-dashed rounded-2xl">
+              <CalendarDays className="h-12 w-12 text-muted-foreground/30 mb-4" />
+              <p className="text-muted-foreground font-medium">Nenhum evento agendado para {months[selectedMonth].label} de {selectedYear}.</p>
             </div>
-            
-            <div className="space-y-2">
-              {tasksSummary.topTasks.map(task => {
-                const date = task.dueDate?.toDate?.() || new Date();
-                return (
+          )}
+        </div>
+
+        {/* Lado Direito: Tarefas (Preservado) */}
+        <div className="space-y-4">
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+            <ClipboardList className="h-4 w-4" /> Suas Tarefas
+          </h2>
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
+                  <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
+                </div>
+                <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
+                  <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {tasksSummary.topTasks.map(task => (
                   <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
                     <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
                     <div className="flex-1 truncate">
                       <p className="font-bold truncate">{task.title}</p>
-                      <p className="text-[10px] text-muted-foreground">{format(date, 'dd/MM HH:mm')}</p>
+                      <p className="text-[10px] text-muted-foreground">{format(task.dueDate.toDate(), 'dd/MM HH:mm')}</p>
                     </div>
-                    {task.status === 'pending_acceptance' && <Badge className="text-[8px] h-4 px-1">Convite</Badge>}
-                  </div>
-                );
-              })}
-              {tasksSummary.total === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhuma tarefa pendente.</p>}
-            </div>
-            
-            <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
-              <Link href="/tasks">Ver tudo <ArrowRight className="ml-2 h-3 w-3" /></Link>
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle className="font-headline">Atividade Recente</CardTitle></CardHeader>
-          <CardContent>
-            {recentActivities.length > 0 ? (
-              <div className="space-y-3">
-                {recentActivities.map(activity => (
-                  <div key={activity.id} className="flex items-center p-2 bg-secondary/30 rounded-md">
-                    <CalendarClock className="h-5 w-5 mr-3 text-primary shrink-0" />
-                    <div className="text-sm truncate">
-                      <p className="font-semibold truncate">{activity.nome_evento}</p>
-                      <p className="text-xs text-muted-foreground">{format(activity.updated_at || new Date(), 'dd/MM/yy HH:mm')}</p>
-                    </div>
-                    <Button variant="outline" size="sm" asChild className="ml-auto">
-                        <Link href={`/schedule?view=${activity.id}`}>Ver</Link>
-                    </Button>
                   </div>
                 ))}
               </div>
-            ) : <p className="text-muted-foreground text-sm">Nenhuma atividade recente.</p>}
+              <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
+                <Link href="/tasks">Ver tudo <ArrowRight className="ml-2 h-3 w-3" /></Link>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Widgets Inferiores: Atividade e Agenda (Preservados e Isolados) */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base font-headline flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary" /> Atividade Recente</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            {recentActivities.length > 0 ? recentActivities.map(activity => (
+              <div key={activity.id} className="flex items-center p-2 bg-secondary/30 rounded-md">
+                <div className="text-sm truncate flex-1">
+                  <p className="font-semibold truncate">{activity.nome_evento}</p>
+                  <p className="text-[10px] text-muted-foreground">Responsável: {activity.dj_nome}</p>
+                </div>
+                <Button variant="outline" size="sm" asChild className="h-7 text-[10px] ml-2">
+                    <Link href={`/schedule`}>Ver</Link>
+                </Button>
+              </div>
+            )) : <p className="text-muted-foreground text-xs italic">Nenhuma atividade recente.</p>}
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1">
-          <CardHeader><CardTitle className="font-headline">Próximos Eventos</CardTitle></CardHeader>
-          <CardContent>
-             {upcomingEvents.length > 0 ? (
-              <div className="space-y-3">
-                {upcomingEvents.map(event => (
-                  <div key={event.id} className="flex items-center justify-between p-2 bg-secondary/30 rounded-md">
-                    <div className="text-sm truncate">
-                      <p className="font-semibold truncate">{event.nome_evento}</p>
-                      <p className="text-xs text-muted-foreground">{format(event.data_evento, 'dd/MM/yy')}</p>
-                    </div>
-                    <Button variant="outline" size="sm" asChild>
-                        <Link href={`/schedule?view=${event.id}`}>Ver</Link>
-                    </Button>
-                  </div>
-                ))}
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-base font-headline flex items-center gap-2"><CalendarDays className="h-4 w-4 text-primary" /> Próximos Eventos</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+             {upcomingEvents.length > 0 ? upcomingEvents.map(event => (
+              <div key={event.id} className="flex items-center justify-between p-2 bg-secondary/30 rounded-md">
+                <div className="text-sm truncate">
+                  <p className="font-semibold truncate">{event.nome_evento}</p>
+                  <p className="text-[10px] text-muted-foreground">{format(event.data_evento, "dd 'de' MMMM", { locale: ptBR })}</p>
+                </div>
+                <Button variant="outline" size="sm" asChild className="h-7 text-[10px]">
+                    <Link href={`/schedule`}>Ver</Link>
+                </Button>
               </div>
-             ) : <p className="text-muted-foreground text-sm">Nenhum próximo evento.</p>}
+            )) : <p className="text-muted-foreground text-xs italic">Nenhum próximo evento.</p>}
           </CardContent>
         </Card>
       </div>
