@@ -31,7 +31,6 @@ import {
   isSameDay, 
   getYear, 
   getMonth,
-  startOfDay
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
@@ -39,7 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import { calculateDjCut } from '@/lib/utils';
 import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FinancialMetrics {
   grossRevenue: number;
@@ -56,6 +55,8 @@ const months = [
   { value: '6', label: 'Julho' }, { value: '7', label: 'Agosto' }, { value: '8', label: 'Setembro' },
   { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
 ];
+
+const VALID_YEARS = [2024, 2025, 2026];
 
 export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
@@ -87,7 +88,7 @@ export default function DashboardPage() {
     }
   }, [isStaff, authLoading]);
 
-  // Carregar dados financeiros baseados no mês selecionado
+  // Carregar dados financeiros e widgets
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !userDetails) return;
@@ -101,21 +102,29 @@ export default function DashboardPage() {
 
         const eventsRef = collection(db, 'events');
         
-        const getBaseQuery = (start: Date, end: Date) => {
-          let q = query(
-            eventsRef,
-            where('data_evento', '>=', Timestamp.fromDate(start)),
-            where('data_evento', '<=', Timestamp.fromDate(end))
-          );
-          if (userDetails.role === 'dj') {
-            q = query(q, where('dj_id', '==', user.uid));
-          }
-          return q;
-        };
+        // Query de Competência do Mês Selecionado
+        let qCurrent = query(
+          eventsRef,
+          where('data_evento', '>=', Timestamp.fromDate(currentStart)),
+          where('data_evento', '<=', Timestamp.fromDate(currentEnd))
+        );
+        
+        // Query de Competência do Mês Anterior (Comparativo)
+        let qPrev = query(
+          eventsRef,
+          where('data_evento', '>=', Timestamp.fromDate(prevStart)),
+          where('data_evento', '<=', Timestamp.fromDate(prevEnd))
+        );
+
+        // Filtro de Privacidade para DJs
+        if (userDetails.role === 'dj') {
+          qCurrent = query(qCurrent, where('dj_id', '==', user.uid));
+          qPrev = query(qPrev, where('dj_id', '==', user.uid));
+        }
 
         const [currSnap, prevSnap] = await Promise.all([
-          getDocs(getBaseQuery(currentStart, currentEnd)),
-          getDocs(getBaseQuery(prevStart, prevEnd))
+          getDocs(qCurrent),
+          getDocs(qPrev)
         ]);
 
         const mapDocToEvent = (doc: any) => ({
@@ -127,9 +136,15 @@ export default function DashboardPage() {
         setMonthEvents(currSnap.docs.map(mapDocToEvent));
         setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent));
 
-        // Widgets de atividade recente e próximos (permanecem globais ou por DJ)
-        const recentQ = query(eventsRef, orderBy('updated_at', 'desc'), limit(3));
-        const upcomingQ = query(eventsRef, where('data_evento', '>=', Timestamp.fromDate(new Date())), orderBy('data_evento', 'asc'), limit(3));
+        // Widgets: Atividade recente e próximos (com filtro de privacidade se for DJ)
+        let recentQ = query(eventsRef, orderBy('updated_at', 'desc'), limit(3));
+        let upcomingQ = query(eventsRef, where('data_evento', '>=', Timestamp.fromDate(new Date())), orderBy('data_evento', 'asc'), limit(3));
+
+        if (userDetails.role === 'dj') {
+          recentQ = query(recentQ, where('dj_id', '==', user.uid));
+          upcomingQ = query(upcomingQ, where('dj_id', '==', user.uid));
+        }
+
         const [rSnap, uSnap] = await Promise.all([getDocs(recentQ), getDocs(upcomingQ)]);
         setRecentActivities(rSnap.docs.map(mapDocToEvent));
         setUpcomingEvents(uSnap.docs.map(mapDocToEvent));
@@ -148,10 +163,10 @@ export default function DashboardPage() {
   // Carregar Tarefas
   useEffect(() => {
     if (!authLoading && user) {
-      const unsubA = getDocs(queryMyOpenTasks(user.uid)).then(snap => {
+      getDocs(queryMyOpenTasks(user.uid)).then(snap => {
         setOwnerTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
-      const unsubB = getDocs(queryMyAssignedOpenTasks(user.uid)).then(snap => {
+      getDocs(queryMyAssignedOpenTasks(user.uid)).then(snap => {
         setAssignedTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
     }
@@ -165,10 +180,12 @@ export default function DashboardPage() {
       metrics.eventCount++;
       metrics.grossRevenue += event.valor_total;
       
-      // Lógica de Competência (Líquido): valor_total - repasse
-      const dj = allDjs.find(d => d.uid === event.dj_id) || (event.dj_id === user?.uid ? userDetails as UserDetails : undefined);
-      const djCut = calculateDjCut(event, dj);
-      metrics.netRevenue += (event.valor_total - djCut);
+      // Lógica de Competência Líquida (apenas para Staff)
+      if (isStaff) {
+        const dj = allDjs.find(d => d.uid === event.dj_id);
+        const djCut = calculateDjCut(event, dj);
+        metrics.netRevenue += (event.valor_total - djCut);
+      }
 
       // Lógica de Caixa (Recebido)
       if (event.status_pagamento === 'pago') {
@@ -184,8 +201,16 @@ export default function DashboardPage() {
     return metrics;
   };
 
-  const currentMetrics = useMemo(() => calculateMetrics(monthEvents), [monthEvents, allDjs, user, userDetails]);
-  const prevMetrics = useMemo(() => calculateMetrics(prevMonthEvents), [prevMonthEvents, allDjs, user, userDetails]);
+  // Sincronismo: Garante que para Staff o cálculo espere os dados dos DJs
+  const currentMetrics = useMemo(() => {
+    if (isStaff && allDjs.length === 0 && monthEvents.length > 0) return null;
+    return calculateMetrics(monthEvents);
+  }, [monthEvents, allDjs, isStaff]);
+
+  const prevMetrics = useMemo(() => {
+    if (isStaff && allDjs.length === 0 && prevMonthEvents.length > 0) return null;
+    return calculateMetrics(prevMonthEvents);
+  }, [prevMonthEvents, allDjs, isStaff]);
 
   const tasksSummary = useMemo(() => {
     const all = [...ownerTasks, ...assignedTasks];
@@ -203,8 +228,10 @@ export default function DashboardPage() {
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
-      setSelectedMonth(11);
-      setSelectedYear(selectedYear - 1);
+      if (selectedYear > VALID_YEARS[0]) {
+        setSelectedMonth(11);
+        setSelectedYear(selectedYear - 1);
+      }
     } else {
       setSelectedMonth(selectedMonth - 1);
     }
@@ -212,8 +239,10 @@ export default function DashboardPage() {
 
   const handleNextMonth = () => {
     if (selectedMonth === 11) {
-      setSelectedMonth(0);
-      setSelectedYear(selectedYear + 1);
+      if (selectedYear < VALID_YEARS[VALID_YEARS.length - 1]) {
+        setSelectedMonth(0);
+        setSelectedYear(selectedYear + 1);
+      }
     } else {
       setSelectedMonth(selectedMonth + 1);
     }
@@ -224,7 +253,7 @@ export default function DashboardPage() {
   }
 
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  const growth = currentMetrics.grossRevenue - prevMetrics.grossRevenue;
+  const growth = (currentMetrics?.grossRevenue || 0) - (prevMetrics?.grossRevenue || 0);
 
   return (
     <div className="flex flex-col space-y-8 pb-12">
@@ -236,9 +265,9 @@ export default function DashboardPage() {
         </div>
         
         <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth} disabled={isLoading}><ChevronLeft className="h-4 w-4" /></Button>
           <div className="flex items-center gap-2 px-2">
-            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))}>
+            <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(parseInt(v))} disabled={isLoading}>
               <SelectTrigger className="h-8 border-0 bg-transparent font-bold focus:ring-0 w-[120px]">
                 <SelectValue />
               </SelectTrigger>
@@ -246,16 +275,16 @@ export default function DashboardPage() {
                 {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
+            <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))} disabled={isLoading}>
               <SelectTrigger className="h-8 border-0 bg-transparent font-bold focus:ring-0 w-[80px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {['2024', '2025', '2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                {VALID_YEARS.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth}><ChevronRight className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth} disabled={isLoading}><ChevronRight className="h-4 w-4" /></Button>
         </div>
       </div>
 
@@ -264,7 +293,7 @@ export default function DashboardPage() {
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <Target className="h-4 w-4" /> Competência do Mês
         </h2>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className={`grid gap-4 md:grid-cols-2 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
           <Card className="bg-primary/5 border-primary/20 relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10"><BarChart className="h-24 w-24" /></div>
             <CardHeader className="pb-2">
@@ -272,7 +301,7 @@ export default function DashboardPage() {
               <CardDescription>Total contratado para {months[selectedMonth].label}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-black">{formatCurrency(currentMetrics.grossRevenue)}</div>
+              <div className="text-3xl font-black">{currentMetrics ? formatCurrency(currentMetrics.grossRevenue) : '...'}</div>
               <div className="flex items-center gap-2 mt-2">
                 {growth >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
                 <span className={`text-xs font-bold ${growth >= 0 ? 'text-green-600' : 'text-destructive'}`}>
@@ -290,17 +319,17 @@ export default function DashboardPage() {
                   <CardTitle className="text-sm font-medium">Faturamento Líquido</CardTitle>
                   <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger><Info className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger>
+                      <TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
                       <TooltipContent><p className="max-w-xs text-xs">Valor que permanece com a agência após repasse aos DJs e custos do evento.</p></TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <CardDescription>Margem operacional pós-repasses</CardDescription>
+                <CardDescription>Margem após repasses e custos</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-black text-green-600">{formatCurrency(currentMetrics.netRevenue)}</div>
+                <div className="text-3xl font-black text-green-600">{currentMetrics ? formatCurrency(currentMetrics.netRevenue) : '...'}</div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Representa <strong>{currentMetrics.grossRevenue > 0 ? ((currentMetrics.netRevenue / currentMetrics.grossRevenue) * 100).toFixed(1) : 0}%</strong> do bruto total.
+                  Representa <strong>{currentMetrics && currentMetrics.grossRevenue > 0 ? ((currentMetrics.netRevenue / currentMetrics.grossRevenue) * 100).toFixed(1) : 0}%</strong> do bruto.
                 </p>
               </CardContent>
             </Card>
@@ -310,7 +339,7 @@ export default function DashboardPage() {
 
       {/* Camada 2: Caixa e Estatísticas */}
       <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 space-y-4">
+        <div className={`md:col-span-2 space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
             <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
           </h2>
@@ -318,30 +347,30 @@ export default function DashboardPage() {
             <Card>
               <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Já Recebido</CardTitle></CardHeader>
               <CardContent className="p-4 pt-0">
-                <div className="text-lg font-bold text-green-600">{formatCurrency(currentMetrics.received)}</div>
+                <div className="text-lg font-bold text-green-600">{currentMetrics ? formatCurrency(currentMetrics.received) : '...'}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Falta Receber</CardTitle></CardHeader>
               <CardContent className="p-4 pt-0">
-                <div className="text-lg font-bold text-destructive">{formatCurrency(currentMetrics.pending)}</div>
+                <div className="text-lg font-bold text-destructive">{currentMetrics ? formatCurrency(currentMetrics.pending) : '...'}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Qtd Eventos</CardTitle></CardHeader>
               <CardContent className="p-4 pt-0">
-                <div className="text-lg font-bold">{currentMetrics.eventCount}</div>
+                <div className="text-lg font-bold">{currentMetrics ? currentMetrics.eventCount : '...'}</div>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Ticket Médio</CardTitle></CardHeader>
               <CardContent className="p-4 pt-0">
-                <div className="text-lg font-bold">{formatCurrency(currentMetrics.avgTicket)}</div>
+                <div className="text-lg font-bold">{currentMetrics ? formatCurrency(currentMetrics.avgTicket) : '...'}</div>
               </CardContent>
             </Card>
           </div>
 
-          {currentMetrics.eventCount === 0 && !isLoading && (
+          {currentMetrics?.eventCount === 0 && !isLoading && (
             <div className="flex flex-col items-center justify-center py-12 bg-muted/20 border-2 border-dashed rounded-2xl">
               <CalendarDays className="h-12 w-12 text-muted-foreground/30 mb-4" />
               <p className="text-muted-foreground font-medium">Nenhum evento agendado para {months[selectedMonth].label} de {selectedYear}.</p>
@@ -385,7 +414,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Widgets Originais (Atividade e Próximos) */}
+      {/* Widgets (Atividade e Próximos) */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base font-headline flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary" /> Atividade Recente</CardTitle></CardHeader>
@@ -400,7 +429,7 @@ export default function DashboardPage() {
                     <Link href={`/schedule`}>Ver</Link>
                 </Button>
               </div>
-            )) : <p className="text-muted-foreground text-xs italic">Nenhuma atividade recente.</p>}
+            )) : <p className="text-muted-foreground text-xs italic">Nenhuma atividade recente encontrada.</p>}
           </CardContent>
         </Card>
 
@@ -417,10 +446,11 @@ export default function DashboardPage() {
                     <Link href={`/schedule`}>Ver</Link>
                 </Button>
               </div>
-            )) : <p className="text-muted-foreground text-xs italic">Nenhum próximo evento.</p>}
+            )) : <p className="text-muted-foreground text-xs italic">Nenhum próximo evento agendado.</p>}
           </CardContent>
         </Card>
       </div>
     </div>
   );
 }
+    
