@@ -56,7 +56,9 @@ const months = [
   { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
 ];
 
-const VALID_YEARS = [2024, 2025, 2026];
+// Gerar lista de anos dinâmica (2 anos antes até 2 anos depois do atual)
+const currentYearValue = new Date().getFullYear();
+const VALID_YEARS = Array.from({ length: 5 }, (_, i) => currentYearValue - 2 + i);
 
 export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
@@ -109,14 +111,14 @@ export default function DashboardPage() {
           where('data_evento', '<=', Timestamp.fromDate(currentEnd))
         );
         
-        // Query de Competência do Mês Anterior (Comparativo)
+        // Query de Competência do Mês Anterior (Comparativo MoM)
         let qPrev = query(
           eventsRef,
           where('data_evento', '>=', Timestamp.fromDate(prevStart)),
           where('data_evento', '<=', Timestamp.fromDate(prevEnd))
         );
 
-        // Filtro de Privacidade para DJs
+        // Filtro de Privacidade para DJs no Financeiro
         if (userDetails.role === 'dj') {
           qCurrent = query(qCurrent, where('dj_id', '==', user.uid));
           qPrev = query(qPrev, where('dj_id', '==', user.uid));
@@ -136,7 +138,7 @@ export default function DashboardPage() {
         setMonthEvents(currSnap.docs.map(mapDocToEvent));
         setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent));
 
-        // Widgets: Atividade recente e próximos (com filtro de privacidade se for DJ)
+        // Widgets Laterais: Atividade recente e próximos (Privacidade aplicada)
         let recentQ = query(eventsRef, orderBy('updated_at', 'desc'), limit(3));
         let upcomingQ = query(eventsRef, where('data_evento', '>=', Timestamp.fromDate(new Date())), orderBy('data_evento', 'asc'), limit(3));
 
@@ -172,7 +174,7 @@ export default function DashboardPage() {
     }
   }, [user, authLoading]);
 
-  // Função centralizadora de métricas
+  // Função centralizadora de métricas: Competência vs Caixa
   const calculateMetrics = (events: Event[]): FinancialMetrics => {
     let metrics = { grossRevenue: 0, netRevenue: 0, received: 0, pending: 0, eventCount: 0, avgTicket: 0 };
     
@@ -180,14 +182,14 @@ export default function DashboardPage() {
       metrics.eventCount++;
       metrics.grossRevenue += event.valor_total;
       
-      // Lógica de Competência Líquida (apenas para Staff)
+      // Faturamento Líquido (Margem Mashup): Valor Total - Repasse DJ e Custos
       if (isStaff) {
         const dj = allDjs.find(d => d.uid === event.dj_id);
         const djCut = calculateDjCut(event, dj);
         metrics.netRevenue += (event.valor_total - djCut);
       }
 
-      // Lógica de Caixa (Recebido)
+      // Lógica de Caixa (Entrada Real)
       if (event.status_pagamento === 'pago') {
         metrics.received += event.valor_total;
       } else if (event.status_pagamento === 'parcial') {
@@ -201,7 +203,7 @@ export default function DashboardPage() {
     return metrics;
   };
 
-  // Sincronismo: Garante que para Staff o cálculo espere os dados dos DJs
+  // Sincronismo: Garante que o cálculo do líquido aguarde a carga dos DJs
   const currentMetrics = useMemo(() => {
     if (isStaff && allDjs.length === 0 && monthEvents.length > 0) return null;
     return calculateMetrics(monthEvents);
@@ -257,7 +259,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col space-y-8 pb-12">
-      {/* Header com Filtros */}
+      {/* Header com Filtros de Mês/Ano */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
@@ -288,7 +290,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Camada 1: Competência */}
+      {/* Camada 1: Competência (O que foi contratado) */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <Target className="h-4 w-4" /> Competência do Mês
@@ -337,7 +339,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Camada 2: Caixa e Estatísticas */}
+      {/* Camada 2: Caixa e Eficiência (Status real do dinheiro) */}
       <div className="grid gap-6 md:grid-cols-3">
         <div className={`md:col-span-2 space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -414,7 +416,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Widgets (Atividade e Próximos) */}
+      {/* Widgets (Atividade e Próximos) - Filtro de privacidade aplicado */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base font-headline flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary" /> Atividade Recente</CardTitle></CardHeader>
@@ -453,4 +455,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-    
