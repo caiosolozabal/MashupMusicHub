@@ -75,6 +75,7 @@ export default function DashboardPage() {
 
   const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
+  // Buscar lista de DJs para cálculo do faturamento líquido (apenas staff)
   useEffect(() => {
     if (isStaff && !authLoading) {
       const fetchDjs = async () => {
@@ -86,6 +87,7 @@ export default function DashboardPage() {
     }
   }, [isStaff, authLoading]);
 
+  // Carregar dados financeiros baseados no mês selecionado
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !userDetails) return;
@@ -125,6 +127,7 @@ export default function DashboardPage() {
         setMonthEvents(currSnap.docs.map(mapDocToEvent));
         setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent));
 
+        // Widgets de atividade recente e próximos (permanecem globais ou por DJ)
         const recentQ = query(eventsRef, orderBy('updated_at', 'desc'), limit(3));
         const upcomingQ = query(eventsRef, where('data_evento', '>=', Timestamp.fromDate(new Date())), orderBy('data_evento', 'asc'), limit(3));
         const [rSnap, uSnap] = await Promise.all([getDocs(recentQ), getDocs(upcomingQ)]);
@@ -142,6 +145,7 @@ export default function DashboardPage() {
     if (!authLoading && user) fetchData();
   }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast]);
 
+  // Carregar Tarefas
   useEffect(() => {
     if (!authLoading && user) {
       const unsubA = getDocs(queryMyOpenTasks(user.uid)).then(snap => {
@@ -153,6 +157,7 @@ export default function DashboardPage() {
     }
   }, [user, authLoading]);
 
+  // Função centralizadora de métricas
   const calculateMetrics = (events: Event[]): FinancialMetrics => {
     let metrics = { grossRevenue: 0, netRevenue: 0, received: 0, pending: 0, eventCount: 0, avgTicket: 0 };
     
@@ -160,10 +165,12 @@ export default function DashboardPage() {
       metrics.eventCount++;
       metrics.grossRevenue += event.valor_total;
       
+      // Lógica de Competência (Líquido): valor_total - repasse
       const dj = allDjs.find(d => d.uid === event.dj_id) || (event.dj_id === user?.uid ? userDetails as UserDetails : undefined);
       const djCut = calculateDjCut(event, dj);
       metrics.netRevenue += (event.valor_total - djCut);
 
+      // Lógica de Caixa (Recebido)
       if (event.status_pagamento === 'pago') {
         metrics.received += event.valor_total;
       } else if (event.status_pagamento === 'parcial') {
@@ -221,6 +228,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col space-y-8 pb-12">
+      {/* Header com Filtros */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
@@ -251,6 +259,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Camada 1: Competência */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <Target className="h-4 w-4" /> Competência do Mês
@@ -299,6 +308,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Camada 2: Caixa e Estatísticas */}
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -339,6 +349,7 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Coluna Lateral: Tarefas Rápidas */}
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
             <ClipboardList className="h-4 w-4" /> Suas Tarefas
@@ -374,6 +385,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Widgets Originais (Atividade e Próximos) */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base font-headline flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary" /> Atividade Recente</CardTitle></CardHeader>
