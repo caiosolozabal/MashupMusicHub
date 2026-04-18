@@ -7,7 +7,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { 
   BarChart, 
   CalendarClock, 
-  Users, 
   Loader2, 
   ClipboardList, 
   ArrowRight, 
@@ -17,20 +16,18 @@ import {
   TrendingUp,
   TrendingDown,
   Target,
-  DollarSign,
   Wallet,
   CalendarDays
 } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, Timestamp, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp, orderBy, limit } from 'firebase/firestore';
 import type { Event, Task, UserDetails } from '@/lib/types';
 import { 
   format, 
   startOfMonth, 
   endOfMonth, 
   subMonths, 
-  addMonths, 
   isSameDay, 
   getYear, 
   getMonth,
@@ -39,9 +36,8 @@ import {
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
-import { calculateDjCut, getEventOperationalState } from '@/lib/utils';
+import { calculateDjCut } from '@/lib/utils';
 import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -65,12 +61,10 @@ export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
-  // States de UI e Filtros
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
   const [selectedYear, setSelectedYear] = useState<number>(getYear(new Date()));
   
-  // Data States
   const [monthEvents, setMonthEvents] = useState<Event[]>([]);
   const [prevMonthEvents, setPrevMonthEvents] = useState<Event[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
@@ -81,7 +75,6 @@ export default function DashboardPage() {
 
   const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
-  // 1. Fetch de DJs (Para cálculo de lucro do admin)
   useEffect(() => {
     if (isStaff && !authLoading) {
       const fetchDjs = async () => {
@@ -93,7 +86,6 @@ export default function DashboardPage() {
     }
   }, [isStaff, authLoading]);
 
-  // 2. Fetch de Eventos Baseado no Filtro
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !userDetails) return;
@@ -107,7 +99,6 @@ export default function DashboardPage() {
 
         const eventsRef = collection(db, 'events');
         
-        // Função auxiliar para montar query filtrada por role
         const getBaseQuery = (start: Date, end: Date) => {
           let q = query(
             eventsRef,
@@ -134,14 +125,11 @@ export default function DashboardPage() {
         setMonthEvents(currSnap.docs.map(mapDocToEvent));
         setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent));
 
-        // Fetch Widgets (Independente do filtro principal)
-        if (recentActivities.length === 0) {
-           const recentQ = query(eventsRef, orderBy('updated_at', 'desc'), limit(3));
-           const upcomingQ = query(eventsRef, where('data_evento', '>=', Timestamp.fromDate(new Date())), orderBy('data_evento', 'asc'), limit(3));
-           const [rSnap, uSnap] = await Promise.all([getDocs(recentQ), getDocs(upcomingQ)]);
-           setRecentActivities(rSnap.docs.map(mapDocToEvent));
-           setUpcomingEvents(uSnap.docs.map(mapDocToEvent));
-        }
+        const recentQ = query(eventsRef, orderBy('updated_at', 'desc'), limit(3));
+        const upcomingQ = query(eventsRef, where('data_evento', '>=', Timestamp.fromDate(new Date())), orderBy('data_evento', 'asc'), limit(3));
+        const [rSnap, uSnap] = await Promise.all([getDocs(recentQ), getDocs(upcomingQ)]);
+        setRecentActivities(rSnap.docs.map(mapDocToEvent));
+        setUpcomingEvents(uSnap.docs.map(mapDocToEvent));
 
       } catch (error: any) {
         console.error("Dashboard error:", error);
@@ -154,20 +142,17 @@ export default function DashboardPage() {
     if (!authLoading && user) fetchData();
   }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast]);
 
-  // 3. Listeners de Tarefas
   useEffect(() => {
     if (!authLoading && user) {
-      const unsubA = onSnapshot(queryMyOpenTasks(user.uid), (snap) => {
+      const unsubA = getDocs(queryMyOpenTasks(user.uid)).then(snap => {
         setOwnerTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
-      const unsubB = onSnapshot(queryMyAssignedOpenTasks(user.uid), (snap) => {
+      const unsubB = getDocs(queryMyAssignedOpenTasks(user.uid)).then(snap => {
         setAssignedTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
-      return () => { unsubA(); unsubB(); };
     }
   }, [user, authLoading]);
 
-  // 4. Lógica de Cálculo de Métricas
   const calculateMetrics = (events: Event[]): FinancialMetrics => {
     let metrics = { grossRevenue: 0, netRevenue: 0, received: 0, pending: 0, eventCount: 0, avgTicket: 0 };
     
@@ -175,12 +160,10 @@ export default function DashboardPage() {
       metrics.eventCount++;
       metrics.grossRevenue += event.valor_total;
       
-      // Cálculo do Líquido (Regra da Agência)
       const dj = allDjs.find(d => d.uid === event.dj_id) || (event.dj_id === user?.uid ? userDetails as UserDetails : undefined);
       const djCut = calculateDjCut(event, dj);
       metrics.netRevenue += (event.valor_total - djCut);
 
-      // Cálculo de Caixa
       if (event.status_pagamento === 'pago') {
         metrics.received += event.valor_total;
       } else if (event.status_pagamento === 'parcial') {
@@ -238,11 +221,10 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col space-y-8 pb-12">
-      {/* Header e Filtros */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
-          <p className="text-muted-foreground">Aqui está o desempenho da Mashup no período.</p>
+          <p className="text-muted-foreground">Desempenho financeiro e operacional da agência.</p>
         </div>
         
         <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
@@ -269,7 +251,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Camada 1: Competência */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <Target className="h-4 w-4" /> Competência do Mês
@@ -305,7 +286,7 @@ export default function DashboardPage() {
                     </Tooltip>
                   </TooltipProvider>
                 </div>
-                <CardDescription>Margem gerencial pós-operacional</CardDescription>
+                <CardDescription>Margem operacional pós-repasses</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-black text-green-600">{formatCurrency(currentMetrics.netRevenue)}</div>
@@ -318,7 +299,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Camada 2: Caixa e Estatísticas */}
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -351,7 +331,6 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* Estado Vazio Amigável */}
           {currentMetrics.eventCount === 0 && !isLoading && (
             <div className="flex flex-col items-center justify-center py-12 bg-muted/20 border-2 border-dashed rounded-2xl">
               <CalendarDays className="h-12 w-12 text-muted-foreground/30 mb-4" />
@@ -360,7 +339,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Lado Direito: Tarefas (Preservado) */}
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
             <ClipboardList className="h-4 w-4" /> Suas Tarefas
@@ -396,7 +374,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Widgets Inferiores: Atividade e Agenda (Preservados e Isolados) */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3"><CardTitle className="text-base font-headline flex items-center gap-2"><CalendarClock className="h-4 w-4 text-primary" /> Atividade Recente</CardTitle></CardHeader>
