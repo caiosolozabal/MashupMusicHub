@@ -1,32 +1,46 @@
-npm run deploy
-
 # Mashup Music Hub 🎧
 
 O ecossistema definitivo para gestão de agências de DJs e eventos. Esta plataforma integra uma vitrine pública de alto impacto com um ERP administrativo completo para controle de agenda, logística de equipamentos e fechamentos financeiros.
 
-## 🚀 Como colocar o site no ar (Produção)
+## 🚀 Como realizar o Deploy (Produção)
 
-Agora que o código está no GitHub, siga estes passos no Console do Firebase:
+Este projeto está configurado com **Firebase App Hosting**. O deploy ocorre automaticamente a cada `push` para o branch principal no GitHub.
 
-1. **Ativar App Hosting**: No Console do Firebase, vá em *Build > App Hosting* e conecte seu repositório `MashupMusicHub`.
-2. **Configurar Domínio**: Após o primeiro deploy, vá nas configurações do App Hosting e adicione `mashupmusic.com.br`.
-3. **Validar DNS**: Como você já configurou o Registro.br, o Firebase validará o domínio automaticamente.
-4. **Autorizar Login**: Vá em *Authentication > Settings > Authorized Domains* e adicione `mashupmusic.com.br` e `www.mashupmusic.com.br`.
+Para um deploy seguro e completo, execute a sequência abaixo no terminal:
 
-## 🛠️ Comandos Git (Para atualizações)
-
-Sempre que fizer mudanças, execute:
 ```bash
+# 1. Verificar se o código está íntegro
+npm run typecheck
+
+# 2. Adicionar mudanças
 git add .
-git commit -m "Descrição da sua mudança"
+
+# 3. Registrar a versão
+git commit -m "Descrição clara da sua mudança"
+
+# 4. Enviar para o servidor (Inicia o deploy automático)
 git push
 ```
 
-## 📸 Fotos dos Equipamentos
-Para as fotos dos pacotes aparecerem, crie as seguintes pastas dentro de `public/` e coloque os arquivos `.jpg`:
-- `public/pacotes/pacote-a/` (1.jpg, 2.jpg)
-- `public/pacotes/pacote-b/` (1.jpg, 2.jpg)
-- `public/pacotes/pacote-casamento/` (1.jpg, 2.jpg, 3.jpg)
+## 🛠️ Configurações Iniciais no Console
+
+Após o primeiro deploy, certifique-se de configurar no Firebase Console:
+1. **Build > App Hosting**: Conecte o repositório.
+2. **Settings > Domains**: Adicione `mashupmusic.com.br`.
+3. **Authentication**: Autorize os domínios `mashupmusic.com.br` e `www.mashupmusic.com.br`.
+
+## 📸 Fotos e Ativos
+
+### Equipamentos (Locação)
+Crie as pastas em `public/estruturas/` e adicione os arquivos `.jpg`:
+- `social/` (1.jpg, 2.jpg)
+- `wedding/` (1.jpg, 2.jpg)
+- `experience/` (1.jpg, 2.jpg)
+- `corporate/` (1.jpg, 2.jpg)
+
+### DJs (Elenco)
+Coloque as fotos em `public/djs/` com os nomes:
+- `Pivete.jpeg`, `djingrid.png`, `feeli.jpg`, `yurihang.jpeg`, `djsolo.jpeg`
 
 ---
 *Mashup Music Hub - Elevando o som do seu evento.*
