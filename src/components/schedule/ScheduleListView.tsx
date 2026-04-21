@@ -42,6 +42,7 @@ export default function ScheduleListView({
           <TableRow className="hover:bg-transparent">
             <TableHead className="w-[80px] h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase font-black">Data</TableHead>
             <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase font-black">Evento / Responsável</TableHead>
+            <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase font-black">Contratante</TableHead>
             <TableHead className="h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase text-center font-black">Status</TableHead>
             <TableHead className="hidden md:table-cell h-9 px-2 sm:px-4 text-right font-black">Total</TableHead>
             <TableHead className="text-right h-9 px-1 sm:px-4 text-[10px] sm:text-xs uppercase font-black">Ações</TableHead>
@@ -50,7 +51,7 @@ export default function ScheduleListView({
         <TableBody>
           {events.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Nenhum evento encontrado.</TableCell>
+              <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Nenhum evento encontrado.</TableCell>
             </TableRow>
           ) : events.map((event) => {
              const dj = allDjs.find(d => d.uid === event.dj_id);
@@ -99,6 +100,11 @@ export default function ScheduleListView({
                         </span>
                     </div>
                 </div>
+              </TableCell>
+              <TableCell className="py-2 px-1 sm:px-4">
+                <span className="text-[11px] sm:text-sm font-medium text-foreground line-clamp-1">
+                  {event.contratante_nome}
+                </span>
               </TableCell>
               <TableCell className="py-2 px-1 sm:px-4">
                 <div className="flex flex-col gap-1 items-center">
