@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -143,7 +144,7 @@ export default function SchedulePage() {
 
   return (
     <div className="space-y-4">
-      <Card className="shadow-lg">
+      <Card className="shadow-lg overflow-hidden">
         <CardHeader className="p-4 sm:p-6 flex flex-row justify-between items-center">
           <div>
             <CardTitle className="text-xl sm:text-2xl">Agenda</CardTitle>
@@ -168,18 +169,20 @@ export default function SchedulePage() {
             </div>
           </div>
 
-          {viewMode === 'list' ? (
-            <ScheduleListView 
-              events={filteredEvents} 
-              allDjs={allDjs} 
-              onView={e => { setSelectedEvent(e); setIsViewOpen(true); }}
-              onEdit={e => { setSelectedEvent(e); setIsFormOpen(true); }}
-              onDelete={e => { setSelectedEvent(e); setIsDeleteConfirmOpen(true); }}
-              isDjView={userDetails?.role === 'dj'}
-            />
-          ) : (
-            <ScheduleCalendarView events={filteredEvents} allDjs={allDjs} />
-          )}
+          <div className="relative">
+            {viewMode === 'list' ? (
+              <ScheduleListView 
+                events={filteredEvents} 
+                allDjs={allDjs} 
+                onView={e => { setSelectedEvent(e); setIsViewOpen(true); }}
+                onEdit={e => { setSelectedEvent(e); setIsFormOpen(true); }}
+                onDelete={e => { setSelectedEvent(e); setIsDeleteConfirmOpen(true); }}
+                isDjView={userDetails?.role === 'dj'}
+              />
+            ) : (
+              <ScheduleCalendarView events={filteredEvents} allDjs={allDjs} />
+            )}
+          </div>
         </CardContent>
       </Card>
 

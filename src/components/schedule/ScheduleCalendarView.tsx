@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -110,54 +111,56 @@ export default function ScheduleCalendarView({ events, allDjs }: ScheduleCalenda
         ))}
       </div>
 
-      <div className="w-full">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={setSelectedDate}
-          month={displayedMonth}
-          onMonthChange={setDisplayedMonth}
-          className="rounded-md border shadow-sm w-full"
-          components={{
-            DayContent: DayContent,
-          }}
-          modifiers={{
-              today: today || undefined,
-          }}
-          modifiersClassNames={{
-              today: 'ring-2 ring-primary ring-inset rounded-md', 
-          }}
-          classNames={{
-            months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-            month: "space-y-4 w-full",
-            caption: "flex justify-center pt-1 relative items-center",
-            caption_label: "text-sm font-bold uppercase tracking-widest",
-            nav: "space-x-1 flex items-center",
-            nav_button: cn(
-              buttonVariants({ variant: "outline" }),
-              "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
-            ),
-            nav_button_previous: "absolute left-1",
-            nav_button_next: "absolute right-1",
-            
-            table: "w-full border-collapse",
-            head_row: "flex w-full bg-muted/20 rounded-t-md", 
-            head_cell: "flex-1 text-muted-foreground font-black text-[10px] uppercase tracking-tighter text-center py-2",
-            
-            row: "flex w-full border-b border-border last:border-0",
-            cell: "flex-1 min-h-[120px] text-sm relative border-r border-border last:border-r-0 p-0", 
-            
-            day: cn(
-              "h-full w-full p-0 font-normal flex items-stretch justify-stretch hover:bg-muted/10 transition-colors" 
-            ),
-            day_selected: "bg-primary/5",
-            day_today: "bg-transparent", 
-            day_outside: "day-outside text-muted-foreground opacity-30",
-            day_disabled: "text-muted-foreground opacity-50",
-            day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
-            day_hidden: "invisible",
-          }}
-        />
+      <div className="w-full overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+        <div className="min-w-[800px] pb-4">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            month={displayedMonth}
+            onMonthChange={setDisplayedMonth}
+            className="rounded-md border shadow-sm w-full"
+            components={{
+              DayContent: DayContent,
+            }}
+            modifiers={{
+                today: today || undefined,
+            }}
+            modifiersClassNames={{
+                today: 'ring-2 ring-primary ring-inset rounded-md', 
+            }}
+            classNames={{
+              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+              month: "space-y-4 w-full",
+              caption: "flex justify-center pt-1 relative items-center",
+              caption_label: "text-sm font-bold uppercase tracking-widest",
+              nav: "space-x-1 flex items-center",
+              nav_button: cn(
+                buttonVariants({ variant: "outline" }),
+                "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+              ),
+              nav_button_previous: "absolute left-1",
+              nav_button_next: "absolute right-1",
+              
+              table: "w-full border-collapse",
+              head_row: "flex w-full bg-muted/20 rounded-t-md", 
+              head_cell: "flex-1 text-muted-foreground font-black text-[10px] uppercase tracking-tighter text-center py-2",
+              
+              row: "flex w-full border-b border-border last:border-0",
+              cell: "flex-1 min-h-[120px] text-sm relative border-r border-border last:border-r-0 p-0", 
+              
+              day: cn(
+                "h-full w-full p-0 font-normal flex items-stretch justify-stretch hover:bg-muted/10 transition-colors" 
+              ),
+              day_selected: "bg-primary/5",
+              day_today: "bg-transparent", 
+              day_outside: "day-outside text-muted-foreground opacity-30",
+              day_disabled: "text-muted-foreground opacity-50",
+              day_range_middle: "aria-selected:bg-accent aria-selected:text-accent-foreground",
+              day_hidden: "invisible",
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex justify-center">
