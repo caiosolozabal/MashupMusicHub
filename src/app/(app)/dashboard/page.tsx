@@ -17,13 +17,8 @@ import {
   Target,
   Wallet,
   CalendarDays,
-  Eye,
   CheckCircle2,
-  MapPin,
-  Clock,
-  PlusCircle,
-  CalendarCheck,
-  ExternalLink
+  CalendarCheck
 } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
@@ -34,7 +29,6 @@ import {
   where, 
   Timestamp, 
   orderBy, 
-  limit, 
   onSnapshot,
   doc,
   updateDoc,
@@ -63,7 +57,7 @@ import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EventView from '@/components/events/EventView';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface FinancialMetrics {
@@ -421,80 +415,78 @@ export default function DashboardPage() {
       </div>
 
       {/* Camada 2: Caixa e Eficiência */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className={`md:col-span-2 space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-            <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
-          </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Já Recebido</CardTitle></CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="text-lg font-bold text-green-600">{currentMetrics ? formatCurrency(currentMetrics.received) : '...'}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Falta Receber</CardTitle></CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="text-lg font-bold text-destructive">{currentMetrics ? formatCurrency(currentMetrics.pending) : '...'}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Qtd Eventos</CardTitle></CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="text-lg font-bold">{currentMetrics ? currentMetrics.eventCount : '...'}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Ticket Médio</CardTitle></CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="text-lg font-bold">{currentMetrics ? formatCurrency(currentMetrics.avgTicket) : '...'}</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {currentMetrics?.eventCount === 0 && !isLoading && (
-            <div className="flex flex-col items-center justify-center py-12 bg-muted/20 border-2 border-dashed rounded-2xl">
-              <CalendarDays className="h-12 w-12 text-muted-foreground/30 mb-4" />
-              <p className="text-muted-foreground font-medium">Nenhum evento agendado para {months[selectedMonth].label} de {selectedYear}.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Coluna Lateral: Tarefas Rápidas */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-            <ClipboardList className="h-4 w-4" /> Suas Tarefas
-          </h2>
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex gap-2">
-                <div className="flex-1 bg-background p-2 rounded-md border text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
-                  <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
-                </div>
-                <div className="flex-1 bg-background p-2 rounded-md border text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
-                  <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {tasksSummary.topTasks.map(task => (
-                  <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
-                    <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
-                    <div className="flex-1 truncate">
-                      <p className="font-bold truncate">{task.title}</p>
-                      <p className="text-[10px] text-muted-foreground">{format(task.dueDate.toDate(), 'dd/MM HH:mm')}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
-                <Link href="/tasks">Ver tudo <ArrowRight className="ml-2 h-3 w-3" /></Link>
-              </Button>
+      <div className={`space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+          <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Já Recebido</CardTitle></CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg font-bold text-green-600">{currentMetrics ? formatCurrency(currentMetrics.received) : '...'}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Falta Receber</CardTitle></CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg font-bold text-destructive">{currentMetrics ? formatCurrency(currentMetrics.pending) : '...'}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Qtd Eventos</CardTitle></CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg font-bold">{currentMetrics ? currentMetrics.eventCount : '...'}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Ticket Médio</CardTitle></CardHeader>
+            <CardContent className="p-4 pt-0">
+              <div className="text-lg font-bold">{currentMetrics ? formatCurrency(currentMetrics.avgTicket) : '...'}</div>
             </CardContent>
           </Card>
         </div>
+
+        {currentMetrics?.eventCount === 0 && !isLoading && (
+          <div className="flex flex-col items-center justify-center py-12 bg-muted/20 border-2 border-dashed rounded-2xl">
+            <CalendarDays className="h-12 w-12 text-muted-foreground/30 mb-4" />
+            <p className="text-muted-foreground font-medium">Nenhum evento agendado para {months[selectedMonth].label} de {selectedYear}.</p>
+          </div>
+        )}
+      </div>
+
+      {/* Camada 3: Suas Tarefas (Movida para baixo do Fluxo de Caixa) */}
+      <div className="space-y-4">
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+          <ClipboardList className="h-4 w-4" /> Suas Tarefas
+        </h2>
+        <Card className="border-primary/20 bg-primary/5 max-w-4xl">
+          <CardContent className="p-4 space-y-4">
+            <div className="flex gap-2">
+              <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
+                <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
+              </div>
+              <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
+                <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {tasksSummary.topTasks.map(task => (
+                <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
+                  <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
+                  <div className="flex-1 truncate">
+                    <p className="font-bold truncate">{task.title}</p>
+                    <p className="text-[10px] text-muted-foreground">{format(task.dueDate.toDate(), 'dd/MM HH:mm')}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Button variant="ghost" size="sm" className="w-full text-xs" asChild>
+              <Link href="/tasks">Ver tudo <ArrowRight className="ml-2 h-3 w-3" /></Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* NOVO: Eventos da Semana (Weekly Grid) */}
@@ -519,7 +511,6 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-7 min-w-[800px] md:min-w-0 divide-x divide-muted/50 border-b">
                   {weekDays.map((day) => {
                     const isDayToday = isToday(day);
-                    const isDayTomorrow = isTomorrow(day);
                     const dayEvents = weeklyEvents.filter(e => isSameDay(e.data_evento, day));
                     const displayedEvents = dayEvents.slice(0, 2);
                     const remainingCount = dayEvents.length - displayedEvents.length;
