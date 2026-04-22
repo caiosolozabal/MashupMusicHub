@@ -22,7 +22,8 @@ import {
   MapPin,
   Clock,
   PlusCircle,
-  CalendarCheck
+  CalendarCheck,
+  ExternalLink
 } from 'lucide-react';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
@@ -51,7 +52,8 @@ import {
   startOfWeek,
   addWeeks,
   isToday,
-  isTomorrow
+  isTomorrow,
+  addDays
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
@@ -80,9 +82,6 @@ const months = [
   { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
 ];
 
-const currentYearValue = new Date().getFullYear();
-const VALID_YEARS = Array.from({ length: 5 }, (_, i) => currentYearValue - 2 + i);
-
 export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -107,6 +106,12 @@ export default function DashboardPage() {
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
 
   const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+
+  // Gerar lista de anos dinâmica (Ano atual - 2 até Ano atual + 2)
+  const VALID_YEARS = useMemo(() => {
+    const current = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => current - 2 + i);
+  }, []);
 
   // Buscar lista de DJs para cálculo do faturamento líquido (apenas staff)
   useEffect(() => {
@@ -176,7 +181,7 @@ export default function DashboardPage() {
     if (!authLoading && user) fetchData();
   }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast]);
 
-  // Query Real-time para Eventos da Semana
+  // Query Real-time para Eventos da Semana (Range [início, próximo_início))
   useEffect(() => {
     if (!user || !userDetails) return;
 
@@ -278,6 +283,12 @@ export default function DashboardPage() {
       topTasks: merged.sort((a, b) => a.dueDate.toMillis() - b.dueDate.toMillis()).slice(0, 3)
     };
   }, [ownerTasks, assignedTasks]);
+
+  // Lógica para gerar os 7 dias da grade
+  const weekDays = useMemo(() => {
+    const start = startOfWeek(new Date(), { weekStartsOn: 1 });
+    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  }, []);
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
@@ -486,118 +497,104 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* NOVO: Eventos da Semana (Timeline Operacional) */}
+      {/* NOVO: Eventos da Semana (Weekly Grid) */}
       <div className="space-y-4">
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-          <CalendarCheck className="h-4 w-4" /> Eventos da Semana
-        </h2>
-        <Card className="border-primary/10 shadow-md">
-          <CardHeader className="pb-3 border-b border-muted/50">
-            <div className="flex justify-between items-center">
-               <div>
-                  <CardTitle className="text-lg font-headline">Timeline Operacional</CardTitle>
-                  <CardDescription className="text-xs">Segunda a Domingo (Semana Atual)</CardDescription>
-               </div>
-               {isStaff && (
-                 <Button variant="outline" size="sm" asChild className="h-8 text-xs">
-                    <Link href="/schedule"><PlusCircle className="mr-2 h-3 w-3" /> Novo Evento</Link>
-                 </Button>
-               )}
-            </div>
-          </CardHeader>
+        <div className="flex justify-between items-end">
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+            <CalendarCheck className="h-4 w-4" /> Eventos da Semana
+          </h2>
+          <Button variant="link" size="sm" asChild className="text-[10px] uppercase font-black h-auto p-0 text-primary">
+            <Link href="/schedule">Ver agenda completa <ChevronRight className="ml-1 h-3 w-3" /></Link>
+          </Button>
+        </div>
+        
+        <Card className="border-primary/10 shadow-sm overflow-hidden">
           <CardContent className="p-0">
             {isLoadingWeekly ? (
-              <div className="flex items-center justify-center py-24 space-y-4 flex-col">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Sincronizando agenda...</p>
-              </div>
-            ) : weeklyEvents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-                <CalendarDays className="h-12 w-12 text-muted-foreground/20 mb-4" />
-                <p className="text-muted-foreground font-medium text-sm">
-                  {isStaff ? 'Nenhum evento cadastrado para esta semana.' : 'Sua agenda está livre nesta semana.'}
-                </p>
+              <div className="flex items-center justify-center py-24 bg-muted/5">
+                <Loader2 className="h-8 w-8 animate-spin text-primary/30" />
               </div>
             ) : (
-              <div className="divide-y divide-muted/50">
-                {weeklyEvents.map((event) => {
-                  const date = event.data_evento;
-                  const isEventToday = isToday(date);
-                  const isEventTomorrow = isTomorrow(date);
+              <div className="w-full overflow-x-auto snap-x scrollbar-hide">
+                <div className="grid grid-cols-7 min-w-[800px] md:min-w-0 divide-x divide-muted/50 border-b">
+                  {weekDays.map((day) => {
+                    const isDayToday = isToday(day);
+                    const isDayTomorrow = isTomorrow(day);
+                    const dayEvents = weeklyEvents.filter(e => isSameDay(e.data_evento, day));
+                    const displayedEvents = dayEvents.slice(0, 2);
+                    const remainingCount = dayEvents.length - displayedEvents.length;
 
-                  return (
-                    <div key={event.id} className={cn(
-                      "flex flex-col md:flex-row md:items-center justify-between p-4 hover:bg-muted/20 transition-colors gap-4",
-                      isEventToday && "bg-primary/5"
-                    )}>
-                      <div className="flex items-center gap-4 flex-1">
-                        {/* Status Temporal */}
-                        <div className="min-w-[85px] flex flex-col items-center justify-center">
-                          {isEventToday ? (
-                            <span className="text-[10px] font-black uppercase bg-primary text-primary-foreground px-2 py-0.5 rounded animate-pulse">Hoje</span>
-                          ) : isEventTomorrow ? (
-                            <span className="text-[10px] font-black uppercase bg-orange-500 text-white px-2 py-0.5 rounded">Amanhã</span>
-                          ) : (
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground">{format(date, 'eee, dd/MM', { locale: ptBR })}</span>
-                          )}
-                          <span className="text-[10px] font-medium text-muted-foreground mt-0.5">{event.horario_inicio || '--:--'}</span>
+                    return (
+                      <div 
+                        key={day.toISOString()} 
+                        className={cn(
+                          "snap-start flex flex-col min-h-[140px] p-2 space-y-2 transition-colors",
+                          isDayToday ? "bg-primary/[0.03] border-t-2 border-t-primary" : "bg-card",
+                          dayEvents.length === 0 && !isDayToday && "opacity-40"
+                        )}
+                      >
+                        {/* Header do Dia */}
+                        <div className="flex flex-col items-center justify-center py-1 border-b border-muted/30">
+                          <span className={cn(
+                            "text-[9px] font-black uppercase tracking-widest",
+                            isDayToday ? "text-primary" : "text-muted-foreground"
+                          )}>
+                            {format(day, 'eee', { locale: ptBR })}
+                          </span>
+                          <span className={cn(
+                            "text-sm font-black",
+                            isDayToday && "text-primary"
+                          )}>
+                            {format(day, 'dd')}
+                          </span>
+                          {isDayToday && <div className="h-1 w-1 rounded-full bg-primary animate-pulse mt-0.5" />}
                         </div>
 
-                        <div className="h-10 w-0.5 bg-muted rounded-full hidden md:block" />
-
-                        {/* Nome e Info */}
-                        <div className="min-w-0">
-                          <p className="font-bold text-sm truncate">{event.nome_evento}</p>
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5">
-                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                              <MapPin className="h-3 w-3" />
-                              <span className="truncate max-w-[150px]">{event.local}</span>
-                            </div>
-                            {isStaff && (
-                               <div className="flex items-center gap-1 text-[10px] text-primary/80 font-medium">
-                                  <span>• DJ: {event.dj_nome}</span>
-                               </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Status e Ações */}
-                      <div className="flex items-center justify-between md:justify-end gap-3 border-t md:border-0 pt-3 md:pt-0">
-                        <div className={cn(
-                          "px-2 py-0.5 rounded text-[10px] font-black uppercase border",
-                          event.status_pagamento === 'pago' ? "bg-green-50 text-green-700 border-green-200" : 
-                          event.status_pagamento === 'parcial' ? "bg-blue-50 text-blue-700 border-blue-200" :
-                          "bg-yellow-50 text-yellow-700 border-yellow-200"
-                        )}>
-                          {event.status_pagamento}
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={() => { setSelectedEvent(event); setIsViewOpen(true); }}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          
-                          {isStaff && event.status_pagamento !== 'pago' && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-muted-foreground hover:text-green-600"
-                              onClick={() => { setSelectedEvent(event); setIsStatusConfirmOpen(true); }}
+                        {/* Eventos do Dia */}
+                        <div className="flex-1 space-y-1.5 overflow-hidden">
+                          {displayedEvents.map(event => (
+                            <div 
+                              key={event.id}
+                              onClick={() => { setSelectedEvent(event); setIsViewOpen(true); }}
+                              className="group p-1.5 rounded bg-background border border-border/50 hover:border-primary/50 transition-all cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
                             >
-                              <CheckCircle2 className="h-4 w-4" />
-                            </Button>
+                              <p className="text-[10px] font-bold line-clamp-1 leading-tight group-hover:text-primary transition-colors">
+                                {event.nome_evento}
+                              </p>
+                              {isStaff && (
+                                <p className="text-[8px] text-muted-foreground truncate uppercase font-medium mt-0.5">
+                                  {event.dj_nome}
+                                </p>
+                              )}
+                              <div className="flex items-center justify-between mt-1">
+                                <span className="text-[8px] font-bold text-muted-foreground/80">{event.horario_inicio || '--:--'}</span>
+                                <div className={cn(
+                                  "w-1 h-1 rounded-full",
+                                  event.status_pagamento === 'pago' ? "bg-green-500" : "bg-yellow-500"
+                                )} />
+                              </div>
+                            </div>
+                          ))}
+
+                          {remainingCount > 0 && (
+                            <button 
+                              onClick={() => { /* Poderia abrir um modal do dia */ }}
+                              className="w-full py-1 rounded border border-dashed border-muted-foreground/30 text-[9px] font-bold text-muted-foreground hover:bg-muted/50 transition-colors"
+                            >
+                              + {remainingCount} eventos
+                            </button>
+                          )}
+
+                          {dayEvents.length === 0 && (
+                            <div className="flex-1 flex items-center justify-center opacity-10">
+                              <CalendarCheck className="h-6 w-6" />
+                            </div>
                           )}
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             )}
           </CardContent>
@@ -611,7 +608,15 @@ export default function DashboardPage() {
             <DialogTitle>Detalhes do Evento</DialogTitle>
           </DialogHeader>
           <EventView event={selectedEvent} />
-          <DialogFooter>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            {isStaff && selectedEvent?.status_pagamento !== 'pago' && (
+              <Button 
+                onClick={() => { setIsViewOpen(false); setIsStatusConfirmOpen(true); }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" /> Marcar como Pago
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
