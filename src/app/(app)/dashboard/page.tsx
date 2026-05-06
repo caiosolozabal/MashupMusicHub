@@ -6,6 +6,13 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   BarChart, 
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Cell,
   Loader2, 
   ClipboardList, 
   ArrowRight, 
@@ -20,6 +27,16 @@ import {
   CheckCircle2,
   CalendarCheck
 } from 'lucide-react';
+import { 
+  BarChart as ReBarChart,
+  Bar as ReBar,
+  XAxis as ReXAxis,
+  YAxis as ReYAxis,
+  CartesianGrid as ReCartesianGrid,
+  Tooltip as ReTooltip,
+  ResponsiveContainer as ReResponsiveContainer,
+  Cell as ReCell
+} from 'recharts';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { 
@@ -46,7 +63,6 @@ import {
   startOfWeek,
   addWeeks,
   isToday,
-  isTomorrow,
   addDays
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -100,6 +116,8 @@ export default function DashboardPage() {
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
 
   const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+
+  const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   // Gerar lista de anos dinâmica (Ano atual - 2 até Ano atual + 2)
   const VALID_YEARS = useMemo(() => {
@@ -264,6 +282,34 @@ export default function DashboardPage() {
     return calculateMetrics(prevMonthEvents);
   }, [prevMonthEvents, allDjs, isStaff]);
 
+  // BI: Performance dos DJs
+  const performanceData = useMemo(() => {
+    if (!isStaff || allDjs.length === 0 || monthEvents.length === 0) return [];
+
+    const aggregation: Record<string, { djId: string; name: string; color: string; total: number; count: number }> = {};
+
+    monthEvents.forEach((event) => {
+      if (event.status_pagamento === 'cancelado') return;
+      
+      const djId = event.dj_id;
+      if (!aggregation[djId]) {
+        const djInfo = allDjs.find((d) => d.uid === djId);
+        aggregation[djId] = {
+          djId,
+          name: djInfo?.displayName || event.dj_nome || 'N/A',
+          color: djInfo?.dj_color || 'hsl(var(--primary))',
+          total: 0,
+          count: 0,
+        };
+      }
+      aggregation[djId].total += event.valor_total;
+      aggregation[djId].count += 1;
+    });
+
+    return Object.values(aggregation)
+      .sort((a, b) => b.total - a.total);
+  }, [monthEvents, allDjs, isStaff]);
+
   const tasksSummary = useMemo(() => {
     const all = [...ownerTasks, ...assignedTasks];
     const map = new Map<string, Task>();
@@ -325,11 +371,33 @@ export default function DashboardPage() {
     }
   };
 
+  const CustomChartTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-card border p-3 rounded-lg shadow-xl text-xs space-y-1 bg-opacity-95 backdrop-blur-sm">
+          <p className="font-bold text-sm mb-2">{data.name}</p>
+          <div className="space-y-0.5">
+            <p className="text-muted-foreground flex justify-between gap-4 italic">
+              Bruto no mês: <span className="font-black text-foreground not-italic">{formatCurrency(data.total)}</span>
+            </p>
+            <p className="text-muted-foreground flex justify-between gap-4 italic">
+              Eventos: <span className="font-bold text-foreground not-italic">{data.count}</span>
+            </p>
+            <p className="text-muted-foreground flex justify-between gap-4 italic">
+              Ticket Médio: <span className="font-bold text-foreground not-italic">{formatCurrency(data.total / data.count)}</span>
+            </p>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
   if (authLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const growth = (currentMetrics?.grossRevenue || 0) - (prevMetrics?.grossRevenue || 0);
 
   return (
@@ -454,7 +522,52 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Camada 3: Suas Tarefas (Movida para baixo do Fluxo de Caixa) */}
+      {/* Camada 3: Performance dos DJs (Exclusivo Staff) */}
+      {isStaff && performanceData.length > 0 && (
+        <div className={`space-y-4 transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+            <Target className="h-4 w-4" /> Performance dos DJs
+          </h2>
+          <Card className="border-primary/10 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-bold">Faturamento Bruto por Prestador</CardTitle>
+              <CardDescription>Volume de negócios gerado por DJ em {months[selectedMonth].label}</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 h-[350px]">
+              <ReResponsiveContainer width="100%" height="100%">
+                <ReBarChart
+                  data={performanceData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                >
+                  <ReCartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.1} />
+                  <ReXAxis type="number" hide />
+                  <ReYAxis 
+                    dataKey="name" 
+                    type="category" 
+                    axisLine={false} 
+                    tickLine={false}
+                    width={100}
+                    tick={{ fontSize: 10, fontWeight: 'bold' }}
+                  />
+                  <ReTooltip content={<CustomChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }} />
+                  <ReBar 
+                    dataKey="total" 
+                    radius={[0, 4, 4, 0]} 
+                    barSize={20}
+                  >
+                    {performanceData.map((entry, index) => (
+                      <ReCell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </ReBar>
+                </ReBarChart>
+              </ReResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Camada 4: Suas Tarefas */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <ClipboardList className="h-4 w-4" /> Suas Tarefas
@@ -489,7 +602,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* NOVO: Eventos da Semana (Weekly Grid) */}
+      {/* Camada 5: Eventos da Semana (Weekly Grid) */}
       <div className="space-y-4">
         <div className="flex justify-between items-end">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -638,3 +751,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
