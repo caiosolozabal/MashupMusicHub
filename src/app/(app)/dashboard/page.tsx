@@ -400,6 +400,9 @@ export default function DashboardPage() {
 
   const growth = (currentMetrics?.grossRevenue || 0) - (prevMetrics?.grossRevenue || 0);
 
+  // Altura dinâmica para o gráfico de performance para manter compacidade
+  const chartHeight = Math.max(160, performanceData.length * 36 + 40);
+
   return (
     <div className="flex flex-col space-y-8 pb-12">
       {/* Header com Filtros de Mês/Ano */}
@@ -522,25 +525,26 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Camada 3: Performance dos DJs (Exclusivo Staff) */}
+      {/* Camada 3: Performance dos DJs (Exclusivo Staff) - Agora mais compacto */}
       {isStaff && performanceData.length > 0 && (
         <div className={`space-y-4 transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
             <Target className="h-4 w-4" /> Performance dos DJs
           </h2>
-          <Card className="border-primary/10 shadow-sm">
+          <Card className="border-primary/10 shadow-sm max-w-4xl">
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold">Faturamento Bruto por Prestador</CardTitle>
-              <CardDescription>Volume de negócios gerado por DJ em {months[selectedMonth].label}</CardDescription>
+              <CardTitle className="text-lg font-bold">Ranking de Faturamento Bruto</CardTitle>
+              <CardDescription>Volume consolidado por prestador em {months[selectedMonth].label}</CardDescription>
             </CardHeader>
-            <CardContent className="pt-4 h-[350px]">
+            <CardContent className="pt-2" style={{ height: chartHeight }}>
               <ReResponsiveContainer width="100%" height="100%">
                 <ReBarChart
                   data={performanceData}
                   layout="vertical"
-                  margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  barCategoryGap={4}
                 >
-                  <ReCartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.1} />
+                  <ReCartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.05} />
                   <ReXAxis type="number" hide />
                   <ReYAxis 
                     dataKey="name" 
@@ -548,13 +552,13 @@ export default function DashboardPage() {
                     axisLine={false} 
                     tickLine={false}
                     width={100}
-                    tick={{ fontSize: 10, fontWeight: 'bold' }}
+                    tick={{ fontSize: 11, fontWeight: '800' }}
                   />
-                  <ReTooltip content={<CustomChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.2 }} />
+                  <ReTooltip content={<CustomChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }} />
                   <ReBar 
                     dataKey="total" 
                     radius={[0, 4, 4, 0]} 
-                    barSize={20}
+                    barSize={24}
                   >
                     {performanceData.map((entry, index) => (
                       <ReCell key={`cell-${index}`} fill={entry.color} />
@@ -751,4 +755,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
