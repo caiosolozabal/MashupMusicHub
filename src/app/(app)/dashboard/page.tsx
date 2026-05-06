@@ -1,18 +1,10 @@
-
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { 
-  BarChart, 
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  Cell,
+  BarChart as LucideBarChart, 
   Loader2, 
   ClipboardList, 
   ArrowRight, 
@@ -28,14 +20,14 @@ import {
   CalendarCheck
 } from 'lucide-react';
 import { 
-  BarChart as ReBarChart,
-  Bar as ReBar,
-  XAxis as ReXAxis,
-  YAxis as ReYAxis,
-  CartesianGrid as ReCartesianGrid,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   Tooltip as ReTooltip,
-  ResponsiveContainer as ReResponsiveContainer,
-  Cell as ReCell
+  ResponsiveContainer,
+  Cell
 } from 'recharts';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
@@ -98,9 +90,10 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const router = useRouter();
   
+  const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
-  const [selectedYear, setSelectedYear] = useState<number>(getYear(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState<number>(0);
+  const [selectedYear, setSelectedYear] = useState<number>(0);
   
   const [monthEvents, setMonthEvents] = useState<Event[]>([]);
   const [prevMonthEvents, setPrevMonthEvents] = useState<Event[]>([]);
@@ -121,15 +114,23 @@ export default function DashboardPage() {
 
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  // Prevenir Erros de Hidratação
+  useEffect(() => {
+    const now = new Date();
+    setSelectedMonth(getMonth(now));
+    setSelectedYear(getYear(now));
+    setIsMounted(true);
+  }, []);
+
   // Gerar lista de anos dinâmica (Ano atual - 2 até Ano atual + 2)
   const VALID_YEARS = useMemo(() => {
-    const current = new Date().getFullYear();
+    const current = isMounted ? selectedYear : new Date().getFullYear();
     return Array.from({ length: 5 }, (_, i) => current - 2 + i);
-  }, []);
+  }, [isMounted, selectedYear]);
 
   // Buscar lista de DJs para cálculo do faturamento líquido (apenas staff)
   useEffect(() => {
-    if (isStaff && !authLoading) {
+    if (isStaff && !authLoading && isMounted) {
       const fetchDjs = async () => {
         const q = query(collection(db, 'users'), where('role', '==', 'dj'));
         const snap = await getDocs(q);
@@ -137,12 +138,12 @@ export default function DashboardPage() {
       };
       fetchDjs();
     }
-  }, [isStaff, authLoading]);
+  }, [isStaff, authLoading, isMounted]);
 
   // Carregar dados financeiros (Competência)
   useEffect(() => {
     const fetchData = async () => {
-      if (!user || !userDetails) return;
+      if (!user || !userDetails || !isMounted) return;
       setIsLoading(true);
 
       try {
@@ -192,12 +193,12 @@ export default function DashboardPage() {
       }
     };
 
-    if (!authLoading && user) fetchData();
-  }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast]);
+    if (!authLoading && user && isMounted) fetchData();
+  }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast, isMounted]);
 
   // Query Real-time para Eventos da Semana (Range [início, próximo_início))
   useEffect(() => {
-    if (!user || !userDetails) return;
+    if (!user || !userDetails || !isMounted) return;
 
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -234,11 +235,11 @@ export default function DashboardPage() {
     });
 
     return () => unsubscribe();
-  }, [user, userDetails]);
+  }, [user, userDetails, isMounted]);
 
   // Carregar Tarefas
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && isMounted) {
       getDocs(queryMyOpenTasks(user.uid)).then(snap => {
         setOwnerTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
@@ -246,7 +247,7 @@ export default function DashboardPage() {
         setAssignedTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, isMounted]);
 
   const calculateMetrics = (events: Event[]): FinancialMetrics => {
     let metrics = { grossRevenue: 0, netRevenue: 0, received: 0, pending: 0, eventCount: 0, avgTicket: 0 };
@@ -275,18 +276,20 @@ export default function DashboardPage() {
   };
 
   const currentMetrics = useMemo(() => {
+    if (!isMounted) return null;
     if (isStaff && allDjs.length === 0 && monthEvents.length > 0) return null;
     return calculateMetrics(monthEvents);
-  }, [monthEvents, allDjs, isStaff]);
+  }, [monthEvents, allDjs, isStaff, isMounted]);
 
   const prevMetrics = useMemo(() => {
+    if (!isMounted) return null;
     if (isStaff && allDjs.length === 0 && prevMonthEvents.length > 0) return null;
     return calculateMetrics(prevMonthEvents);
-  }, [prevMonthEvents, allDjs, isStaff]);
+  }, [prevMonthEvents, allDjs, isStaff, isMounted]);
 
   // BI: Performance dos DJs
   const performanceData = useMemo(() => {
-    if (!isStaff || allDjs.length === 0 || monthEvents.length === 0) return [];
+    if (!isStaff || allDjs.length === 0 || monthEvents.length === 0 || !isMounted) return [];
 
     const aggregation: Record<string, { djId: string; name: string; color: string; total: number; count: number }> = {};
 
@@ -310,9 +313,10 @@ export default function DashboardPage() {
 
     return Object.values(aggregation)
       .sort((a, b) => b.total - a.total);
-  }, [monthEvents, allDjs, isStaff]);
+  }, [monthEvents, allDjs, isStaff, isMounted]);
 
   const tasksSummary = useMemo(() => {
+    if (!isMounted) return { total: 0, overdue: 0, today: 0, topTasks: [] };
     const all = [...ownerTasks, ...assignedTasks];
     const map = new Map<string, Task>();
     all.forEach(t => map.set(t.id, t));
@@ -324,13 +328,14 @@ export default function DashboardPage() {
       today: merged.filter(t => isSameDay(t.dueDate.toDate(), now)).length,
       topTasks: merged.sort((a, b) => a.dueDate.toMillis() - b.dueDate.toMillis()).slice(0, 3)
     };
-  }, [ownerTasks, assignedTasks]);
+  }, [ownerTasks, assignedTasks, isMounted]);
 
   // Lógica para gerar os 7 dias da grade
   const weekDays = useMemo(() => {
+    if (!isMounted) return [];
     const start = startOfWeek(new Date(), { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, []);
+  }, [isMounted]);
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
@@ -413,13 +418,11 @@ export default function DashboardPage() {
     return null;
   };
 
-  if (authLoading) {
+  if (authLoading || !isMounted) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
   const growth = (currentMetrics?.grossRevenue || 0) - (prevMetrics?.grossRevenue || 0);
-
-  // Altura dinâmica para o gráfico de performance para manter compacidade
   const chartHeight = Math.max(160, performanceData.length * 36 + 40);
 
   return (
@@ -462,10 +465,10 @@ export default function DashboardPage() {
         </h2>
         <div className={`grid gap-4 md:grid-cols-2 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
           <Card className="bg-primary/5 border-primary/20 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10"><BarChart className="h-24 w-24" /></div>
+            <div className="absolute top-0 right-0 p-4 opacity-10"><LucideBarChart className="h-24 w-24" /></div>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Faturamento Bruto</CardTitle>
-              <CardDescription>Total contratado para {months[selectedMonth].label}</CardDescription>
+              <CardDescription>Total contratado para {months[selectedMonth]?.label}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-black">{currentMetrics ? formatCurrency(currentMetrics.grossRevenue) : '...'}</div>
@@ -539,12 +542,12 @@ export default function DashboardPage() {
         {currentMetrics?.eventCount === 0 && !isLoading && (
           <div className="flex flex-col items-center justify-center py-12 bg-muted/20 border-2 border-dashed rounded-2xl">
             <CalendarDays className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground font-medium">Nenhum evento agendado para {months[selectedMonth].label} de {selectedYear}.</p>
+            <p className="text-muted-foreground font-medium">Nenhum evento agendado para {months[selectedMonth]?.label} de {selectedYear}.</p>
           </div>
         )}
       </div>
 
-      {/* Camada 3: Performance dos DJs (Exclusivo Staff) - Agora mais compacto */}
+      {/* Camada 3: Performance dos DJs (Exclusivo Staff) */}
       {isStaff && performanceData.length > 0 && (
         <div className={`space-y-4 transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -553,19 +556,19 @@ export default function DashboardPage() {
           <Card className="border-primary/10 shadow-sm max-w-4xl">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-bold">Ranking de Faturamento Bruto</CardTitle>
-              <CardDescription>Volume consolidado por prestador em {months[selectedMonth].label}</CardDescription>
+              <CardDescription>Volume consolidado por prestador em {months[selectedMonth]?.label}</CardDescription>
             </CardHeader>
             <CardContent className="pt-2" style={{ height: chartHeight }}>
-              <ReResponsiveContainer width="100%" height="100%">
-                <ReBarChart
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
                   data={performanceData}
                   layout="vertical"
                   margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                   barCategoryGap={4}
                 >
-                  <ReCartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.05} />
-                  <ReXAxis type="number" hide />
-                  <ReYAxis 
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.05} />
+                  <XAxis type="number" hide />
+                  <YAxis 
                     dataKey="name" 
                     type="category" 
                     axisLine={false} 
@@ -578,7 +581,7 @@ export default function DashboardPage() {
                     cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
                     wrapperStyle={{ pointerEvents: 'auto' }}
                   />
-                  <ReBar 
+                  <Bar 
                     dataKey="total" 
                     radius={[0, 4, 4, 0]} 
                     barSize={24}
@@ -590,11 +593,11 @@ export default function DashboardPage() {
                     }}
                   >
                     {performanceData.map((entry, index) => (
-                      <ReCell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
-                  </ReBar>
-                </ReBarChart>
-              </ReResponsiveContainer>
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
