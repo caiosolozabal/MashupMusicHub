@@ -85,13 +85,17 @@ function ScheduleContent() {
       }
       
       const eventsSnapshot = await getDocs(eventsQuery);
-      const eventsList = eventsSnapshot.docs.map(docSnap => ({
-        id: docSnap.id,
-        path: docSnap.ref.path,
-        ...docSnap.data(),
-        data_evento: docSnap.data().data_evento.toDate(),
-        created_at: docSnap.data().created_at.toDate(),
-      } as Event));
+      const eventsList = eventsSnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        if (!data.data_evento) return null;
+        return {
+          id: docSnap.id,
+          path: docSnap.ref.path,
+          ...data,
+          data_evento: data.data_evento.toDate(),
+          created_at: data.created_at?.toDate() || new Date(),
+        } as Event;
+      }).filter(Boolean) as Event[];
       setEvents(eventsList);
 
       if (userDetails.role === 'admin' || userDetails.role === 'partner') {
@@ -112,6 +116,8 @@ function ScheduleContent() {
     if (selectedYear && selectedMonth) {
       const year = parseInt(selectedYear, 10);
       const month = parseInt(selectedMonth, 10);
+      if (isNaN(year) || isNaN(month)) return;
+
       const newFrom = startOfMonth(new Date(year, month));
       const newTo = endOfMonth(new Date(year, month));
 
@@ -124,9 +130,9 @@ function ScheduleContent() {
   const filteredEvents = useMemo(() => {
     return events.filter(e => {
       const matchesDj = selectedDjId === 'all' || e.dj_id === selectedDjId;
-      const matchesSearch = !searchTerm || e.nome_evento.toLowerCase().includes(searchTerm.toLowerCase()) || e.contratante_nome.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !searchTerm || e.nome_evento.toLowerCase().includes(searchTerm.toLowerCase()) || (e.contratante_nome && e.contratante_nome.toLowerCase().includes(searchTerm.toLowerCase()));
       let matchesDate = true;
-      if (dateRange?.from) {
+      if (dateRange?.from && e.data_evento) {
         matchesDate = e.data_evento >= startOfDay(dateRange.from) && (!dateRange.to || e.data_evento <= endOfMonth(dateRange.to));
       }
       return matchesDj && matchesSearch && matchesDate;
@@ -176,7 +182,7 @@ function ScheduleContent() {
             </Select>
             <div className="col-span-1 sm:col-span-2 flex gap-2">
                <Select value={selectedMonth} onValueChange={setSelectedMonth}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
-               <Select value={selectedYear} onValueChange={setSelectedYear}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{['2025','2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
+               <Select value={selectedYear} onValueChange={setSelectedYear}><SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger><SelectContent>{['2024','2025','2026'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
             </div>
           </div>
 

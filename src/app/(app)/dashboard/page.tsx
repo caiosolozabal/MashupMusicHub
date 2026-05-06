@@ -114,7 +114,7 @@ export default function DashboardPage() {
 
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // Prevenir Erros de Hidratação
+  // Prevenir Erros de Hidratação: Inicializa datas apenas no cliente
   useEffect(() => {
     const now = new Date();
     setSelectedMonth(getMonth(now));
@@ -125,6 +125,7 @@ export default function DashboardPage() {
   // Gerar lista de anos dinâmica (Ano atual - 2 até Ano atual + 2)
   const VALID_YEARS = useMemo(() => {
     const current = isMounted ? selectedYear : new Date().getFullYear();
+    if (!current) return [new Date().getFullYear()];
     return Array.from({ length: 5 }, (_, i) => current - 2 + i);
   }, [isMounted, selectedYear]);
 
@@ -132,9 +133,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (isStaff && !authLoading && isMounted) {
       const fetchDjs = async () => {
-        const q = query(collection(db, 'users'), where('role', '==', 'dj'));
-        const snap = await getDocs(q);
-        setAllDjs(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails)));
+        try {
+          const q = query(collection(db, 'users'), where('role', '==', 'dj'));
+          const snap = await getDocs(q);
+          setAllDjs(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails)));
+        } catch (e) {
+          console.error("Error fetching DJs:", e);
+        }
       };
       fetchDjs();
     }
@@ -176,14 +181,18 @@ export default function DashboardPage() {
           getDocs(qPrev)
         ]);
 
-        const mapDocToEvent = (doc: any) => ({
-          id: doc.id,
-          ...doc.data(),
-          data_evento: doc.data().data_evento.toDate()
-        } as Event);
+        const mapDocToEvent = (doc: any) => {
+          const data = doc.data();
+          if (!data.data_evento) return null; // Ignora eventos sem data para evitar quebra
+          return {
+            id: doc.id,
+            ...data,
+            data_evento: data.data_evento.toDate()
+          } as Event;
+        };
 
-        setMonthEvents(currSnap.docs.map(mapDocToEvent));
-        setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent));
+        setMonthEvents(currSnap.docs.map(mapDocToEvent).filter(Boolean) as Event[]);
+        setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent).filter(Boolean) as Event[]);
 
       } catch (error: any) {
         console.error("Dashboard finance error:", error);
@@ -196,7 +205,7 @@ export default function DashboardPage() {
     if (!authLoading && user && isMounted) fetchData();
   }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast, isMounted]);
 
-  // Query Real-time para Eventos da Semana (Range [início, próximo_início))
+  // Query Real-time para Eventos da Semana
   useEffect(() => {
     if (!user || !userDetails || !isMounted) return;
 
@@ -220,12 +229,17 @@ export default function DashboardPage() {
 
     const unsubscribe = onSnapshot(weeklyQ, (snapshot) => {
       const list = snapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          data_evento: doc.data().data_evento.toDate()
-        } as Event))
-        .filter(e => e.status_pagamento !== 'cancelado');
+        .map(doc => {
+          const data = doc.data();
+          if (!data.data_evento) return null;
+          return {
+            id: doc.id,
+            ...data,
+            data_evento: data.data_evento.toDate()
+          } as Event;
+        })
+        .filter(Boolean)
+        .filter(e => e!.status_pagamento !== 'cancelado') as Event[];
       
       setWeeklyEvents(list);
       setIsLoadingWeekly(false);
@@ -252,9 +266,9 @@ export default function DashboardPage() {
   const calculateMetrics = (events: Event[]): FinancialMetrics => {
     let metrics = { grossRevenue: 0, netRevenue: 0, received: 0, pending: 0, eventCount: 0, avgTicket: 0 };
     
-    events.filter(e => e.status_pagamento !== 'cancelado').forEach(event => {
+    events.forEach(event => {
       metrics.eventCount++;
-      metrics.grossRevenue += event.valor_total;
+      metrics.grossRevenue += event.valor_total || 0;
       
       if (isStaff) {
         const dj = allDjs.find(d => d.uid === event.dj_id);
@@ -297,6 +311,8 @@ export default function DashboardPage() {
       if (event.status_pagamento === 'cancelado') return;
       
       const djId = event.dj_id;
+      if (!djId) return;
+
       if (!aggregation[djId]) {
         const djInfo = allDjs.find((d) => d.uid === djId);
         aggregation[djId] = {
@@ -307,7 +323,7 @@ export default function DashboardPage() {
           count: 0,
         };
       }
-      aggregation[djId].total += event.valor_total;
+      aggregation[djId].total += event.valor_total || 0;
       aggregation[djId].count += 1;
     });
 
@@ -324,9 +340,9 @@ export default function DashboardPage() {
     const now = new Date();
     return {
       total: merged.length,
-      overdue: merged.filter(t => t.dueDate.toDate() < now).length,
-      today: merged.filter(t => isSameDay(t.dueDate.toDate(), now)).length,
-      topTasks: merged.sort((a, b) => a.dueDate.toMillis() - b.dueDate.toMillis()).slice(0, 3)
+      overdue: merged.filter(t => t.dueDate?.toDate() < now).length,
+      today: merged.filter(t => t.dueDate && isSameDay(t.dueDate.toDate(), now)).length,
+      topTasks: merged.sort((a, b) => (a.dueDate?.toMillis() || 0) - (b.dueDate?.toMillis() || 0)).slice(0, 3)
     };
   }, [ownerTasks, assignedTasks, isMounted]);
 
@@ -626,7 +642,7 @@ export default function DashboardPage() {
                   <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
                   <div className="flex-1 truncate">
                     <p className="font-bold truncate">{task.title}</p>
-                    <p className="text-[10px] text-muted-foreground">{format(task.dueDate.toDate(), 'dd/MM HH:mm')}</p>
+                    <p className="text-[10px] text-muted-foreground">{task.dueDate ? format(task.dueDate.toDate(), 'dd/MM HH:mm') : ''}</p>
                   </div>
                 </div>
               ))}
