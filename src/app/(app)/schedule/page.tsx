@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { CalendarDays, List, Loader2, PlusCircle, X } from 'lucide-react';
@@ -20,6 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import EventForm, { type EventFormValues } from '@/components/events/EventForm';
 import EventView from '@/components/events/EventView';
 import { getEventOperationalState } from '@/lib/utils';
+import { useSearchParams } from 'next/navigation';
 
 
 type ViewMode = 'month' | 'list';
@@ -31,9 +32,10 @@ const months = [
   { value: '9', label: 'Outubro' }, { value: '10', label: 'Novembro' }, { value: '11', label: 'Dezembro' }
 ];
 
-export default function SchedulePage() {
+function ScheduleContent() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   
   const [events, setEvents] = useState<Event[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
@@ -52,15 +54,25 @@ export default function SchedulePage() {
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
 
+  // Sincronizar estados iniciais com Query Params
   useEffect(() => {
+    const djId = searchParams.get('djId');
+    const month = searchParams.get('month');
+    const year = searchParams.get('year');
+
     const now = new Date();
-    setSelectedMonth(getMonth(now).toString());
-    setSelectedYear(getYear(now).toString());
-    setDateRange({
-      from: startOfMonth(now),
-      to: endOfMonth(now),
-    });
-  }, []);
+    const initialMonth = month || getMonth(now).toString();
+    const initialYear = year || getYear(now).toString();
+    
+    setSelectedMonth(initialMonth);
+    setSelectedYear(initialYear);
+    setSelectedDjId(djId || 'all');
+    
+    const start = startOfMonth(new Date(parseInt(initialYear), parseInt(initialMonth)));
+    const end = endOfMonth(new Date(parseInt(initialYear), parseInt(initialMonth)));
+    
+    setDateRange({ from: start, to: end });
+  }, [searchParams]);
 
   const fetchAllData = useCallback(async () => {
     if (authLoading || !user || !userDetails) return;
@@ -210,5 +222,13 @@ export default function SchedulePage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function SchedulePage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center p-10"><Loader2 className="animate-spin h-8 w-8" /></div>}>
+      <ScheduleContent />
+    </Suspense>
   );
 }

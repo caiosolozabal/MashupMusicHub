@@ -67,6 +67,7 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDjCut, cn } from '@/lib/utils';
 import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
@@ -95,6 +96,7 @@ const months = [
 export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
@@ -374,10 +376,15 @@ export default function DashboardPage() {
   const CustomChartTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const navUrl = `/schedule?djId=${data.djId}&month=${selectedMonth}&year=${selectedYear}`;
+      
       return (
-        <div className="bg-card border p-3 rounded-lg shadow-xl text-xs space-y-1 bg-opacity-95 backdrop-blur-sm">
-          <p className="font-bold text-sm mb-2">{data.name}</p>
+        <div 
+          className="bg-card border p-3 rounded-lg shadow-xl text-xs space-y-3 bg-opacity-95 backdrop-blur-sm pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="space-y-0.5">
+            <p className="font-bold text-sm mb-2">{data.name}</p>
             <p className="text-muted-foreground flex justify-between gap-4 italic">
               Bruto no mês: <span className="font-black text-foreground not-italic">{formatCurrency(data.total)}</span>
             </p>
@@ -388,6 +395,18 @@ export default function DashboardPage() {
               Ticket Médio: <span className="font-bold text-foreground not-italic">{formatCurrency(data.total / data.count)}</span>
             </p>
           </div>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full h-7 text-[10px] font-black uppercase tracking-wider bg-primary/10 border-primary/20 hover:bg-primary/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(navUrl);
+            }}
+          >
+            Ver Agenda <ArrowRight className="ml-1 h-3 w-3" />
+          </Button>
         </div>
       );
     }
@@ -554,11 +573,21 @@ export default function DashboardPage() {
                     width={100}
                     tick={{ fontSize: 11, fontWeight: '800' }}
                   />
-                  <ReTooltip content={<CustomChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }} />
+                  <ReTooltip 
+                    content={<CustomChartTooltip />} 
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
+                    wrapperStyle={{ pointerEvents: 'auto' }}
+                  />
                   <ReBar 
                     dataKey="total" 
                     radius={[0, 4, 4, 0]} 
                     barSize={24}
+                    className="cursor-pointer"
+                    onClick={(data) => {
+                      if (window.innerWidth >= 768) {
+                        router.push(`/schedule?djId=${data.djId}&month=${selectedMonth}&year=${selectedYear}`);
+                      }
+                    }}
                   >
                     {performanceData.map((entry, index) => (
                       <ReCell key={`cell-${index}`} fill={entry.color} />
