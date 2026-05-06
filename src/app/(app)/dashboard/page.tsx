@@ -474,6 +474,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      <div className="h-px bg-black w-full" />
+
       {/* Camada 1: Competência */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
