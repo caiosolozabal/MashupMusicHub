@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -62,7 +63,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDjCut, cn } from '@/lib/utils';
-import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
+import { queryMyOpenTasks, queryMyOpenTasks as queryMyTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EventView from '@/components/events/EventView';
@@ -183,7 +184,7 @@ export default function DashboardPage() {
 
         const mapDocToEvent = (doc: any) => {
           const data = doc.data();
-          if (!data.data_evento) return null; // Ignora eventos sem data para evitar quebra
+          if (!data.data_evento) return null;
           return {
             id: doc.id,
             ...data,
@@ -605,7 +606,7 @@ export default function DashboardPage() {
                     barSize={24}
                     className="cursor-pointer"
                     onClick={(data) => {
-                      if (window.innerWidth >= 768) {
+                      if (typeof window !== 'undefined' && window.innerWidth >= 768) {
                         router.push(`/schedule?djId=${data.djId}&month=${selectedMonth}&year=${selectedYear}`);
                       }
                     }}

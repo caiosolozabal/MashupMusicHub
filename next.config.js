@@ -40,7 +40,8 @@ const nextConfig = {
         "www.mashupmusic.com.br"
       ]
     }
-  }
+  },
+  // Timestamp para forçar reinicialização do servidor de dev: 1718210000000
 };
 
 module.exports = nextConfig;
