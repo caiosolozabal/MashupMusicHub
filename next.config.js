@@ -41,7 +41,7 @@ const nextConfig = {
       ]
     }
   },
-  // Timestamp para forçar reinicialização do servidor de dev: 1718210000000
+  // Timestamp para forçar reinicialização do servidor de dev: 1718210000001
 };
 
 module.exports = nextConfig;

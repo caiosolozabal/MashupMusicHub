@@ -63,7 +63,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDjCut, cn } from '@/lib/utils';
-import { queryMyOpenTasks, queryMyOpenTasks as queryMyTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
+import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EventView from '@/components/events/EventView';
