@@ -10,11 +10,12 @@ const Logo = ({ className }: { className?: string }) => {
   return (
     <Link href="/" className={`flex items-center gap-2 group ${className}`}>
       {!imageError ? (
-        <div className="relative h-8 w-32 sm:h-10 sm:w-40">
+        <div className="relative">
           <Image
             src="/logo.png"
             alt="Mashup Music Hub"
-            fill
+            width={160}
+            height={40}
             priority
             className="object-contain object-left transition-transform group-hover:scale-105"
             onError={() => setImageError(true)}

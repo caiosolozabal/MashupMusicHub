@@ -41,7 +41,6 @@ import {
   format, 
   startOfMonth, 
   endOfMonth, 
-  subMonths, 
   isSameDay, 
   getYear, 
   getMonth,
@@ -96,7 +95,6 @@ export default function DashboardPage() {
   const [isViewOpen, setIsViewOpen] = useState(false);
 
   const [ownerTasks, setOwnerTasks] = useState<Task[]>([]);
-  const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
 
   const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
@@ -223,7 +221,6 @@ export default function DashboardPage() {
       getDocs(queryMyOpenTasks(user.uid)).then(snap => {
         setOwnerTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
-      // Simplified for BI context
     }
   }, [user, authLoading, isMounted]);
 
