@@ -1,11 +1,10 @@
-
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { 
-  BarChart, 
+  BarChart as LucideBarChart, 
   Loader2, 
   ClipboardList, 
   ArrowRight, 
@@ -20,6 +19,16 @@ import {
   CheckCircle2,
   CalendarCheck
 } from 'lucide-react';
+import { 
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ReTooltip,
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
 import { useEffect, useState, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { 
@@ -50,9 +59,10 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDjCut, cn } from '@/lib/utils';
-import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
+import { queryMyOpenTasks, queryMyOpenTasks as queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EventView from '@/components/events/EventView';
@@ -78,16 +88,17 @@ const months = [
 export default function DashboardPage() {
   const { user, userDetails, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   
+  const [isMounted, setIsMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState<number>(getMonth(new Date()));
-  const [selectedYear, setSelectedYear] = useState<number>(getYear(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState<number>(0);
+  const [selectedYear, setSelectedYear] = useState<number>(0);
   
   const [monthEvents, setMonthEvents] = useState<Event[]>([]);
   const [prevMonthEvents, setPrevMonthEvents] = useState<Event[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   
-  // Weekly Events State
   const [weeklyEvents, setWeeklyEvents] = useState<Event[]>([]);
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -100,28 +111,39 @@ export default function DashboardPage() {
 
   const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
-  // Gerar lista de anos dinâmica (Ano atual - 2 até Ano atual + 2)
-  const VALID_YEARS = useMemo(() => {
-    const current = new Date().getFullYear();
-    return Array.from({ length: 5 }, (_, i) => current - 2 + i);
+  const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  useEffect(() => {
+    const now = new Date();
+    setSelectedMonth(getMonth(now));
+    setSelectedYear(getYear(now));
+    setIsMounted(true);
   }, []);
 
-  // Buscar lista de DJs para cálculo do faturamento líquido (apenas staff)
+  const VALID_YEARS = useMemo(() => {
+    const current = isMounted ? selectedYear : new Date().getFullYear();
+    if (!current) return [new Date().getFullYear()];
+    return Array.from({ length: 5 }, (_, i) => current - 2 + i);
+  }, [isMounted, selectedYear]);
+
   useEffect(() => {
-    if (isStaff && !authLoading) {
+    if (isStaff && !authLoading && isMounted) {
       const fetchDjs = async () => {
-        const q = query(collection(db, 'users'), where('role', '==', 'dj'));
-        const snap = await getDocs(q);
-        setAllDjs(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails)));
+        try {
+          const q = query(collection(db, 'users'), where('role', '==', 'dj'));
+          const snap = await getDocs(q);
+          setAllDjs(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails)));
+        } catch (e) {
+          console.error("Error fetching DJs:", e);
+        }
       };
       fetchDjs();
     }
-  }, [isStaff, authLoading]);
+  }, [isStaff, authLoading, isMounted]);
 
-  // Carregar dados financeiros (Competência)
   useEffect(() => {
     const fetchData = async () => {
-      if (!user || !userDetails) return;
+      if (!user || !userDetails || !isMounted) return;
       setIsLoading(true);
 
       try {
@@ -154,14 +176,18 @@ export default function DashboardPage() {
           getDocs(qPrev)
         ]);
 
-        const mapDocToEvent = (doc: any) => ({
-          id: doc.id,
-          ...doc.data(),
-          data_evento: doc.data().data_evento.toDate()
-        } as Event);
+        const mapDocToEvent = (docSnapshot: any) => {
+          const data = docSnapshot.data();
+          if (!data.data_evento) return null;
+          return {
+            id: docSnapshot.id,
+            ...data,
+            data_evento: data.data_evento.toDate()
+          } as Event;
+        };
 
-        setMonthEvents(currSnap.docs.map(mapDocToEvent));
-        setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent));
+        setMonthEvents(currSnap.docs.map(mapDocToEvent).filter(Boolean) as Event[]);
+        setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent).filter(Boolean) as Event[]);
 
       } catch (error: any) {
         console.error("Dashboard finance error:", error);
@@ -171,12 +197,11 @@ export default function DashboardPage() {
       }
     };
 
-    if (!authLoading && user) fetchData();
-  }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast]);
+    if (!authLoading && user && isMounted) fetchData();
+  }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast, isMounted]);
 
-  // Query Real-time para Eventos da Semana (Range [início, próximo_início))
   useEffect(() => {
-    if (!user || !userDetails) return;
+    if (!user || !userDetails || !isMounted) return;
 
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -198,12 +223,17 @@ export default function DashboardPage() {
 
     const unsubscribe = onSnapshot(weeklyQ, (snapshot) => {
       const list = snapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          data_evento: doc.data().data_evento.toDate()
-        } as Event))
-        .filter(e => e.status_pagamento !== 'cancelado');
+        .map(docSnapshot => {
+          const data = docSnapshot.data();
+          if (!data.data_evento) return null;
+          return {
+            id: docSnapshot.id,
+            ...data,
+            data_evento: data.data_evento.toDate()
+          } as Event;
+        })
+        .filter(Boolean)
+        .filter(e => e!.status_pagamento !== 'cancelado') as Event[];
       
       setWeeklyEvents(list);
       setIsLoadingWeekly(false);
@@ -213,11 +243,10 @@ export default function DashboardPage() {
     });
 
     return () => unsubscribe();
-  }, [user, userDetails]);
+  }, [user, userDetails, isMounted]);
 
-  // Carregar Tarefas
   useEffect(() => {
-    if (!authLoading && user) {
+    if (!authLoading && user && isMounted) {
       getDocs(queryMyOpenTasks(user.uid)).then(snap => {
         setOwnerTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
@@ -225,14 +254,14 @@ export default function DashboardPage() {
         setAssignedTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, isMounted]);
 
   const calculateMetrics = (events: Event[]): FinancialMetrics => {
     let metrics = { grossRevenue: 0, netRevenue: 0, received: 0, pending: 0, eventCount: 0, avgTicket: 0 };
     
-    events.filter(e => e.status_pagamento !== 'cancelado').forEach(event => {
+    events.forEach(event => {
       metrics.eventCount++;
-      metrics.grossRevenue += event.valor_total;
+      metrics.grossRevenue += event.valor_total || 0;
       
       if (isStaff) {
         const dj = allDjs.find(d => d.uid === event.dj_id);
@@ -254,16 +283,48 @@ export default function DashboardPage() {
   };
 
   const currentMetrics = useMemo(() => {
+    if (!isMounted) return null;
     if (isStaff && allDjs.length === 0 && monthEvents.length > 0) return null;
     return calculateMetrics(monthEvents);
-  }, [monthEvents, allDjs, isStaff]);
+  }, [monthEvents, allDjs, isStaff, isMounted]);
 
   const prevMetrics = useMemo(() => {
+    if (!isMounted) return null;
     if (isStaff && allDjs.length === 0 && prevMonthEvents.length > 0) return null;
     return calculateMetrics(prevMonthEvents);
-  }, [prevMonthEvents, allDjs, isStaff]);
+  }, [prevMonthEvents, allDjs, isStaff, isMounted]);
+
+  const performanceData = useMemo(() => {
+    if (!isStaff || allDjs.length === 0 || monthEvents.length === 0 || !isMounted) return [];
+
+    const aggregation: Record<string, { djId: string; name: string; color: string; total: number; count: number }> = {};
+
+    monthEvents.forEach((event) => {
+      if (event.status_pagamento === 'cancelado') return;
+      
+      const djId = event.dj_id;
+      if (!djId) return;
+
+      if (!aggregation[djId]) {
+        const djInfo = allDjs.find((d) => d.uid === djId);
+        aggregation[djId] = {
+          djId,
+          name: djInfo?.displayName || event.dj_nome || 'N/A',
+          color: djInfo?.dj_color || 'hsl(var(--primary))',
+          total: 0,
+          count: 0,
+        };
+      }
+      aggregation[djId].total += event.valor_total || 0;
+      aggregation[djId].count += 1;
+    });
+
+    return Object.values(aggregation)
+      .sort((a, b) => b.total - a.total);
+  }, [monthEvents, allDjs, isStaff, isMounted]);
 
   const tasksSummary = useMemo(() => {
+    if (!isMounted) return { total: 0, overdue: 0, today: 0, topTasks: [] };
     const all = [...ownerTasks, ...assignedTasks];
     const map = new Map<string, Task>();
     all.forEach(t => map.set(t.id, t));
@@ -271,17 +332,17 @@ export default function DashboardPage() {
     const now = new Date();
     return {
       total: merged.length,
-      overdue: merged.filter(t => t.dueDate.toDate() < now).length,
-      today: merged.filter(t => isSameDay(t.dueDate.toDate(), now)).length,
-      topTasks: merged.sort((a, b) => a.dueDate.toMillis() - b.dueDate.toMillis()).slice(0, 3)
+      overdue: merged.filter(t => t.dueDate?.toDate() < now).length,
+      today: merged.filter(t => t.dueDate && isSameDay(t.dueDate.toDate(), now)).length,
+      topTasks: merged.sort((a, b) => (a.dueDate?.toMillis() || 0) - (b.dueDate?.toMillis() || 0)).slice(0, 3)
     };
-  }, [ownerTasks, assignedTasks]);
+  }, [ownerTasks, assignedTasks, isMounted]);
 
-  // Lógica para gerar os 7 dias da grade
   const weekDays = useMemo(() => {
+    if (!isMounted) return [];
     const start = startOfWeek(new Date(), { weekStartsOn: 1 });
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, []);
+  }, [isMounted]);
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
@@ -324,16 +385,55 @@ export default function DashboardPage() {
     }
   };
 
-  if (authLoading) {
+  const CustomChartTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      const navUrl = `/schedule?djId=${data.djId}&month=${selectedMonth}&year=${selectedYear}`;
+      
+      return (
+        <div 
+          className="bg-card border p-3 rounded-lg shadow-xl text-xs space-y-3 bg-opacity-95 backdrop-blur-sm pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-0.5">
+            <p className="font-bold text-sm mb-2">{data.name}</p>
+            <p className="text-muted-foreground flex justify-between gap-4 italic">
+              Bruto no mês: <span className="font-black text-foreground not-italic">{formatCurrency(data.total)}</span>
+            </p>
+            <p className="text-muted-foreground flex justify-between gap-4 italic">
+              Eventos: <span className="font-bold text-foreground not-italic">{data.count}</span>
+            </p>
+            <p className="text-muted-foreground flex justify-between gap-4 italic">
+              Ticket Médio: <span className="font-bold text-foreground not-italic">{formatCurrency(data.total / data.count)}</span>
+            </p>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full h-7 text-[10px] font-black uppercase tracking-wider bg-primary/10 border-primary/20 hover:bg-primary/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(navUrl);
+            }}
+          >
+            Ver Agenda <ArrowRight className="ml-1 h-3 w-3" />
+          </Button>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  if (authLoading || !isMounted) {
     return <div className="flex h-full items-center justify-center"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const growth = (currentMetrics?.grossRevenue || 0) - (prevMetrics?.grossRevenue || 0);
+  const chartHeight = Math.max(160, performanceData.length * 36 + 40);
 
   return (
     <div className="flex flex-col space-y-8 pb-12">
-      {/* Header com Filtros de Mês/Ano */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
@@ -364,17 +464,18 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Camada 1: Competência */}
+      <div className="h-px bg-black w-full" />
+
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <Target className="h-4 w-4" /> Competência do Mês
         </h2>
         <div className={`grid gap-4 md:grid-cols-2 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
           <Card className="bg-primary/5 border-primary/20 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10"><BarChart className="h-24 w-24" /></div>
+            <div className="absolute top-0 right-0 p-4 opacity-10"><LucideBarChart className="h-24 w-24" /></div>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Faturamento Bruto</CardTitle>
-              <CardDescription>Total contratado para {months[selectedMonth].label}</CardDescription>
+              <CardDescription>Total contratado para {months[selectedMonth]?.label}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-black">{currentMetrics ? formatCurrency(currentMetrics.grossRevenue) : '...'}</div>
@@ -413,7 +514,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Camada 2: Caixa e Eficiência */}
       <div className={`space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
@@ -444,16 +544,61 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-
-        {currentMetrics?.eventCount === 0 && !isLoading && (
-          <div className="flex flex-col items-center justify-center py-12 bg-muted/20 border-2 border-dashed rounded-2xl">
-            <CalendarDays className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground font-medium">Nenhum evento agendado para {months[selectedMonth].label} de {selectedYear}.</p>
-          </div>
-        )}
       </div>
 
-      {/* Camada 3: Suas Tarefas (Movida para baixo do Fluxo de Caixa) */}
+      {isStaff && performanceData.length > 0 && (
+        <div className={`space-y-4 transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+            <Target className="h-4 w-4" /> Performance dos DJs
+          </h2>
+          <Card className="border-primary/10 shadow-sm max-w-4xl">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-bold">Ranking de Faturamento Bruto</CardTitle>
+              <CardDescription>Volume consolidado por prestador em {months[selectedMonth]?.label}</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-2" style={{ height: chartHeight }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={performanceData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                  barCategoryGap={4}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.05} />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    axisLine={false} 
+                    tickLine={false}
+                    width={100}
+                    tick={{ fontSize: 11, fontWeight: '800' }}
+                  />
+                  <ReTooltip 
+                    content={<CustomChartTooltip />} 
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
+                    wrapperStyle={{ pointerEvents: 'auto' }}
+                  />
+                  <Bar 
+                    dataKey="total" 
+                    radius={[0, 4, 4, 0]} 
+                    barSize={24}
+                    className="cursor-pointer"
+                    onClick={(data) => {
+                      router.push(`/schedule?djId=${data.djId}&month=${selectedMonth}&year=${selectedYear}`);
+                    }}
+                  >
+                    {performanceData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <ClipboardList className="h-4 w-4" /> Suas Tarefas
@@ -476,7 +621,7 @@ export default function DashboardPage() {
                   <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
                   <div className="flex-1 truncate">
                     <p className="font-bold truncate">{task.title}</p>
-                    <p className="text-[10px] text-muted-foreground">{format(task.dueDate.toDate(), 'dd/MM HH:mm')}</p>
+                    <p className="text-[10px] text-muted-foreground">{task.dueDate ? format(task.dueDate.toDate(), 'dd/MM HH:mm') : ''}</p>
                   </div>
                 </div>
               ))}
@@ -488,7 +633,6 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* NOVO: Eventos da Semana (Weekly Grid) */}
       <div className="space-y-4">
         <div className="flex justify-between items-end">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -523,7 +667,6 @@ export default function DashboardPage() {
                           dayEvents.length === 0 && !isDayToday && "opacity-40"
                         )}
                       >
-                        {/* Header do Dia */}
                         <div className="flex flex-col items-center justify-center py-1 border-b border-muted/30">
                           <span className={cn(
                             "text-[9px] font-black uppercase tracking-widest",
@@ -537,10 +680,8 @@ export default function DashboardPage() {
                           )}>
                             {format(day, 'dd')}
                           </span>
-                          {isDayToday && <div className="h-1 w-1 rounded-full bg-primary animate-pulse mt-0.5" />}
                         </div>
 
-                        {/* Eventos do Dia */}
                         <div className="flex-1 space-y-1.5 overflow-hidden">
                           {displayedEvents.map(event => (
                             <div 
@@ -551,11 +692,6 @@ export default function DashboardPage() {
                               <p className="text-[10px] font-bold line-clamp-1 leading-tight group-hover:text-primary transition-colors">
                                 {event.nome_evento}
                               </p>
-                              {isStaff && (
-                                <p className="text-[8px] text-muted-foreground truncate uppercase font-medium mt-0.5">
-                                  {event.dj_nome}
-                                </p>
-                              )}
                               <div className="flex items-center justify-between mt-1">
                                 <span className="text-[8px] font-bold text-muted-foreground/80">{event.horario_inicio || '--:--'}</span>
                                 <div className={cn(
@@ -565,21 +701,6 @@ export default function DashboardPage() {
                               </div>
                             </div>
                           ))}
-
-                          {remainingCount > 0 && (
-                            <button 
-                              onClick={() => { /* Poderia abrir um modal do dia */ }}
-                              className="w-full py-1 rounded border border-dashed border-muted-foreground/30 text-[9px] font-bold text-muted-foreground hover:bg-muted/50 transition-colors"
-                            >
-                              + {remainingCount} eventos
-                            </button>
-                          )}
-
-                          {dayEvents.length === 0 && (
-                            <div className="flex-1 flex items-center justify-center opacity-10">
-                              <CalendarCheck className="h-6 w-6" />
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -591,49 +712,17 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Diálogo de Visualização */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Detalhes do Evento</DialogTitle>
           </DialogHeader>
           <EventView event={selectedEvent} />
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            {isStaff && selectedEvent?.status_pagamento !== 'pago' && (
-              <Button 
-                onClick={() => { setIsViewOpen(false); setIsStatusConfirmOpen(true); }}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" /> Marcar como Pago
-              </Button>
-            )}
+          <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Alerta de Confirmação de Pagamento */}
-      <AlertDialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Recebimento</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deseja marcar o evento <strong>{selectedEvent?.nome_evento}</strong> como <strong>PAGO</strong>? Esta ação atualizará o faturamento líquido e o caixa da agência.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedEvent(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleMarkAsPaid}
-              disabled={isUpdatingStatus}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-              Confirmar Pagamento
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
