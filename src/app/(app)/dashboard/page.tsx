@@ -63,7 +63,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDjCut, cn } from '@/lib/utils';
-import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
+import { queryMyOpenTasks, queryMyOpenTasks as queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import EventView from '@/components/events/EventView';
@@ -100,7 +100,6 @@ export default function DashboardPage() {
   const [prevMonthEvents, setPrevMonthEvents] = useState<Event[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   
-  // Weekly Events State
   const [weeklyEvents, setWeeklyEvents] = useState<Event[]>([]);
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -115,7 +114,6 @@ export default function DashboardPage() {
 
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // Prevenir Erros de Hidratação: Inicializa datas apenas no cliente
   useEffect(() => {
     const now = new Date();
     setSelectedMonth(getMonth(now));
@@ -123,14 +121,12 @@ export default function DashboardPage() {
     setIsMounted(true);
   }, []);
 
-  // Gerar lista de anos dinâmica (Ano atual - 2 até Ano atual + 2)
   const VALID_YEARS = useMemo(() => {
     const current = isMounted ? selectedYear : new Date().getFullYear();
     if (!current) return [new Date().getFullYear()];
     return Array.from({ length: 5 }, (_, i) => current - 2 + i);
   }, [isMounted, selectedYear]);
 
-  // Buscar lista de DJs para cálculo do faturamento líquido (apenas staff)
   useEffect(() => {
     if (isStaff && !authLoading && isMounted) {
       const fetchDjs = async () => {
@@ -146,7 +142,6 @@ export default function DashboardPage() {
     }
   }, [isStaff, authLoading, isMounted]);
 
-  // Carregar dados financeiros (Competência)
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !userDetails || !isMounted) return;
@@ -206,7 +201,6 @@ export default function DashboardPage() {
     if (!authLoading && user && isMounted) fetchData();
   }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast, isMounted]);
 
-  // Query Real-time para Eventos da Semana
   useEffect(() => {
     if (!user || !userDetails || !isMounted) return;
 
@@ -252,7 +246,6 @@ export default function DashboardPage() {
     return () => unsubscribe();
   }, [user, userDetails, isMounted]);
 
-  // Carregar Tarefas
   useEffect(() => {
     if (!authLoading && user && isMounted) {
       getDocs(queryMyOpenTasks(user.uid)).then(snap => {
@@ -302,7 +295,6 @@ export default function DashboardPage() {
     return calculateMetrics(prevMonthEvents);
   }, [prevMonthEvents, allDjs, isStaff, isMounted]);
 
-  // BI: Performance dos DJs
   const performanceData = useMemo(() => {
     if (!isStaff || allDjs.length === 0 || monthEvents.length === 0 || !isMounted) return [];
 
@@ -347,7 +339,6 @@ export default function DashboardPage() {
     };
   }, [ownerTasks, assignedTasks, isMounted]);
 
-  // Lógica para gerar os 7 dias da grade
   const weekDays = useMemo(() => {
     if (!isMounted) return [];
     const start = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -444,7 +435,6 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col space-y-8 pb-12">
-      {/* Header com Filtros de Mês/Ano */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
@@ -477,7 +467,6 @@ export default function DashboardPage() {
 
       <div className="h-px bg-black w-full" />
 
-      {/* Camada 1: Competência */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <Target className="h-4 w-4" /> Competência do Mês
@@ -526,7 +515,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Camada 2: Caixa e Eficiência */}
       <div className={`space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
@@ -557,16 +545,8 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-
-        {currentMetrics?.eventCount === 0 && !isLoading && (
-          <div className="flex flex-col items-center justify-center py-12 bg-muted/20 border-2 border-dashed rounded-2xl">
-            <CalendarDays className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground font-medium">Nenhum evento agendado para {months[selectedMonth]?.label} de {selectedYear}.</p>
-          </div>
-        )}
       </div>
 
-      {/* Camada 3: Performance dos DJs (Exclusivo Staff) */}
       {isStaff && performanceData.length > 0 && (
         <div className={`space-y-4 transition-opacity duration-500 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -606,9 +586,7 @@ export default function DashboardPage() {
                     barSize={24}
                     className="cursor-pointer"
                     onClick={(data) => {
-                      if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-                        router.push(`/schedule?djId=${data.djId}&month=${selectedMonth}&year=${selectedYear}`);
-                      }
+                      router.push(`/schedule?djId=${data.djId}&month=${selectedMonth}&year=${selectedYear}`);
                     }}
                   >
                     {performanceData.map((entry, index) => (
@@ -622,7 +600,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Camada 4: Suas Tarefas */}
       <div className="space-y-4">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
           <ClipboardList className="h-4 w-4" /> Suas Tarefas
@@ -657,7 +634,6 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Camada 5: Eventos da Semana (Weekly Grid) */}
       <div className="space-y-4">
         <div className="flex justify-between items-end">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
@@ -692,7 +668,6 @@ export default function DashboardPage() {
                           dayEvents.length === 0 && !isDayToday && "opacity-40"
                         )}
                       >
-                        {/* Header do Dia */}
                         <div className="flex flex-col items-center justify-center py-1 border-b border-muted/30">
                           <span className={cn(
                             "text-[9px] font-black uppercase tracking-widest",
@@ -706,10 +681,8 @@ export default function DashboardPage() {
                           )}>
                             {format(day, 'dd')}
                           </span>
-                          {isDayToday && <div className="h-1 w-1 rounded-full bg-primary animate-pulse mt-0.5" />}
                         </div>
 
-                        {/* Eventos do Dia */}
                         <div className="flex-1 space-y-1.5 overflow-hidden">
                           {displayedEvents.map(event => (
                             <div 
@@ -720,11 +693,6 @@ export default function DashboardPage() {
                               <p className="text-[10px] font-bold line-clamp-1 leading-tight group-hover:text-primary transition-colors">
                                 {event.nome_evento}
                               </p>
-                              {isStaff && (
-                                <p className="text-[8px] text-muted-foreground truncate uppercase font-medium mt-0.5">
-                                  {event.dj_nome}
-                                </p>
-                              )}
                               <div className="flex items-center justify-between mt-1">
                                 <span className="text-[8px] font-bold text-muted-foreground/80">{event.horario_inicio || '--:--'}</span>
                                 <div className={cn(
@@ -734,21 +702,6 @@ export default function DashboardPage() {
                               </div>
                             </div>
                           ))}
-
-                          {remainingCount > 0 && (
-                            <button 
-                              onClick={() => { /* Poderia abrir um modal do dia */ }}
-                              className="w-full py-1 rounded border border-dashed border-muted-foreground/30 text-[9px] font-bold text-muted-foreground hover:bg-muted/50 transition-colors"
-                            >
-                              + {remainingCount} eventos
-                            </button>
-                          )}
-
-                          {dayEvents.length === 0 && (
-                            <div className="flex-1 flex items-center justify-center opacity-10">
-                              <CalendarCheck className="h-6 w-6" />
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -760,49 +713,17 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Diálogo de Visualização */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Detalhes do Evento</DialogTitle>
           </DialogHeader>
           <EventView event={selectedEvent} />
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            {isStaff && selectedEvent?.status_pagamento !== 'pago' && (
-              <Button 
-                onClick={() => { setIsViewOpen(false); setIsStatusConfirmOpen(true); }}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" /> Marcar como Pago
-              </Button>
-            )}
+          <DialogFooter>
             <Button variant="outline" onClick={() => setIsViewOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Alerta de Confirmação de Pagamento */}
-      <AlertDialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Recebimento</AlertDialogTitle>
-            <AlertDialogDescription>
-              Deseja marcar o evento <strong>{selectedEvent?.nome_evento}</strong> como <strong>PAGO</strong>? Esta ação atualizará o faturamento líquido e o caixa da agência.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSelectedEvent(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleMarkAsPaid}
-              disabled={isUpdatingStatus}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isUpdatingStatus ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-              Confirmar Pagamento
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
