@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,9 +12,10 @@ import {
   ChevronLeft, 
   ChevronRight,
   Info,
+  TrendingUp,
+  TrendingDown,
   Target,
-  Wallet,
-  CalendarCheck
+  Wallet
 } from 'lucide-react';
 import { 
   BarChart,
@@ -34,31 +36,28 @@ import {
   where, 
   Timestamp, 
   orderBy, 
-  onSnapshot
+  doc,
+  updateDoc,
+  serverTimestamp
 } from 'firebase/firestore';
 import type { Event, Task, UserDetails } from '@/lib/types';
 import { 
   format, 
   startOfMonth, 
   endOfMonth, 
+  subMonths, 
   isSameDay, 
   getYear, 
-  getMonth,
-  startOfWeek,
-  addWeeks,
-  isToday,
-  addDays
+  getMonth
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDjCut, cn } from '@/lib/utils';
-import { queryMyOpenTasks } from '@/lib/tasks';
+import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import EventView from '@/components/events/EventView';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 interface FinancialMetrics {
   grossRevenue: number;
@@ -87,14 +86,11 @@ export default function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState<number>(0);
   
   const [monthEvents, setMonthEvents] = useState<Event[]>([]);
+  const [prevMonthEvents, setPrevMonthEvents] = useState<Event[]>([]);
   const [allDjs, setAllDjs] = useState<UserDetails[]>([]);
   
-  const [weeklyEvents, setWeeklyEvents] = useState<Event[]>([]);
-  const [isLoadingWeekly, setIsLoadingWeekly] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
-  const [isViewOpen, setIsViewOpen] = useState(false);
-
   const [ownerTasks, setOwnerTasks] = useState<Task[]>([]);
+  const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
 
   const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
@@ -136,6 +132,8 @@ export default function DashboardPage() {
       try {
         const currentStart = startOfMonth(new Date(selectedYear, selectedMonth));
         const currentEnd = endOfMonth(new Date(selectedYear, selectedMonth));
+        const prevStart = startOfMonth(subMonths(currentStart, 1));
+        const prevEnd = endOfMonth(subMonths(currentStart, 1));
 
         const eventsRef = collection(db, 'events');
         
@@ -144,24 +142,35 @@ export default function DashboardPage() {
           where('data_evento', '>=', Timestamp.fromDate(currentStart)),
           where('data_evento', '<=', Timestamp.fromDate(currentEnd))
         );
+        
+        let qPrev = query(
+          eventsRef,
+          where('data_evento', '>=', Timestamp.fromDate(prevStart)),
+          where('data_evento', '<=', Timestamp.fromDate(prevEnd))
+        );
 
         if (userDetails.role === 'dj') {
           qCurrent = query(qCurrent, where('dj_id', '==', user.uid));
+          qPrev = query(qPrev, where('dj_id', '==', user.uid));
         }
 
-        const currSnap = await getDocs(qCurrent);
+        const [currSnap, prevSnap] = await Promise.all([
+          getDocs(qCurrent),
+          getDocs(qPrev)
+        ]);
 
-        const mapDocToEvent = (docSnap: any) => {
-          const data = docSnap.data();
+        const mapDocToEvent = (docSnapshot: any) => {
+          const data = docSnapshot.data();
           if (!data.data_evento) return null;
           return {
-            id: docSnap.id,
+            id: docSnapshot.id,
             ...data,
             data_evento: data.data_evento.toDate()
           } as Event;
         };
 
         setMonthEvents(currSnap.docs.map(mapDocToEvent).filter(Boolean) as Event[]);
+        setPrevMonthEvents(prevSnap.docs.map(mapDocToEvent).filter(Boolean) as Event[]);
 
       } catch (error: any) {
         console.error("Dashboard finance error:", error);
@@ -175,60 +184,20 @@ export default function DashboardPage() {
   }, [selectedMonth, selectedYear, user, userDetails, authLoading, toast, isMounted]);
 
   useEffect(() => {
-    if (!user || !userDetails || !isMounted) return;
-
-    const now = new Date();
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-    const weekEnd = addWeeks(weekStart, 1);
-
-    setIsLoadingWeekly(true);
-    const eventsRef = collection(db, 'events');
-    
-    let weeklyQ = query(
-      eventsRef,
-      where('data_evento', '>=', Timestamp.fromDate(weekStart)),
-      where('data_evento', '<', Timestamp.fromDate(weekEnd)),
-      orderBy('data_evento', 'asc')
-    );
-
-    if (userDetails.role === 'dj') {
-      weeklyQ = query(weeklyQ, where('dj_id', '==', user.uid));
-    }
-
-    const unsubscribe = onSnapshot(weeklyQ, (snapshot) => {
-      const list = snapshot.docs
-        .map(docSnapshot => {
-          const data = docSnapshot.data();
-          if (!data.data_evento) return null;
-          return {
-            id: docSnapshot.id,
-            ...data,
-            data_evento: data.data_evento.toDate()
-          } as Event;
-        })
-        .filter(Boolean)
-        .filter(e => e!.status_pagamento !== 'cancelado') as Event[];
-      
-      setWeeklyEvents(list);
-      setIsLoadingWeekly(false);
-    });
-
-    return () => unsubscribe();
-  }, [user, userDetails, isMounted]);
-
-  useEffect(() => {
     if (!authLoading && user && isMounted) {
       getDocs(queryMyOpenTasks(user.uid)).then(snap => {
         setOwnerTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
       });
+      getDocs(queryMyAssignedOpenTasks(user.uid)).then(snap => {
+        setAssignedTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)));
+      });
     }
   }, [user, authLoading, isMounted]);
 
-  const currentMetrics = useMemo(() => {
-    if (!isMounted) return null;
+  const calculateMetrics = (events: Event[]): FinancialMetrics => {
     let metrics = { grossRevenue: 0, netRevenue: 0, received: 0, pending: 0, eventCount: 0, avgTicket: 0 };
     
-    monthEvents.forEach(event => {
+    events.forEach(event => {
       metrics.eventCount++;
       metrics.grossRevenue += event.valor_total || 0;
       
@@ -249,7 +218,24 @@ export default function DashboardPage() {
     metrics.avgTicket = metrics.eventCount > 0 ? metrics.grossRevenue / metrics.eventCount : 0;
     
     return metrics;
+  };
+
+  const currentMetrics = useMemo(() => {
+    if (!isMounted) return null;
+    if (isStaff && allDjs.length === 0 && monthEvents.length > 0) return null;
+    return calculateMetrics(monthEvents);
   }, [monthEvents, allDjs, isStaff, isMounted]);
+
+  const prevMetrics = useMemo(() => {
+    if (!isMounted) return null;
+    if (isStaff && allDjs.length === 0 && prevMonthEvents.length > 0) return null;
+    return calculateMetrics(prevMonthEvents);
+  }, [prevMonthEvents, allDjs, isStaff, isMounted]);
+
+  const growth = useMemo(() => {
+    if (!currentMetrics || !prevMetrics) return 0;
+    return currentMetrics.grossRevenue - prevMetrics.grossRevenue;
+  }, [currentMetrics, prevMetrics]);
 
   const performanceData = useMemo(() => {
     if (!isStaff || allDjs.length === 0 || monthEvents.length === 0 || !isMounted) return [];
@@ -258,6 +244,7 @@ export default function DashboardPage() {
 
     monthEvents.forEach((event) => {
       if (event.status_pagamento === 'cancelado') return;
+      
       const djId = event.dj_id;
       if (!djId) return;
 
@@ -278,16 +265,27 @@ export default function DashboardPage() {
     return Object.values(aggregation).sort((a, b) => b.total - a.total);
   }, [monthEvents, allDjs, isStaff, isMounted]);
 
-  const weekDays = useMemo(() => {
-    if (!isMounted) return [];
-    const start = startOfWeek(new Date(), { weekStartsOn: 1 });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [isMounted]);
+  const tasksSummary = useMemo(() => {
+    if (!isMounted) return { total: 0, overdue: 0, today: 0, topTasks: [] };
+    const all = [...ownerTasks, ...assignedTasks];
+    const map = new Map<string, Task>();
+    all.forEach(t => map.set(t.id, t));
+    const merged = Array.from(map.values());
+    const now = new Date();
+    return {
+      total: merged.length,
+      overdue: merged.filter(t => t.dueDate?.toDate() < now).length,
+      today: merged.filter(t => t.dueDate && isSameDay(t.dueDate.toDate(), now)).length,
+      topTasks: merged.sort((a, b) => (a.dueDate?.toMillis() || 0) - (b.dueDate?.toMillis() || 0)).slice(0, 3)
+    };
+  }, [ownerTasks, assignedTasks, isMounted]);
 
   const handlePrevMonth = () => {
     if (selectedMonth === 0) {
-      setSelectedMonth(11);
-      setSelectedYear(selectedYear - 1);
+      if (selectedYear > VALID_YEARS[0]) {
+        setSelectedMonth(11);
+        setSelectedYear(selectedYear - 1);
+      }
     } else {
       setSelectedMonth(selectedMonth - 1);
     }
@@ -295,11 +293,31 @@ export default function DashboardPage() {
 
   const handleNextMonth = () => {
     if (selectedMonth === 11) {
-      setSelectedMonth(0);
-      setSelectedYear(selectedYear + 1);
+      if (selectedYear < VALID_YEARS[VALID_YEARS.length - 1]) {
+        setSelectedMonth(0);
+        setSelectedYear(selectedYear + 1);
+      }
     } else {
       setSelectedMonth(selectedMonth + 1);
     }
+  };
+
+  const CustomChartTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className="bg-card border p-3 rounded-lg shadow-xl text-xs space-y-2">
+          <p className="font-bold text-sm">{data.name}</p>
+          <p className="text-muted-foreground italic flex justify-between gap-4">
+            Bruto: <span className="font-black text-foreground not-italic">{formatCurrency(data.total)}</span>
+          </p>
+          <p className="text-muted-foreground italic flex justify-between gap-4">
+            Eventos: <span className="font-bold text-foreground not-italic">{data.count}</span>
+          </p>
+        </div>
+      );
+    }
+    return null;
   };
 
   if (authLoading || !isMounted) {
@@ -355,6 +373,12 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-black">{currentMetrics ? formatCurrency(currentMetrics.grossRevenue) : '...'}</div>
+              <div className="flex items-center gap-2 mt-2">
+                {growth >= 0 ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
+                <span className={`text-xs font-bold ${growth >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                  {formatCurrency(Math.abs(growth))} em relação ao mês anterior
+                </span>
+              </div>
             </CardContent>
           </Card>
 
@@ -364,11 +388,20 @@ export default function DashboardPage() {
               <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-sm font-medium">Faturamento Líquido</CardTitle>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" /></TooltipTrigger>
+                      <TooltipContent><p className="max-w-xs text-xs">Valor que permanece com a agência após repasse aos DJs e custos do evento.</p></TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
                 <CardDescription>Margem após repasses e custos</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-black text-green-600">{currentMetrics ? formatCurrency(currentMetrics.netRevenue) : '...'}</div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Representa <strong>{currentMetrics && currentMetrics.grossRevenue > 0 ? ((currentMetrics.netRevenue / currentMetrics.grossRevenue) * 100).toFixed(1) : 0}%</strong> do bruto.
+                </p>
               </CardContent>
             </Card>
           )}
@@ -377,7 +410,7 @@ export default function DashboardPage() {
 
       <div className={`space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-          <Wallet className="h-4 w-4" /> Fluxo de Caixa
+          <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
         </h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -407,93 +440,95 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {isStaff && performanceData.length > 0 && (
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+        {/* Performance Column */}
+        <div className="space-y-4">
+          {isStaff && performanceData.length > 0 && (
+            <>
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                <Target className="h-4 w-4" /> Performance dos DJs
+              </h2>
+              <Card className="border-primary/10 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-bold">Ranking de Faturamento Bruto</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-2" style={{ height: chartHeight }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={performanceData}
+                      layout="vertical"
+                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      barCategoryGap={4}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.05} />
+                      <XAxis type="number" hide />
+                      <YAxis 
+                        dataKey="name" 
+                        type="category" 
+                        axisLine={false} 
+                        tickLine={false}
+                        width={100}
+                        tick={{ fontSize: 11, fontWeight: '800' }}
+                      />
+                      <ReTooltip content={<CustomChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }} />
+                      <Bar 
+                        dataKey="total" 
+                        radius={[0, 4, 4, 0]} 
+                        barSize={24}
+                        className="cursor-pointer"
+                        onClick={(data) => router.push(`/schedule?djId=${data.djId}`)}
+                      >
+                        {performanceData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+
+        {/* Tasks Column */}
         <div className="space-y-4">
           <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-            <Target className="h-4 w-4" /> Performance dos DJs
+            <ClipboardList className="h-4 w-4" /> Suas Tarefas
           </h2>
-          <Card className="border-primary/10 shadow-sm max-w-4xl">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg font-bold">Ranking de Faturamento Bruto</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2" style={{ height: chartHeight }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={performanceData}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  barCategoryGap={4}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.05} />
-                  <XAxis type="number" hide />
-                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} tick={{ fontSize: 11, fontWeight: '800' }} />
-                  <ReTooltip cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }} />
-                  <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={24} className="cursor-pointer" onClick={(data) => router.push(`/schedule?djId=${data.djId}`)}>
-                    {performanceData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex gap-2">
+                <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
+                  <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
+                </div>
+                <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
+                  <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {tasksSummary.topTasks.length > 0 ? (
+                  tasksSummary.topTasks.map(task => (
+                    <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
+                      <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
+                      <div className="flex-1 truncate">
+                        <p className="font-bold truncate">{task.title}</p>
+                        <p className="text-[10px] text-muted-foreground">{task.dueDate ? format(task.dueDate.toDate(), 'dd/MM HH:mm') : ''}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-4 text-xs text-muted-foreground italic">Nenhuma tarefa pendente no momento.</p>
+                )}
+              </div>
+              <Button variant="ghost" size="sm" className="w-full text-xs font-bold" asChild>
+                <Link href="/tasks">Ver todo o caderno <ArrowRight className="ml-2 h-3 w-3" /></Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
-      )}
-
-      <div className="space-y-4">
-        <div className="flex justify-between items-end">
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-            <CalendarCheck className="h-4 w-4" /> Eventos da Semana
-          </h2>
-          <Button variant="link" size="sm" asChild className="text-[10px] uppercase font-black h-auto p-0 text-primary">
-            <Link href="/schedule">Ver agenda completa <ChevronRight className="ml-1 h-3 w-3" /></Link>
-          </Button>
-        </div>
-        
-        <Card className="border-primary/10 shadow-sm overflow-hidden">
-          <CardContent className="p-0">
-            {isLoadingWeekly ? (
-              <div className="flex items-center justify-center py-24 bg-muted/5">
-                <Loader2 className="h-8 w-8 animate-spin text-primary/30" />
-              </div>
-            ) : (
-              <div className="w-full overflow-x-auto snap-x scrollbar-hide">
-                <div className="grid grid-cols-7 min-w-[800px] md:min-w-0 divide-x divide-muted/50 border-b">
-                  {weekDays.map((day) => {
-                    const isDayToday = isToday(day);
-                    const dayEvents = weeklyEvents.filter(e => isSameDay(e.data_evento, day));
-                    const displayedEvents = dayEvents.slice(0, 2);
-
-                    return (
-                      <div key={day.toISOString()} className={cn("snap-start flex flex-col min-h-[140px] p-2 space-y-2", isDayToday ? "bg-primary/[0.03] border-t-2 border-t-primary" : "bg-card", dayEvents.length === 0 && !isDayToday && "opacity-40")}>
-                        <div className="flex flex-col items-center justify-center py-1 border-b border-muted/30">
-                          <span className={cn("text-[9px] font-black uppercase tracking-widest", isDayToday ? "text-primary" : "text-muted-foreground")}>{format(day, 'eee', { locale: ptBR })}</span>
-                          <span className={cn("text-sm font-black", isDayToday && "text-primary")}>{format(day, 'dd')}</span>
-                        </div>
-                        <div className="flex-1 space-y-1.5 overflow-hidden">
-                          {displayedEvents.map(event => (
-                            <div key={event.id} onClick={() => { setSelectedEvent(event); setIsViewOpen(true); }} className="group p-1.5 rounded bg-background border border-border/50 hover:border-primary/50 transition-all cursor-pointer shadow-sm">
-                              <p className="text-[10px] font-bold line-clamp-1 group-hover:text-primary transition-colors">{event.nome_evento}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
-
-      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader><DialogTitle>Detalhes do Evento</DialogTitle></DialogHeader>
-          <EventView event={selectedEvent} />
-          <DialogFooter><Button variant="outline" onClick={() => setIsViewOpen(false)}>Fechar</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
