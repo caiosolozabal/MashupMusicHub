@@ -1,15 +1,13 @@
 
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
-import type { RentalQuote, AppConfig } from '@/lib/types';
+import type { RentalQuote, AppConfig, RentalQuoteItem } from '@/lib/types';
 import { format } from 'date-fns';
 
-// Interface para estender o jsPDF com autoTable
 interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-// Função para converter imagem em Base64 com suporte a CORS
 const toBase64 = async (url: string): Promise<string> => {
     try {
         const response = await fetch(url, { mode: 'cors' });
@@ -29,195 +27,240 @@ const toBase64 = async (url: string): Promise<string> => {
 export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | null) => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     const pageWidth = doc.internal.pageSize.getWidth();
-    let yPos = 20;
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const sidebarWidth = 65;
+    const neonGreen = [132, 255, 30]; // #84FF1E
 
-    // --- Cabeçalho ---
-    if (config?.logoUrl) {
-        try {
-            const logoData = await toBase64(config.logoUrl);
-            const imgWidth = 45;
-            // Usamos uma altura fixa proporcional ou calculada
-            doc.addImage(logoData, 'PNG', 15, 10, imgWidth, 20);
-            yPos = 35;
-        } catch(e) {
-            console.warn("Não foi possível carregar a logo para o PDF, usando texto.");
-            doc.setFontSize(22);
-            doc.setFont('helvetica', 'bold');
-            doc.text(config?.companyName || 'Mashup Music', 15, yPos);
-            yPos += 10;
+    const drawSidebar = () => {
+        doc.setFillColor(15, 15, 15);
+        doc.rect(0, 0, sidebarWidth, pageHeight, 'F');
+    };
+
+    const addSidebarContent = async (yStart: number) => {
+        let y = yStart;
+
+        // Logo
+        if (config?.logoUrl) {
+            try {
+                const logoData = await toBase64(config.logoUrl);
+                doc.addImage(logoData, 'PNG', 10, 15, 45, 18);
+                y = 45;
+            } catch (e) {
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                doc.text('MASHUP', 15, 30);
+                y = 45;
+            }
         }
-    } else {
-        doc.setFontSize(22);
+
+        // Event Info in Sidebar
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.text(config?.companyName || 'Mashup Music', 15, yPos);
-        yPos += 10;
-    }
+        doc.text('CLIENTE', 15, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(quote.clientName.toUpperCase(), 15, y + 4);
+
+        y += 15;
+        doc.setFont('helvetica', 'bold');
+        doc.text('EVENTO', 15, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text((quote.eventName || 'N/A').toUpperCase(), 15, y + 4);
+
+        y += 15;
+        doc.setFont('helvetica', 'bold');
+        doc.text('DATA', 15, y);
+        doc.setFont('helvetica', 'normal');
+        doc.text(quote.eventDate ? format(quote.eventDate.toDate(), 'dd/MM/yyyy') : 'N/A', 15, y + 4);
+
+        y += 15;
+        doc.setFont('helvetica', 'bold');
+        doc.text('LOCAL', 15, y);
+        doc.setFont('helvetica', 'normal');
+        const localLines = doc.splitTextToSize((quote.eventLocation || 'N/A').toUpperCase(), sidebarWidth - 25);
+        doc.text(localLines, 15, y + 4);
+
+        // Footer Sidebar
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        doc.text('MASHUPMUSIC.COM.BR', 15, pageHeight - 15);
+    };
+
+    // --- PAGE 1 ---
+    drawSidebar();
+    await addSidebarContent(45);
+
+    // Main Content
+    let yPos = 30;
+    const contentX = sidebarWidth + 12;
+    const contentWidth = pageWidth - contentX - 15;
+
+    doc.setTextColor(0);
+    doc.setFontSize(28);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PROPOSTA DE', contentX, yPos);
+    yPos += 10;
+    doc.text('ORÇAMENTO', contentX, yPos);
     
+    // Neon Bar below title
+    doc.setFillColor(neonGreen[0], neonGreen[1], neonGreen[2]);
+    doc.rect(contentX, yPos + 4, 30, 2, 'F');
+
+    yPos += 25;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100);
-    const creationDate = `Proposta gerada em: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`;
-    doc.text(creationDate, pageWidth - 15, 20, { align: 'right' });
+    doc.setTextColor(80);
+    const introText = "Agradecemos o contato e a oportunidade de apresentar nossa estrutura para o seu evento. Abaixo, detalhamos os equipamentos selecionados para garantir a melhor experiência sonora e visual.";
+    const introLines = doc.splitTextToSize(introText, contentWidth);
+    doc.text(introLines, contentX, yPos);
+    yPos += (introLines.length * 5) + 15;
 
-    doc.setDrawColor(200);
-    doc.setLineWidth(0.1);
-    doc.line(15, yPos, pageWidth - 15, yPos);
-    yPos += 10;
+    // Group items by category
+    const categories = Array.from(new Set(quote.items.map(i => i.categorySnapshot || 'Outros')));
 
-    // --- Detalhes do Cliente e Evento ---
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
+    categories.forEach(cat => {
+        if (yPos > pageHeight - 40) {
+            doc.addPage();
+            drawSidebar();
+            yPos = 30;
+        }
+
+        // Category Heading with Neon indicator
+        doc.setFillColor(neonGreen[0], neonGreen[1], neonGreen[2]);
+        doc.rect(contentX, yPos - 5, 1.5, 8, 'F');
+        
+        doc.setTextColor(0);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(cat.toUpperCase(), contentX + 5, yPos);
+        yPos += 10;
+
+        const catItems = quote.items.filter(i => (i.categorySnapshot || 'Outros') === cat);
+        
+        catItems.forEach(item => {
+            if (yPos > pageHeight - 30) {
+                doc.addPage();
+                drawSidebar();
+                yPos = 30;
+            }
+
+            // Item Name
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(30);
+            doc.text(item.nameSnapshot, contentX + 5, yPos);
+
+            // Item Qty & Price (Right Aligned)
+            doc.setFont('helvetica', 'normal');
+            doc.text(`${item.qty} UN`, pageWidth - 35, yPos, { align: 'right' });
+            doc.setFont('helvetica', 'bold');
+            const totalItem = (item.qty * item.unitPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            doc.text(totalItem, pageWidth - 15, yPos, { align: 'right' });
+            
+            yPos += 4;
+            // Technical Description (Subtext)
+            if (item.descriptionSnapshot) {
+                doc.setFontSize(8);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(120);
+                const descLines = doc.splitTextToSize(item.descriptionSnapshot, contentWidth - 40);
+                doc.text(descLines, contentX + 5, yPos);
+                yPos += (descLines.length * 4);
+            }
+
+            yPos += 6;
+            // separator line
+            doc.setDrawColor(240);
+            doc.line(contentX + 5, yPos - 2, pageWidth - 15, yPos - 2);
+            yPos += 4;
+        });
+        yPos += 5;
+    });
+
+    // Notes Box
+    if (quote.notes) {
+        if (yPos > pageHeight - 60) {
+            doc.addPage();
+            drawSidebar();
+            yPos = 30;
+        }
+        doc.setFillColor(245, 245, 245);
+        doc.rect(contentX, yPos, contentWidth + 5, 30, 'F');
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(100);
+        doc.text('OBSERVAÇÕES:', contentX + 5, yPos + 7);
+        doc.setFont('helvetica', 'normal');
+        const notesLines = doc.splitTextToSize(quote.notes, contentWidth - 5);
+        doc.text(notesLines, contentX + 5, yPos + 13);
+    }
+
+    // --- PAGE 2: INVESTMENT ---
+    doc.addPage();
+    drawSidebar();
+    await addSidebarContent(45);
+
+    yPos = 40;
     doc.setTextColor(0);
-    doc.text('Detalhes da Proposta', 15, yPos);
-    yPos += 5;
-    
-    doc.autoTable({
-        startY: yPos,
-        body: [
-            ['Cliente:', quote.clientName, 'Evento:', quote.eventName || 'N/A'],
-            ['Contato:', quote.clientContact || 'N/A', 'Data:', quote.eventDate ? format(quote.eventDate.toDate(), 'dd/MM/yyyy') : 'N/A'],
-            ['Kit:', quote.kitName || 'Itens Avulsos', 'Local:', quote.eventLocation || 'N/A'],
-        ],
-        theme: 'plain',
-        styles: { fontSize: 9, cellPadding: 1 },
-        columnStyles: {
-            0: { fontStyle: 'bold', cellWidth: 20 },
-            1: { cellWidth: 75 },
-            2: { fontStyle: 'bold', cellWidth: 20 },
-        }
-    });
-    yPos = (doc as any).lastAutoTable.finalY + 10;
-    
-    // --- Tabela de Itens ---
-    doc.setFontSize(12);
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('Itens Inclusos', 15, yPos);
-    yPos += 5;
-    
-    const tableHead = [['Item', 'Qtd.', 'Preço Unit.', 'Subtotal']];
-    const tableBody = quote.items.map(item => [
-        item.nameSnapshot,
-        item.qty.toString(),
-        item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-        (item.qty * item.unitPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-    ]);
-    
-    doc.autoTable({
-        startY: yPos,
-        head: tableHead,
-        body: tableBody,
-        theme: 'striped',
-        headStyles: { fillColor: [40, 40, 40], fontSize: 10 },
-        styles: { fontSize: 9 },
-        columnStyles: {
-            1: { halign: 'center' },
-            2: { halign: 'right' },
-            3: { halign: 'right' },
-        }
-    });
-    yPos = (doc as any).lastAutoTable.finalY + 5;
+    doc.text('INVESTIMENTO', contentX, yPos);
+    doc.setFillColor(neonGreen[0], neonGreen[1], neonGreen[2]);
+    doc.rect(contentX, yPos + 4, 25, 1.5, 'F');
 
-    // --- Resumo Financeiro ---
-    const totalsX = pageWidth - 80;
-    const totalsBodyRows = [
-      ['Subtotal Itens:', quote.totals.itemsSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })],
+    yPos += 30;
+    const totalsData = [
+        ['SUBTOTAL EQUIPAMENTOS', quote.totals.itemsSubtotal],
+        ['LOGÍSTICA / FRETE', quote.fees.frete],
+        ['MONTAGEM E OPERAÇÃO', quote.fees.montagem + quote.fees.outros],
+        ['DESCONTOS APLICADOS', -quote.discount],
     ];
 
-    if (quote.fees.frete > 0) totalsBodyRows.push(['+ Frete:', quote.fees.frete.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
-    if (quote.fees.montagem > 0) totalsBodyRows.push(['+ Montagem/Desmontagem:', quote.fees.montagem.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
-    if (quote.fees.outros > 0) totalsBodyRows.push(['+ Outros:', quote.fees.outros.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
-    if (quote.discount > 0) totalsBodyRows.push(['- Desconto:', quote.discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })]);
-
-    doc.autoTable({
-        startY: yPos,
-        body: totalsBodyRows,
-        theme: 'plain',
-        styles: { fontSize: 10, cellPadding: 1, halign: 'right' },
-        columnStyles: { 
-            0: { fontStyle: 'bold' },
-            1: { fontStyle: 'normal' }
-        },
-        margin: { left: totalsX }
-    });
-    
-    yPos = (doc as any).lastAutoTable.finalY + 2;
-    doc.setDrawColor(0);
-    doc.setLineWidth(0.5);
-    doc.line(totalsX + 5, yPos, pageWidth - 15, yPos);
-    yPos += 7;
-    
-    doc.setFontSize(13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TOTAL FINAL:', totalsX + 5, yPos);
-    doc.text(
-      quote.totals.grandTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }),
-      pageWidth - 15,
-      yPos,
-      { align: 'right' }
-    );
-    yPos += 15;
-
-    // --- Observações e Termos ---
-    // Verificamos se há espaço na página atual, senão criamos uma nova
-    if (yPos > doc.internal.pageSize.getHeight() - 40) {
-        doc.addPage();
-        yPos = 20;
-    }
-
-    if(quote.notes) {
-        doc.setFontSize(11);
+    totalsData.forEach(([label, val]) => {
+        if (val === 0 && !label.includes('SUBTOTAL')) return;
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text('Observações:', 15, yPos);
-        yPos += 5;
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
         doc.setTextColor(80);
-        const notesLines = doc.splitTextToSize(quote.notes, pageWidth - 30);
-        doc.text(notesLines, 15, yPos);
-        yPos += (notesLines.length * 4.5) + 8;
-    }
-    
-    if (config?.rentalTerms) {
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0);
-        doc.text('Termos e Condições de Locação:', 15, yPos);
-        yPos += 5;
-        doc.setFontSize(8.5);
+        doc.text(label.toString(), contentX + 5, yPos);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(100);
-        const termsLines = doc.splitTextToSize(config.rentalTerms, pageWidth - 30);
-        doc.text(termsLines, 15, yPos);
-        yPos += (termsLines.length * 4) + 10;
-    }
+        doc.text(Math.abs(Number(val)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), pageWidth - 15, yPos, { align: 'right' });
+        yPos += 12;
+    });
+
+    yPos += 10;
+    doc.setFillColor(15, 15, 15);
+    doc.rect(contentX, yPos, contentWidth + 5, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.text('TOTAL DA PROPOSTA', contentX + 5, yPos + 15);
+    doc.setFontSize(18);
+    doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
+    doc.text(quote.totals.grandTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), pageWidth - 20, yPos + 16, { align: 'right' });
+
+    // Terms
+    yPos += 45;
+    doc.setTextColor(0);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TERMOS E CONDIÇÕES', contentX + 5, yPos);
+    yPos += 6;
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100);
+    const terms = config?.rentalTerms || "O pagamento deve ser realizado 50% na reserva e 50% na entrega. Danos por mau uso são de responsabilidade do locatário.";
+    const termsLines = doc.splitTextToSize(terms, contentWidth);
+    doc.text(termsLines, contentX + 5, yPos);
 
     if (config?.pixKey) {
-        if (yPos > doc.internal.pageSize.getHeight() - 20) {
-            doc.addPage();
-            yPos = 20;
-        }
-        doc.setFontSize(11);
+        yPos += (termsLines.length * 4) + 15;
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0);
-        doc.text('Pagamento via PIX:', 15, yPos);
-        yPos += 5;
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'normal');
-        doc.text(config.pixKey, 15, yPos);
+        doc.text('PAGAMENTO VIA PIX:', contentX + 5, yPos);
+        doc.text(config.pixKey, contentX + 5, yPos + 5);
     }
-    
-    // --- Rodapé ---
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text(
-        'Mashup Music Hub - Eleve o nível sonoro do seu evento.', 
-        pageWidth / 2, 
-        doc.internal.pageSize.getHeight() - 10, 
-        { align: 'center' }
-    );
 
-    // --- Salvar ---
     const safeName = quote.clientName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const fileName = `proposta_${safeName}_${format(new Date(), 'yyyyMMdd')}.pdf`;
-    doc.save(fileName);
+    doc.save(`proposta_mashup_${safeName}.pdf`);
 };

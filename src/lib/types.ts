@@ -235,6 +235,7 @@ export interface RentalQuoteItem {
   itemId: string;
   nameSnapshot: string;
   categorySnapshot?: string;
+  descriptionSnapshot?: string | null;
   photoUrlSnapshot?: string | null;
   qty: number;
   basePriceSnapshot: number;
