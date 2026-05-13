@@ -36,9 +36,9 @@ import { format } from 'date-fns';
 const quoteItemSchema = z.object({
   itemId: z.string(),
   nameSnapshot: z.string(),
-  categorySnapshot: z.string().optional(),
+  categorySnapshot: z.string().optional().nullable(),
   descriptionSnapshot: z.string().optional().nullable(),
-  photoUrlSnapshot: z.string().url().optional().nullable(),
+  photoUrlSnapshot: z.string().optional().nullable(),
   qty: z.coerce.number().min(1),
   basePriceSnapshot: z.coerce.number(),
   unitPrice: z.coerce.number(),
@@ -83,17 +83,14 @@ export default function RentalPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // --- MERGED STATE ---
   const [catalogItems, setCatalogItems] = useState<RentalItem[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
   const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
 
-  // --- QUOTE CREATION STATE ---
   const [isSavingQuote, setIsSavingQuote] = useState(false);
   const [searchTermForQuote, setSearchTermForQuote] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  // --- CATALOG MANAGEMENT STATE ---
   const [isItemFormSubmitting, setIsItemFormSubmitting] = useState(false);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -132,18 +129,15 @@ export default function RentalPage() {
     }
   };
 
-  // --- FETCH DATA ---
   useEffect(() => {
     if (userDetails) fetchItems();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userDetails, router, toast]);
+  }, [userDetails]);
 
-  // --- EDITING LOGIC ---
   useEffect(() => {
     const quoteIdToEdit = searchParams.get('edit');
     if (quoteIdToEdit) {
       const fetchQuote = async () => {
-        setIsSavingQuote(true); // Use saving loader while fetching
+        setIsSavingQuote(true);
         try {
           const quoteRef = doc(db, 'rental_quotes', quoteIdToEdit);
           const quoteSnap = await getDoc(quoteRef);
@@ -168,13 +162,11 @@ export default function RentalPage() {
       };
       fetchQuote();
     } else {
-      // Clear form if we navigate away from editing
       form.reset(defaultFormValues);
       setEditingQuoteId(null);
     }
-  }, [searchParams, form, router, toast]);
+  }, [searchParams, form]);
   
-  // --- QUOTE CREATION LOGIC ---
   const categories = useMemo(() => {
     const cats = new Set(catalogItems.map(item => item.category));
     return ['all', ...Array.from(cats)];
@@ -200,13 +192,13 @@ export default function RentalPage() {
       append({
         itemId: item.id,
         nameSnapshot: item.name,
-        categorySnapshot: item.category,
+        categorySnapshot: item.category || 'Outros',
         descriptionSnapshot: item.description || null,
-        photoUrlSnapshot: item.photoUrl,
+        photoUrlSnapshot: item.photoUrl || null,
         qty: 1,
         basePriceSnapshot: item.basePrice,
         unitPrice: item.basePrice,
-        lineTotal: item.basePrice, // Will be updated by watch
+        lineTotal: item.basePrice,
       });
     }
   };
@@ -267,13 +259,23 @@ export default function RentalPage() {
       eventDate: values.eventDate ? Timestamp.fromDate(values.eventDate) : null,
       eventLocation: values.eventLocation || null,
       kitName: values.kitName || null,
-      items: values.items.map(item => ({ ...item, lineTotal: item.qty * item.unitPrice })),
+      items: (values.items || []).map(item => ({ 
+        itemId: item.itemId,
+        nameSnapshot: item.nameSnapshot,
+        categorySnapshot: item.categorySnapshot || 'Outros',
+        descriptionSnapshot: item.descriptionSnapshot || null,
+        photoUrlSnapshot: item.photoUrlSnapshot || null,
+        qty: Number(item.qty),
+        basePriceSnapshot: Number(item.basePriceSnapshot),
+        unitPrice: Number(item.unitPrice),
+        lineTotal: Number(item.qty) * Number(item.unitPrice)
+      })),
       fees: {
-        frete: values.fees.frete || 0,
-        montagem: values.fees.montagem || 0,
-        outros: values.fees.outros || 0,
+        frete: Number(values.fees.frete) || 0,
+        montagem: Number(values.fees.montagem) || 0,
+        outros: Number(values.fees.outros) || 0,
       },
-      discount: values.discount || 0,
+      discount: Number(values.discount) || 0,
       totals,
       capacitySummary: capacitySummary || null,
       notes: values.notes || null,
@@ -305,7 +307,6 @@ export default function RentalPage() {
     }
   };
 
-  // --- CATALOG MANAGEMENT LOGIC ---
   const handleOpenFormDialog = (item?: RentalItem) => {
     setSelectedItem(item || null);
     setIsFormDialogOpen(true);
@@ -392,7 +393,6 @@ export default function RentalPage() {
         <TabsContent value="quote" className="mt-4">
           <form>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Coluna do Catálogo */}
               <div className="lg:col-span-1">
                 <Card>
                   <CardHeader>
@@ -402,7 +402,6 @@ export default function RentalPage() {
                       value={searchTermForQuote}
                       onChange={(e) => setSearchTermForQuote(e.target.value)}
                     />
-                    {/* Filtro de Categoria pode ser adicionado aqui */}
                   </CardHeader>
                   <CardContent className="max-h-[70vh] overflow-y-auto">
                     {isLoadingCatalog ? (
@@ -431,7 +430,6 @@ export default function RentalPage() {
                 </Card>
               </div>
 
-              {/* Coluna do Orçamento */}
               <div className="lg:col-span-2">
                 <Card>
                   <CardHeader>

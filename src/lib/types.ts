@@ -7,7 +7,7 @@ export interface UserDetails {
   email: string | null;
   displayName: string | null;
   role: UserRole;
-  professionalType?: string | null; // Novo campo: DJ, Fotógrafo, Filmmaker, etc.
+  professionalType?: string | null;
   dj_percentual?: number | null;
   rental_percentual?: number | null;
   dj_color?: string | null;
@@ -234,7 +234,7 @@ export interface RentalItem {
 export interface RentalQuoteItem {
   itemId: string;
   nameSnapshot: string;
-  categorySnapshot?: string;
+  categorySnapshot?: string | null;
   descriptionSnapshot?: string | null;
   photoUrlSnapshot?: string | null;
   qty: number;
