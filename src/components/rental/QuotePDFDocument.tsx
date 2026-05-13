@@ -8,33 +8,53 @@ interface jsPDFWithAutoTable extends jsPDF {
   autoTable: (options: any) => jsPDF;
 }
 
-// Mapeamento de categorias técnicas para Grupos Comerciais do PDF
+/**
+ * Mapeamento Comercial Premium
+ * Agrupa categorias técnicas em blocos de percepção de valor para o cliente.
+ */
 const GROUP_MAPPING: Record<string, string[]> = {
-  'SISTEMA DE SONORIZAÇÃO': ['caixa', 'som', 'audio', 'speaker', 'sub', 'grave', 'ativa'],
-  'ESTRUTURA E DESIGN DE LUZ': ['iluminação', 'luz', 'lighting', 'moving', 'head', 'led', 'refletor', 'par led', 'wash'],
-  'DJ PERFORMANCE': ['dj', 'controladora', 'mixer', 'pioneer', 'xdj', 'cdj', 'fone'],
-  'MICROFONIA': ['microfone', 'shure', 'sem fio', 'bastão'],
-  'PAINEL DE LED E VÍDEO': ['led panel', 'painel', 'telão', 'projetor', 'projeção', 'tv', 'monitor'],
-  'ESTRUTURAS E MOBILIÁRIO': ['treliça', 'box truss', 'q25', 'q15', 'palco', 'praticável', 'mesa', 'mobiliário'],
+  'SISTEMA DE SONORIZAÇÃO': [
+    'caixa', 'som', 'audio', 'speaker', 'sub', 'grave', 'ativa',
+    'dj', 'controladora', 'mixer', 'pioneer', 'xdj', 'cdj', 'fone',
+    'microfone', 'shure', 'sem fio', 'bastão', 'áudio'
+  ],
+  'ESTRUTURA E DESIGN DE LUZ': [
+    'iluminação', 'luz', 'lighting', 'moving', 'head', 'led', 'refletor', 'par led', 'wash',
+    'treliça', 'box truss', 'q25', 'q15', 'palco', 'praticável', 'mesa', 'mobiliário', 'estrutura',
+    'painel', 'vídeo', 'led panel', 'telão', 'projetor', 'projeção', 'cenografia'
+  ],
+  'OPERAÇÃO TÉCNICA ESPECIALIZADA': [
+    'técnico', 'operador', 'equipe', 'staff', 'mão de obra', 'manuseio', 'roadie'
+  ],
 };
 
-const getCommercialGroup = (category: string | null | undefined): string => {
-  if (!category) return 'OUTROS EQUIPAMENTOS';
-  const cat = category.toLowerCase();
-  for (const [group, patterns] of Object.entries(GROUP_MAPPING)) {
-    if (patterns.some(p => cat.includes(p))) return group;
+const getCommercialGroup = (category: string | null | undefined, itemName: string): string => {
+  const cat = (category || '').toLowerCase();
+  const name = itemName.toLowerCase();
+  
+  // Prioridade 1: Operação Técnica (Staff)
+  if (GROUP_MAPPING['OPERAÇÃO TÉCNICA ESPECIALIZADA'].some(p => cat.includes(p) || name.includes(p))) {
+    return 'OPERAÇÃO TÉCNICA ESPECIALIZADA';
   }
-  return 'OUTROS EQUIPAMENTOS';
+
+  // Prioridade 2: Sonorização e Performance
+  if (GROUP_MAPPING['SISTEMA DE SONORIZAÇÃO'].some(p => cat.includes(p) || name.includes(p))) {
+    return 'SISTEMA DE SONORIZAÇÃO';
+  }
+
+  // Prioridade 3: Luz, Estruturas e Cenografia
+  if (GROUP_MAPPING['ESTRUTURA E DESIGN DE LUZ'].some(p => cat.includes(p) || name.includes(p))) {
+    return 'ESTRUTURA E DESIGN DE LUZ';
+  }
+
+  return 'OUTROS ITENS E ACESSÓRIOS';
 };
 
 const groupOrder = [
   'SISTEMA DE SONORIZAÇÃO',
   'ESTRUTURA E DESIGN DE LUZ',
-  'DJ PERFORMANCE',
-  'PAINEL DE LED E VÍDEO',
-  'MICROFONIA',
-  'ESTRUTURAS E MOBILIÁRIO',
-  'OUTROS EQUIPAMENTOS'
+  'OPERAÇÃO TÉCNICA ESPECIALIZADA',
+  'OUTROS ITENS E ACESSÓRIOS'
 ];
 
 const toBase64 = async (url: string): Promise<string> => {
@@ -123,10 +143,10 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         doc.text('MASHUPMUSIC.COM.BR', 15, pageHeight - 15);
     };
 
-    // Agrupar itens comercialmente
+    // Agrupar itens comercialmente conforme as novas regras
     const itemsByGroup: Record<string, RentalQuoteItem[]> = {};
     quote.items.forEach(item => {
-        const group = getCommercialGroup(item.categorySnapshot);
+        const group = getCommercialGroup(item.categorySnapshot, item.nameSnapshot);
         if (!itemsByGroup[group]) itemsByGroup[group] = [];
         itemsByGroup[group].push(item);
     });
@@ -155,12 +175,12 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100);
-    const introText = "Agradecemos a oportunidade de apresentar nossa estrutura de locação. Selecionamos os melhores equipamentos para garantir a fidelidade sonora e o impacto visual do seu evento.";
+    const introText = "Apresentamos nossa proposta técnica dimensionada para garantir a excelência sonora e visual do seu projeto. Utilizamos equipamentos de padrão global e equipe especializada.";
     const introLines = doc.splitTextToSize(introText, contentWidth);
     doc.text(introLines, contentX, yPos);
     yPos += (introLines.length * 5) + 15;
 
-    // Renderizar Grupos Comerciais
+    // Renderizar Grupos Comerciais Consolidados
     groupOrder.forEach(groupName => {
         const items = itemsByGroup[groupName];
         if (!items || items.length === 0) return;
@@ -234,7 +254,7 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
             drawSidebar();
             yPos = 30;
         }
-        doc.setFillColor(250, 248, 255); // Roxo bem clarinho
+        doc.setFillColor(250, 248, 255);
         doc.rect(contentX, yPos, contentWidth + 5, 35, 'F');
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
@@ -262,9 +282,9 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
 
     yPos += 30;
     const investmentData = [
-        ['VALOR TOTAL EQUIPAMENTOS', quote.totals.itemsSubtotal],
+        ['EQUIPAMENTOS E SISTEMAS', quote.totals.itemsSubtotal],
         ['LOGÍSTICA E FRETE', quote.fees.frete],
-        ['MONTAGEM E OPERAÇÃO TÉCNICA', quote.fees.montagem + quote.fees.outros],
+        ['TAXA DE MONTAGEM / OUTROS', quote.fees.montagem + quote.fees.outros],
         ['DESCONTOS CONCEDIDOS', -quote.discount],
     ];
 
@@ -292,7 +312,7 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text('INVESTIMENTO TOTAL DA PROPOSTA', contentX + 8, yPos + 16);
+    doc.text('INVESTIMENTO TOTAL DO PROJETO', contentX + 8, yPos + 16);
     
     doc.setFontSize(20);
     doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
