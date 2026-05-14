@@ -18,6 +18,8 @@ import { Loader2, ArrowLeft, FileDown, Edit, Save } from 'lucide-react';
 import type { RentalQuote, RentalQuoteStatus, AppConfig } from '@/lib/types';
 import { format } from 'date-fns';
 import { generateQuotePdf } from '@/components/rental/QuotePDFDocument';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const statusMap: Record<RentalQuoteStatus, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
     draft: { label: 'Rascunho', variant: 'outline' },
@@ -38,6 +40,7 @@ export default function RentalQuoteDetailPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+    const [showItemPrices, setShowItemPrices] = useState(true);
 
     useEffect(() => {
         if (!userDetails || !quoteId) return;
@@ -100,7 +103,7 @@ export default function RentalQuoteDetailPage() {
         if (!quote) return;
         setIsGeneratingPdf(true);
         try {
-            await generateQuotePdf(quote, brandingConfig);
+            await generateQuotePdf(quote, brandingConfig, { showItemPrices });
         } catch (error) {
             console.error("Error generating PDF:", error);
             toast({ variant: 'destructive', title: 'Erro ao gerar PDF', description: (error as Error).message });
@@ -139,27 +142,39 @@ export default function RentalQuoteDetailPage() {
                             <CardTitle className="text-2xl font-bold">{kitName || 'Orçamento de Locação'}</CardTitle>
                             <CardDescription>Criado por {createdByName} em {format(createdAt.toDate(), 'dd/MM/yyyy')}</CardDescription>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Button asChild variant="outline">
-                                <Link href={`/rental?edit=${quote.id}`}>
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Editar Orçamento
-                                </Link>
-                            </Button>
-                             <Select value={status} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
-                                <SelectTrigger className="w-[180px]">
-                                    <SelectValue placeholder="Alterar status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(statusMap).map(([key, { label }]) => (
-                                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <Button onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
-                                {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4" />}
-                                Gerar PDF
-                            </Button>
+                        <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex items-center space-x-2 bg-muted/50 px-3 py-2 rounded-md border">
+                                <Checkbox 
+                                    id="show-prices" 
+                                    checked={showItemPrices} 
+                                    onCheckedChange={(checked) => setShowItemPrices(checked as boolean)} 
+                                />
+                                <Label htmlFor="show-prices" className="text-xs font-medium cursor-pointer">
+                                    Exibir preços individuais no PDF
+                                </Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button asChild variant="outline">
+                                    <Link href={`/rental?edit=${quote.id}`}>
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Editar Orçamento
+                                    </Link>
+                                </Button>
+                                <Select value={status} onValueChange={handleStatusChange} disabled={isUpdatingStatus}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Alterar status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(statusMap).map(([key, { label }]) => (
+                                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <Button onClick={handleGeneratePdf} disabled={isGeneratingPdf}>
+                                    {isGeneratingPdf ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileDown className="mr-2 h-4 w-4" />}
+                                    Gerar PDF
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </CardHeader>

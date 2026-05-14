@@ -51,12 +51,17 @@ const groupOrder = [
   'OUTROS ITENS E ACESSÓRIOS'
 ];
 
-export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | null) => {
+export const generateQuotePdf = async (
+  quote: RentalQuote, 
+  config: AppConfig | null, 
+  options: { showItemPrices?: boolean } = { showItemPrices: true }
+) => {
     const doc = new jsPDF() as jsPDFWithAutoTable;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const sidebarWidth = 62; 
     const neonGreen = [132, 255, 30]; 
+    const showItemPrices = options.showItemPrices ?? true;
 
     const drawLayout = () => {
         // Sidebar Background
@@ -203,7 +208,9 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         doc.setFontSize(6.5);
         doc.setTextColor(180);
         doc.text('ESPECIFICAÇÃO TÉCNICA', contentX + 6, yPos + 6, { charSpace: 0.3 });
-        doc.text('QTD TOTAL', pageWidth - 15, yPos + 6, { align: 'right', charSpace: 0.3 });
+        
+        const rightHeader = showItemPrices ? 'QTD / VALOR TOTAL' : 'QTD TOTAL';
+        doc.text(rightHeader, pageWidth - 15, yPos + 6, { align: 'right', charSpace: 0.3 });
         yPos += 16;
 
         items.forEach(item => {
@@ -218,9 +225,13 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
             doc.setTextColor(30);
             doc.text(item.nameSnapshot, contentX + 6, yPos);
 
-            const totalItem = (item.qty * item.unitPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
             doc.setFontSize(9.5);
-            doc.text(`${String(item.qty).padStart(2, '0')}    ${totalItem}`, pageWidth - 15, yPos, { align: 'right' });
+            if (showItemPrices) {
+                const totalItem = (item.qty * item.unitPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                doc.text(`${String(item.qty).padStart(2, '0')}    ${totalItem}`, pageWidth - 15, yPos, { align: 'right' });
+            } else {
+                doc.text(`${String(item.qty).padStart(2, '0')}`, pageWidth - 15, yPos, { align: 'right' });
+            }
             
             yPos += 4.5;
             if (item.descriptionSnapshot) {
