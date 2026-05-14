@@ -55,7 +55,7 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
     const doc = new jsPDF() as jsPDFWithAutoTable;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const sidebarWidth = 65; 
+    const sidebarWidth = 62; 
     const neonGreen = [132, 255, 30]; 
 
     const drawLayout = () => {
@@ -74,36 +74,37 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         
         y += 6;
         doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
-        doc.setFontSize(6.5);
+        doc.setFontSize(6);
         doc.setFont('helvetica', 'bold');
-        doc.text('MUSIC EXPERIENCE', sidebarWidth / 2, y, { align: 'center' });
+        doc.text('MUSIC EXPERIENCE', sidebarWidth / 2, y, { align: 'center', charSpace: 1.5 });
 
-        const addSidebarSection = (title: string, value: string[], space = 28) => {
+        const addSidebarSection = (title: string, value: string[], space = 22) => {
             y += space;
             doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
-            doc.setFontSize(7);
+            doc.setFontSize(6.5);
             doc.setFont('helvetica', 'bold');
-            doc.text(title, 15, y);
+            doc.text(title, 15, y, { charSpace: 1.2 });
             
             y += 2;
-            doc.setDrawColor(40, 40, 40);
+            doc.setDrawColor(30, 30, 30);
+            doc.setLineWidth(0.1);
             doc.line(15, y, sidebarWidth - 15, y);
             
-            y += 7;
+            y += 6;
             doc.setTextColor(255, 255, 255);
-            doc.setFontSize(9);
+            doc.setFontSize(8.5);
             doc.setFont('helvetica', 'normal');
             value.forEach(line => {
                 const split = doc.splitTextToSize(line, sidebarWidth - 25);
                 doc.text(split, 15, y);
-                y += (split.length * 4.5);
+                y += (split.length * 4);
             });
         };
 
         addSidebarSection('EVENTO', [
             quote.clientName,
             quote.eventName || '',
-            quote.eventDate ? format(quote.eventDate.toDate(), 'dd/MM') : ''
+            quote.eventDate ? format(quote.eventDate.toDate(), 'dd/MM/yyyy') : ''
         ].filter(Boolean));
 
         addSidebarSection('LOCALIZAÇÃO', [quote.eventLocation || 'N/A']);
@@ -111,10 +112,10 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         addSidebarSection('EMITIDO EM', [format(quote.createdAt.toDate(), "dd 'de' MMMM, yyyy", { locale: ptBR })]);
 
         // Footer Sidebar
-        doc.setTextColor(80, 80, 80);
-        doc.setFontSize(7);
+        doc.setTextColor(60, 60, 60);
+        doc.setFontSize(6.5);
         doc.text(config?.companyName || 'MASHUP MUSIC HUB', 15, pageHeight - 15);
-        doc.text('CNPJ: 48.716.222/0001-31', 15, pageHeight - 10);
+        doc.text('CNPJ: 48.716.222/0001-31', 15, pageHeight - 11);
     };
 
     const itemsByGroup: Record<string, RentalQuoteItem[]> = {};
@@ -127,143 +128,163 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
     // --- PÁGINA 1 ---
     drawLayout();
 
-    let yPos = 30;
+    let yPos = 35;
     const contentX = sidebarWidth + 15;
     const contentWidth = pageWidth - contentX - 15;
 
-    // Header Content
+    // Header Content com Hierarquia Editorial
     doc.setTextColor(20, 20, 20);
-    doc.setFontSize(28);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.text('PROPOSTA', contentX, yPos);
     
-    yPos += 7;
-    doc.setFontSize(10);
-    doc.setTextColor(120);
-    doc.text('DE', contentX + 3, yPos);
+    yPos += 5;
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text('DE', contentX + 0.5, yPos);
     
     yPos += 12;
-    doc.setFontSize(34);
+    doc.setFontSize(42);
     doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
-    doc.text('ORÇAMENTO', contentX, yPos);
+    doc.text('ORÇAMENTO', contentX - 1, yPos);
 
-    yPos += 12;
-    doc.setTextColor(100);
-    doc.setFontSize(9);
+    yPos += 10;
+    doc.setTextColor(120);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'bold');
-    doc.text('PRODUÇÃO TÉCNICA E AUDIOVISUAL', contentX, yPos);
+    doc.text('PRODUÇÃO TÉCNICA E AUDIOVISUAL', contentX, yPos, { charSpace: 0.5 });
 
-    yPos += 18;
+    yPos += 22;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(80);
-    const intro = "Apresentamos uma curadoria técnica exclusiva, projetada para atender aos mais altos padrões de casamentos e eventos corporativos. Nossa solução foca na clareza sonora absoluta e estética minimalista.";
+    doc.setTextColor(100);
+    const intro = "Apresentamos uma curadoria técnica exclusiva, projetada para atender aos mais altos padrões de estética e clareza sonora. Nossa solução foca na excelência operacional para que o seu evento seja uma experiência inesquecível.";
     const introLines = doc.splitTextToSize(intro, contentWidth);
     doc.text(introLines, contentX, yPos);
     yPos += (introLines.length * 5) + 15;
 
-    // Itens
+    // Renderização dos Grupos com Lógica de Integridade de Página
     groupOrder.forEach(groupName => {
         const items = itemsByGroup[groupName];
         if (!items || items.length === 0) return;
 
-        if (yPos > pageHeight - 40) {
+        // Estimar altura do grupo
+        let estimatedGroupHeight = 25; // Título + espaçamentos
+        items.forEach(item => {
+            estimatedGroupHeight += 12; // Base por item
+            if (item.descriptionSnapshot) {
+                const descLines = doc.splitTextToSize(item.descriptionSnapshot, contentWidth - 30);
+                estimatedGroupHeight += (descLines.length * 4);
+            }
+        });
+
+        // Se o grupo não cabe na página, pula para a próxima
+        if (yPos + estimatedGroupHeight > pageHeight - 30) {
             doc.addPage();
             drawLayout();
-            yPos = 30;
+            yPos = 35;
         }
 
         // Grupo Titulo
         doc.setFillColor(neonGreen[0], neonGreen[1], neonGreen[2]);
-        doc.rect(contentX, yPos - 5, 2.5, 8, 'F');
+        doc.rect(contentX, yPos - 5, 2, 8, 'F');
         
         doc.setTextColor(0);
-        doc.setFontSize(13);
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.text(groupName, contentX + 6, yPos);
         
-        doc.setFontSize(7);
-        doc.setTextColor(160);
-        doc.text('ESPECIFICAÇÃO TÉCNICA', contentX + 6, yPos + 6);
-        doc.text('QTD TOTAL', pageWidth - 15, yPos + 6, { align: 'right' });
-        yPos += 18;
+        doc.setFontSize(6.5);
+        doc.setTextColor(180);
+        doc.text('ESPECIFICAÇÃO TÉCNICA', contentX + 6, yPos + 6, { charSpace: 0.3 });
+        doc.text('QTD TOTAL', pageWidth - 15, yPos + 6, { align: 'right', charSpace: 0.3 });
+        yPos += 16;
 
         items.forEach(item => {
-            if (yPos > pageHeight - 25) {
+            // Check individual item overflow just in case
+            if (yPos > pageHeight - 20) {
                 doc.addPage();
                 drawLayout();
-                yPos = 30;
+                yPos = 35;
             }
 
-            doc.setFontSize(10.5);
+            doc.setFontSize(10);
             doc.setFont('helvetica', 'bold');
-            doc.setTextColor(20);
+            doc.setTextColor(30);
             doc.text(item.nameSnapshot, contentX + 6, yPos);
 
             const totalItem = (item.qty * item.unitPrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-            doc.setFontSize(10);
-            doc.text(`${String(item.qty).padStart(2, '0')} ${totalItem}`, pageWidth - 15, yPos, { align: 'right' });
+            doc.setFontSize(9.5);
+            doc.text(`${String(item.qty).padStart(2, '0')}    ${totalItem}`, pageWidth - 15, yPos, { align: 'right' });
             
-            yPos += 5;
+            yPos += 4.5;
             if (item.descriptionSnapshot) {
-                doc.setFontSize(8.5);
+                doc.setFontSize(7.5);
                 doc.setFont('helvetica', 'normal');
-                doc.setTextColor(130);
-                const desc = doc.splitTextToSize(item.descriptionSnapshot, contentWidth - 30);
+                doc.setTextColor(140);
+                const desc = doc.splitTextToSize(item.descriptionSnapshot, contentWidth - 35);
                 doc.text(desc, contentX + 6, yPos);
-                yPos += (desc.length * 4.5);
+                yPos += (desc.length * 3.8);
             }
             yPos += 6;
         });
-        yPos += 5;
+        yPos += 8;
     });
 
     // --- PÁGINA INVESTIMENTO ---
     doc.addPage();
     drawLayout();
 
-    yPos = 40;
+    yPos = 45;
     doc.setTextColor(0);
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
     doc.text('INVESTIMENTO', contentX, yPos);
     
     doc.setFillColor(neonGreen[0], neonGreen[1], neonGreen[2]);
-    doc.rect(contentX, yPos + 4, 25, 2, 'F');
+    doc.rect(contentX, yPos + 4, 30, 1.5, 'F');
 
     yPos += 30;
     const investmentData = [
         ['EQUIPAMENTOS E SISTEMAS', quote.totals.itemsSubtotal],
         ['LOGÍSTICA E FRETE', quote.fees.frete],
-        ['TAXA DE MONTAGEM / EQUIPE', quote.fees.montagem + quote.fees.outros],
+        ['TAXA DE MONTAGEM E EQUIPE', quote.fees.montagem + quote.fees.outros],
         ['DESCONTOS CONCEDIDOS', -quote.discount],
     ];
 
     investmentData.forEach(([label, val]) => {
         if (val === 0 && !label.toString().includes('EQUIPAMENTOS')) return;
-        doc.setFontSize(9);
+        
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(100);
-        doc.text(label.toString(), contentX + 5, yPos);
-        doc.setFontSize(11);
+        doc.setTextColor(120);
+        doc.text(label.toString(), contentX + 5, yPos, { charSpace: 0.5 });
+        
+        doc.setFontSize(10.5);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0);
+        doc.setTextColor(20);
         doc.text(Math.abs(Number(val)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), pageWidth - 15, yPos, { align: 'right' });
-        yPos += 14;
+        
+        yPos += 12;
+        doc.setDrawColor(245);
+        doc.line(contentX + 5, yPos - 5, pageWidth - 15, yPos - 5);
     });
 
-    yPos += 10;
+    yPos += 15;
+    // Box de Total Centralizado e Impactante
     doc.setFillColor(15, 15, 15);
-    doc.rect(contentX, yPos, contentWidth + 5, 28, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(11);
+    doc.rect(contentX, yPos, contentWidth + 5, 40, 'F');
+    
+    doc.setTextColor(200);
+    doc.setFontSize(8.5);
     doc.setFont('helvetica', 'bold');
-    doc.text('INVESTIMENTO TOTAL DO PROJETO', contentX + 8, yPos + 16);
-    doc.setFontSize(20);
+    doc.text('INVESTIMENTO TOTAL DO PROJETO', contentX + (contentWidth/2) + 2.5, yPos + 12, { align: 'center', charSpace: 1 });
+    
+    doc.setFontSize(26);
     doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
-    doc.text(quote.totals.grandTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), pageWidth - 20, yPos + 18, { align: 'right' });
+    doc.text(quote.totals.grandTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), contentX + (contentWidth/2) + 2.5, yPos + 28, { align: 'center' });
 
-    yPos += 45;
+    yPos += 60;
     doc.setTextColor(0);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
@@ -285,7 +306,7 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
         doc.setFillColor(15,15,15);
         doc.rect(contentX + 5, yPos + 3, contentWidth - 10, 10, 'F');
-        doc.text(config.pixKey, contentX + 10, yPos + 9.5);
+        doc.text(config.pixKey, contentX + (contentWidth/2), yPos + 9.5, { align: 'center' });
     }
 
     doc.save(`Orcamento_Mashup_${quote.clientName.replace(/ /g, '_')}.pdf`);
