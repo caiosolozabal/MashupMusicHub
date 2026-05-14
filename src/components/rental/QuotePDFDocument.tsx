@@ -73,12 +73,20 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         doc.text('MASHUP', sidebarWidth / 2, y, { align: 'center' });
         
         y += 6;
+        const subTitle = 'MUSIC EXPERIENCE';
+        const charSpace = 1.5;
         doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
         doc.setFontSize(6);
         doc.setFont('helvetica', 'bold');
-        doc.text('MUSIC EXPERIENCE', sidebarWidth / 2, y, { align: 'center', charSpace: 1.5 });
+        
+        // CORREÇÃO DE ALINHAMENTO: Cálculo manual do centro para compensar o charSpace do jsPDF
+        // O align: 'center' as vezes falha visualmente com charSpace alto por incluir o espaço após o último caractere.
+        const textWidth = doc.getTextWidth(subTitle);
+        const totalWidth = textWidth + ((subTitle.length - 1) * charSpace);
+        const startX = (sidebarWidth - totalWidth) / 2;
+        doc.text(subTitle, startX, y, { charSpace: charSpace });
 
-        const addSidebarSection = (title: string, value: string[], space = 22) => {
+        const addSidebarSection = (title: string, value: string[], space = 20) => {
             y += space;
             doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
             doc.setFontSize(6.5);
@@ -201,7 +209,6 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         yPos += 16;
 
         items.forEach(item => {
-            // Check individual item overflow just in case
             if (yPos > pageHeight - 20) {
                 doc.addPage();
                 drawLayout();
@@ -223,7 +230,7 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(140);
                 const desc = doc.splitTextToSize(item.descriptionSnapshot, contentWidth - 35);
-                doc.text(desc, contentX + 6, yPos);
+                doc.text(desc, contentX + 6, yPos, { lineHeightFactor: 1.15 });
                 yPos += (desc.length * 3.8);
             }
             yPos += 6;
@@ -277,7 +284,7 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
     
     doc.setTextColor(200);
     doc.setFontSize(8.5);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'normal');
     doc.text('INVESTIMENTO TOTAL DO PROJETO', contentX + (contentWidth/2) + 2.5, yPos + 12, { align: 'center', charSpace: 1 });
     
     doc.setFontSize(26);
