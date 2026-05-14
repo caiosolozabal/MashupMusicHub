@@ -79,8 +79,7 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
         doc.setFontSize(6);
         doc.setFont('helvetica', 'bold');
         
-        // CORREÇÃO DE ALINHAMENTO: Cálculo manual do centro para compensar o charSpace do jsPDF
-        // O align: 'center' as vezes falha visualmente com charSpace alto por incluir o espaço após o último caractere.
+        // Centralização Perfeita: Compensação manual de CharSpace
         const textWidth = doc.getTextWidth(subTitle);
         const totalWidth = textWidth + ((subTitle.length - 1) * charSpace);
         const startX = (sidebarWidth - totalWidth) / 2;
@@ -113,11 +112,11 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
             quote.clientName,
             quote.eventName || '',
             quote.eventDate ? format(quote.eventDate.toDate(), 'dd/MM/yyyy') : ''
-        ].filter(Boolean));
+        ].filter(Boolean), 25);
 
-        addSidebarSection('LOCALIZAÇÃO', [quote.eventLocation || 'N/A']);
+        addSidebarSection('LOCALIZAÇÃO', [quote.eventLocation || 'N/A'], 18);
 
-        addSidebarSection('EMITIDO EM', [format(quote.createdAt.toDate(), "dd 'de' MMMM, yyyy", { locale: ptBR })]);
+        addSidebarSection('EMITIDO EM', [format(quote.createdAt.toDate(), "dd 'de' MMM, yyyy", { locale: ptBR })], 18);
 
         // Footer Sidebar
         doc.setTextColor(60, 60, 60);
@@ -171,22 +170,21 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
     doc.text(introLines, contentX, yPos);
     yPos += (introLines.length * 5) + 15;
 
-    // Renderização dos Grupos com Lógica de Integridade de Página
+    // Renderização dos Grupos
     groupOrder.forEach(groupName => {
         const items = itemsByGroup[groupName];
         if (!items || items.length === 0) return;
 
-        // Estimar altura do grupo
-        let estimatedGroupHeight = 25; // Título + espaçamentos
+        // Integridade de Blocos: Se o grupo não cabe na página, pula inteira
+        let estimatedGroupHeight = 25; 
         items.forEach(item => {
-            estimatedGroupHeight += 12; // Base por item
+            estimatedGroupHeight += 12;
             if (item.descriptionSnapshot) {
                 const descLines = doc.splitTextToSize(item.descriptionSnapshot, contentWidth - 30);
                 estimatedGroupHeight += (descLines.length * 4);
             }
         });
 
-        // Se o grupo não cabe na página, pula para a próxima
         if (yPos + estimatedGroupHeight > pageHeight - 30) {
             doc.addPage();
             drawLayout();
@@ -230,8 +228,8 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(140);
                 const desc = doc.splitTextToSize(item.descriptionSnapshot, contentWidth - 35);
-                doc.text(desc, contentX + 6, yPos, { lineHeightFactor: 1.15 });
-                yPos += (desc.length * 3.8);
+                doc.text(desc, contentX + 6, yPos, { lineHeightFactor: 1.1 });
+                yPos += (desc.length * 3.5);
             }
             yPos += 6;
         });
@@ -278,20 +276,35 @@ export const generateQuotePdf = async (quote: RentalQuote, config: AppConfig | n
     });
 
     yPos += 15;
-    // Box de Total Centralizado e Impactante
-    doc.setFillColor(15, 15, 15);
-    doc.rect(contentX, yPos, contentWidth + 5, 40, 'F');
+    // HERO BLOCK FINANCEIRO: Centralização e Hierarquia Premium
+    const boxHeight = 55;
+    const boxWidth = contentWidth + 5;
+    const centerX = contentX + (boxWidth / 2);
     
-    doc.setTextColor(200);
-    doc.setFontSize(8.5);
+    doc.setFillColor(10, 10, 10);
+    doc.rect(contentX, yPos, boxWidth, boxHeight, 'F');
+    
+    // Título do Box: Pequeno, fino e elegante
+    const invTitle = 'INVESTIMENTO TOTAL DO PROJETO';
+    const invCharSpace = 1.3;
+    doc.setTextColor(210);
+    doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
-    doc.text('INVESTIMENTO TOTAL DO PROJETO', contentX + (contentWidth/2) + 2.5, yPos + 12, { align: 'center', charSpace: 1 });
     
-    doc.setFontSize(26);
+    const invTitleWidth = doc.getTextWidth(invTitle);
+    const invTitleTotalWidth = invTitleWidth + ((invTitle.length - 1) * invCharSpace);
+    const invTitleX = centerX - (invTitleTotalWidth / 2);
+    
+    doc.text(invTitle, invTitleX, yPos + 18, { charSpace: invCharSpace });
+    
+    // Valor: Grande, neon e centralizado
+    doc.setFontSize(32);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(neonGreen[0], neonGreen[1], neonGreen[2]);
-    doc.text(quote.totals.grandTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }), contentX + (contentWidth/2) + 2.5, yPos + 28, { align: 'center' });
+    const totalVal = quote.totals.grandTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    doc.text(totalVal, centerX, yPos + 40, { align: 'center' });
 
-    yPos += 60;
+    yPos += 75;
     doc.setTextColor(0);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
