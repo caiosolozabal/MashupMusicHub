@@ -32,12 +32,24 @@ export default function UserManagementTab() {
     try {
       if (!db) throw new Error('Firestore not initialized');
       const usersCollection = collection(db, 'users');
-      const q = query(usersCollection, orderBy('displayName'));
+      const q = query(usersCollection); // Removido orderBy para evitar erro se displayName estiver nulo em algum doc
       const usersSnapshot = await getDocs(q);
-      const usersList = usersSnapshot.docs.map(doc => ({
-        uid: doc.id,
-        ...doc.data(),
-      } as UserDetails));
+      
+      const usersList = usersSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          ...data,
+          uid: doc.id, // Garante que o UID seja o ID do documento
+        } as UserDetails;
+      });
+
+      // Ordenação manual para evitar problemas com índices do Firestore no MVP
+      usersList.sort((a, b) => {
+        const nameA = a.displayName || a.email || '';
+        const nameB = b.displayName || b.email || '';
+        return nameA.localeCompare(nameB);
+      });
+
       setUsers(usersList);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -136,7 +148,7 @@ export default function UserManagementTab() {
           <TableBody>
             {users.map((user) => (
               <TableRow key={user.uid}>
-                <TableCell className="font-medium">{user.displayName || 'N/A'}</TableCell>
+                <TableCell className="font-medium">{user.displayName || user.email?.split('@')[0] || 'N/A'}</TableCell>
                 <TableCell className="text-xs">{user.email}</TableCell>
                 <TableCell>
                   <Badge variant="outline" className="font-bold text-[10px] uppercase">

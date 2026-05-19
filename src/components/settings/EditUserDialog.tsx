@@ -27,6 +27,7 @@ import { generateRandomPastelColor, pastelColors } from '@/lib/utils';
 import { Separator } from '../ui/separator';
 import { Switch } from '../ui/switch';
 import { cn } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const editUserFormSchema = z.object({
   displayName: z.string().min(1, 'Nome é obrigatório.'),
@@ -34,11 +35,11 @@ const editUserFormSchema = z.object({
   professionalType: z.string().min(1, 'Função profissional é obrigatória.'),
   pode_locar: z.boolean().default(false),
   dj_percentual: z.preprocess(
-    (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
+    (val) => (val === '' || val === null || val === undefined ? null : parseFloat(String(val))),
     z.number().min(0).max(1).nullable().optional()
   ),
   rental_percentual: z.preprocess(
-    (val) => (String(val).trim() === '' ? null : parseFloat(String(val))),
+    (val) => (val === '' || val === null || val === undefined ? null : parseFloat(String(val))),
     z.number().min(0).max(1).nullable().optional()
   ),
   dj_color: z.string().min(1, 'Cor é obrigatória.'),
@@ -72,21 +73,6 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
     formState: { errors },
   } = useForm<EditUserFormValues>({
     resolver: zodResolver(editUserFormSchema),
-    defaultValues: {
-      displayName: user.displayName || '',
-      role: user.role || 'dj',
-      professionalType: user.professionalType || 'DJ',
-      pode_locar: user.pode_locar || false,
-      dj_percentual: user.dj_percentual ?? null,
-      rental_percentual: user.rental_percentual ?? null,
-      dj_color: user.dj_color || generateRandomPastelColor(),
-      bankName: user.bankName || '',
-      bankAgency: user.bankAgency || '',
-      bankAccount: user.bankAccount || '',
-      bankAccountType: user.bankAccountType || undefined,
-      bankDocument: user.bankDocument || '',
-      pixKey: user.pixKey || '',
-    },
   });
 
   useEffect(() => {
@@ -95,7 +81,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         displayName: user.displayName || '',
         role: user.role || 'dj',
         professionalType: user.professionalType || 'DJ',
-        pode_locar: user.pode_locar || false,
+        pode_locar: !!user.pode_locar,
         dj_percentual: user.dj_percentual ?? null,
         rental_percentual: user.rental_percentual ?? null,
         dj_color: user.dj_color || generateRandomPastelColor(),
@@ -117,7 +103,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
     try {
       if (!db) throw new Error('Firestore not initialized');
       
-      // Documento do usuário que está sendo editado
+      // Documento do usuário que está sendo editado usando o UID da prop
       const userRef = doc(db, 'users', user.uid);
 
       // Campos base para qualquer usuário
@@ -128,7 +114,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         updatedAt: serverTimestamp(),
       };
 
-      // Se for DJ (ou mantendo compatibilidade com campos técnicos)
+      // Se for DJ ou se já for DJ no banco, preservamos/atualizamos campos técnicos
       if (data.role === 'dj' || user.role === 'dj') {
         updateData.pode_locar = data.pode_locar;
         updateData.dj_percentual = data.dj_percentual;
@@ -160,169 +146,171 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col p-0">
+        <DialogHeader className="p-6 pb-2">
           <DialogTitle className="font-headline text-xl">Editar Usuário: {user.displayName || user.email}</DialogTitle>
           <DialogDescription>Modifique os detalhes e a função deste usuário na plataforma.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
-          <div>
-            <Label htmlFor="displayName">Nome de Exibição</Label>
-            <Input id="displayName" {...register('displayName')} placeholder="Nome completo" />
-            {errors.displayName && <p className="text-sm text-destructive mt-1">{errors.displayName.message}</p>}
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="role">Nível de Acesso (Role)</Label>
-              <Controller
-                name="role"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value as string | undefined}>
-                    <SelectTrigger id="role">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="partner">Sócio (Partner)</SelectItem>
-                      <SelectItem value="dj">Prestador (DJ/Staff)</SelectItem>
-                      <SelectItem value="financeiro">Financeiro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-            <div>
-              <Label htmlFor="professionalType">Função Profissional</Label>
-              <Controller
-                name="professionalType"
-                control={control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DJ">DJ</SelectItem>
-                      <SelectItem value="Cantor">Cantor</SelectItem>
-                      <SelectItem value="Fotógrafo">Fotógrafo</SelectItem>
-                      <SelectItem value="Filmmaker">Filmmaker</SelectItem>
-                      <SelectItem value="Técnico de Som">Técnico de Som</SelectItem>
-                      <SelectItem value="Técnico de Luz">Técnico de Luz</SelectItem>
-                      <SelectItem value="Promoter">Promoter</SelectItem>
-                      <SelectItem value="Gestor">Gestor</SelectItem>
-                      <SelectItem value="Outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-          </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="px-6 py-2 space-y-4">
+              <div>
+                <Label htmlFor="displayName">Nome de Exibição</Label>
+                <Input id="displayName" {...register('displayName')} placeholder="Nome completo" />
+                {errors.displayName && <p className="text-xs text-destructive mt-1 font-bold">{errors.displayName.message}</p>}
+              </div>
 
-          {selectedRole === 'dj' && (
-            <>
-              <Separator className="my-4" />
-                <Controller
-                  control={control}
-                  name="pode_locar"
-                  render={({ field }) => (
-                     <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
-                      <div className="space-y-0.5">
-                        <Label htmlFor="pode-locar-switch" className="text-base">Permissão de Locação</Label>
-                         <DialogDescription>
-                          Habilita criação de orçamentos de equipamentos.
-                        </DialogDescription>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="role">Nível de Acesso (Role)</Label>
+                  <Controller
+                    name="role"
+                    control={control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value as string | undefined}>
+                        <SelectTrigger id="role">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="partner">Sócio (Partner)</SelectItem>
+                          <SelectItem value="dj">Prestador (DJ/Staff)</SelectItem>
+                          <SelectItem value="financeiro">Financeiro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="professionalType">Função Profissional</Label>
+                  <Controller
+                    name="professionalType"
+                    control={control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="DJ">DJ</SelectItem>
+                          <SelectItem value="Cantor">Cantor</SelectItem>
+                          <SelectItem value="Fotógrafo">Fotógrafo</SelectItem>
+                          <SelectItem value="Filmmaker">Filmmaker</SelectItem>
+                          <SelectItem value="Técnico de Som">Técnico de Som</SelectItem>
+                          <SelectItem value="Técnico de Luz">Técnico de Luz</SelectItem>
+                          <SelectItem value="Promoter">Promoter</SelectItem>
+                          <SelectItem value="Gestor">Gestor</SelectItem>
+                          <SelectItem value="Outro">Outro</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {selectedRole === 'dj' && (
+                <>
+                  <Separator className="my-4" />
+                  <Controller
+                    control={control}
+                    name="pode_locar"
+                    render={({ field }) => (
+                      <div className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background">
+                        <div className="space-y-0.5">
+                          <Label htmlFor="pode-locar-switch" className="text-base">Permissão de Locação</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Habilita criação de orçamentos de equipamentos.
+                          </p>
+                        </div>
+                        <Switch
+                          id="pode-locar-switch"
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
                       </div>
-                      <Switch
-                        id="pode-locar-switch"
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
+                    )}
+                  />
+                  <div className="mt-4 space-y-4">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-primary">Configuração de Agenda</h3>
+                    
+                    <div className="space-y-2">
+                      <Label>Cor de Identificação</Label>
+                      <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
+                        {pastelColors.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            className={cn(
+                              "h-7 w-7 rounded-full border-2 transition-all flex items-center justify-center",
+                              currentColor === color ? "border-primary scale-110 shadow-sm" : "border-transparent hover:scale-105"
+                            )}
+                            style={{ backgroundColor: color }}
+                            onClick={() => setValue('dj_color', color)}
+                          >
+                            {currentColor === color && <Check className="h-4 w-4 text-slate-900" />}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                />
-              <div className="mt-4 space-y-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-primary">Configuração de Agenda</h3>
-                
-                <div className="space-y-2">
-                  <Label>Cor de Identificação</Label>
-                  <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
-                    {pastelColors.map((color) => (
-                      <button
-                        key={color}
-                        type="button"
-                        className={cn(
-                          "h-8 w-8 rounded-full border-2 transition-all flex items-center justify-center",
-                          currentColor === color ? "border-primary scale-110 shadow-sm" : "border-transparent hover:scale-105"
-                        )}
-                        style={{ backgroundColor: color }}
-                        onClick={() => setValue('dj_color', color)}
-                      >
-                        {currentColor === color && <Check className="h-4 w-4 text-slate-900" />}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor="dj_percentual">Cachê Prestador (Ex: 0.70)</Label>
+                            <Input
+                                id="dj_percentual"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="1"
+                                {...register('dj_percentual')}
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor="rental_percentual">Comissão Locação (Ex: 0.20)</Label>
+                            <Input
+                                id="rental_percentual"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="1"
+                                {...register('rental_percentual')}
+                            />
+                        </div>
+                    </div>
+                  </div>
+
+                  <Separator className="my-4" />
+                  <div className="space-y-4 pb-4">
+                    <h4 className="text-sm font-black uppercase tracking-widest text-primary">Dados Bancários</h4>
                     <div>
-                        <Label htmlFor="dj_percentual">Cachê Prestador (Ex: 0.70)</Label>
-                        <Input
-                            id="dj_percentual"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="1"
-                            {...register('dj_percentual')}
-                        />
-                        <p className="text-[10px] text-muted-foreground mt-1">0.70 representa 70% do valor líquido.</p>
+                      <Label htmlFor="bankName">Nome do Banco</Label>
+                      <Input id="bankName" {...register('bankName')} />
                     </div>
-                     <div>
-                        <Label htmlFor="rental_percentual">Comissão Locação (Ex: 0.20)</Label>
-                        <Input
-                            id="rental_percentual"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="1"
-                            {...register('rental_percentual')}
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="bankAgency">Agência</Label>
+                        <Input id="bankAgency" {...register('bankAgency')} />
+                      </div>
+                      <div>
+                        <Label htmlFor="bankAccount">Conta</Label>
+                        <Input id="bankAccount" {...register('bankAccount')} />
+                      </div>
                     </div>
-                </div>
-              </div>
-
-              <Separator className="my-4" />
-              <div className="space-y-4">
-                <h4 className="text-sm font-black uppercase tracking-widest text-primary">Dados Bancários</h4>
-                <div>
-                  <Label htmlFor="bankName">Nome do Banco</Label>
-                  <Input id="bankName" {...register('bankName')} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="bankAgency">Agência</Label>
-                    <Input id="bankAgency" {...register('bankAgency')} />
+                    <div>
+                      <Label htmlFor="pixKey">Chave PIX</Label>
+                      <Input id="pixKey" {...register('pixKey')} placeholder="CPF, Email ou Telefone" />
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="bankAccount">Conta</Label>
-                    <Input id="bankAccount" {...register('bankAccount')} />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="pixKey">Chave PIX</Label>
-                  <Input id="pixKey" {...register('pixKey')} placeholder="CPF, Email ou Telefone" />
-                </div>
-              </div>
-            </>
-          )}
+                </>
+              )}
+            </div>
+          </ScrollArea>
 
-          <DialogFooter className="pt-4 gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={() => onClose()} disabled={isSubmitting}>
-                Cancelar
-              </Button>
-            </DialogClose>
+          <DialogFooter className="p-6 border-t bg-muted/5 gap-2 sm:gap-0 shrink-0">
+            <Button type="button" variant="outline" onClick={() => onClose()} disabled={isSubmitting}>
+              Cancelar
+            </Button>
             <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[140px]">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Salvar Alterações
