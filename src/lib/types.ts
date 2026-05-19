@@ -185,7 +185,7 @@ export type TaskStatus =
   | "canceled";
 
 export type TaskPriority = "low" | "medium" | "high";
-export type TaskCategory = "operational" | "financial" | "meeting" | "equipment" | "other";
+export type TaskCategory = "announcement" | "operational" | "financial" | "meeting" | "equipment" | "other";
 
 export type Task = {
   id: string;

@@ -15,7 +15,8 @@ import {
   TrendingUp,
   TrendingDown,
   Target,
-  Wallet
+  Wallet,
+  Zap
 } from 'lucide-react';
 import { 
   BarChart,
@@ -58,6 +59,8 @@ import { calculateDjCut, cn } from '@/lib/utils';
 import { queryMyOpenTasks, queryMyAssignedOpenTasks } from '@/lib/tasks';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import DjOperationalCard from '@/components/dashboard/DjOperationalCard';
+import LoginConciergeDrawer from '@/components/dashboard/LoginConciergeDrawer';
 
 interface FinancialMetrics {
   grossRevenue: number;
@@ -93,6 +96,7 @@ export default function DashboardPage() {
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
 
   const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+  const isDj = userDetails?.role === 'dj';
 
   const formatCurrency = (val: number) => val.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -331,7 +335,7 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Olá, {userDetails?.displayName || 'Usuário'}!</h1>
-          <p className="text-muted-foreground">Desempenho financeiro e operacional da agência.</p>
+          <p className="text-muted-foreground">Bem-vindo ao seu centro operacional Mashup.</p>
         </div>
         
         <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
@@ -358,11 +362,57 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="h-px bg-black w-full" />
+      {isDj && (
+        <>
+            <LoginConciergeDrawer events={monthEvents} alerts={[...ownerTasks, ...assignedTasks]} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    <DjOperationalCard events={monthEvents} />
+                </div>
+                <div className="space-y-4">
+                    <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Comunicados e Tarefas</h2>
+                    <Card className="border-primary/20 bg-primary/5">
+                        <CardContent className="p-4 space-y-4">
+                        <div className="flex gap-2">
+                            <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
+                            <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
+                            </div>
+                            <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
+                            <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            {tasksSummary.topTasks.length > 0 ? (
+                            tasksSummary.topTasks.map(task => (
+                                <div key={task.id} className="flex items-center gap-2 p-3 bg-background rounded-xl border text-xs group hover:border-primary/50 transition-colors">
+                                <div className={`w-1 h-8 rounded-full shrink-0 ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
+                                <div className="flex-1 truncate">
+                                    <p className="font-bold truncate group-hover:text-primary transition-colors">{task.title}</p>
+                                    <p className="text-[9px] text-muted-foreground uppercase font-bold">{task.category}</p>
+                                </div>
+                                </div>
+                            ))
+                            ) : (
+                            <p className="text-center py-4 text-xs text-muted-foreground italic">Nenhuma tarefa pendente no momento.</p>
+                            )}
+                        </div>
+                        <Button variant="ghost" size="sm" className="w-full text-[10px] font-black uppercase tracking-widest" asChild>
+                            <Link href="/tasks">Ver meu caderno <ArrowRight className="ml-2 h-3 w-3" /></Link>
+                        </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        </>
+      )}
+
+      <div className="h-px bg-black/10 w-full" />
 
       <div className="space-y-4">
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-          <Target className="h-4 w-4" /> Competência do Mês
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1 flex items-center gap-2">
+          <Zap className="h-4 w-4 text-primary fill-primary" /> Métricas do Mês
         </h2>
         <div className={`grid gap-4 md:grid-cols-2 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
           <Card className="bg-primary/5 border-primary/20 relative overflow-hidden">
@@ -408,127 +458,129 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className={`space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-          <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Já Recebido</CardTitle></CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-lg font-bold text-green-600">{currentMetrics ? formatCurrency(currentMetrics.received) : '...'}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Falta Receber</CardTitle></CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-lg font-bold text-destructive">{currentMetrics ? formatCurrency(currentMetrics.pending) : '...'}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Qtd Eventos</CardTitle></CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-lg font-bold">{currentMetrics ? currentMetrics.eventCount : '...'}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Ticket Médio</CardTitle></CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-lg font-bold">{currentMetrics ? formatCurrency(currentMetrics.avgTicket) : '...'}</div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-        {/* Performance Column */}
-        <div className="space-y-4">
-          {isStaff && performanceData.length > 0 && (
-            <>
-              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-                <Target className="h-4 w-4" /> Performance dos DJs
-              </h2>
-              <Card className="border-primary/10 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-bold">Ranking de Faturamento Bruto</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-2" style={{ height: chartHeight }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={performanceData}
-                      layout="vertical"
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      barCategoryGap={4}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.05} />
-                      <XAxis type="number" hide />
-                      <YAxis 
-                        dataKey="name" 
-                        type="category" 
-                        axisLine={false} 
-                        tickLine={false}
-                        width={100}
-                        tick={{ fontSize: 11, fontWeight: '800' }}
-                      />
-                      <ReTooltip content={<CustomChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }} />
-                      <Bar 
-                        dataKey="total" 
-                        radius={[0, 4, 4, 0]} 
-                        barSize={24}
-                        className="cursor-pointer"
-                        onClick={(data) => router.push(`/schedule?djId=${data.djId}`)}
-                      >
-                        {performanceData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </>
-          )}
-        </div>
-
-        {/* Tasks Column */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
-            <ClipboardList className="h-4 w-4" /> Suas Tarefas
-          </h2>
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-4 space-y-4">
-              <div className="flex gap-2">
-                <div className="flex-1 bg-background p-2 rounded-md border text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
-                  <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
+      {!isDj && (
+        <>
+            <div className={`space-y-4 transition-opacity duration-300 ${isLoading ? 'opacity-50' : 'opacity-100'}`}>
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1 flex items-center gap-2">
+                    <Wallet className="h-4 w-4" /> Fluxo de Caixa e Eficiência
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <Card>
+                        <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Já Recebido</CardTitle></CardHeader>
+                        <CardContent className="p-4 pt-0">
+                        <div className="text-lg font-bold text-green-600">{currentMetrics ? formatCurrency(currentMetrics.received) : '...'}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Falta Receber</CardTitle></CardHeader>
+                        <CardContent className="p-4 pt-0">
+                        <div className="text-lg font-bold text-destructive">{currentMetrics ? formatCurrency(currentMetrics.pending) : '...'}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Qtd Eventos</CardTitle></CardHeader>
+                        <CardContent className="p-4 pt-0">
+                        <div className="text-lg font-bold">{currentMetrics ? currentMetrics.eventCount : '...'}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="p-4 pb-2"><CardTitle className="text-[10px] uppercase font-bold text-muted-foreground">Ticket Médio</CardTitle></CardHeader>
+                        <CardContent className="p-4 pt-0">
+                        <div className="text-lg font-bold">{currentMetrics ? formatCurrency(currentMetrics.avgTicket) : '...'}</div>
+                        </CardContent>
+                    </Card>
                 </div>
-                <div className="flex-1 bg-background p-2 rounded-md border text-center">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
-                  <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {tasksSummary.topTasks.length > 0 ? (
-                  tasksSummary.topTasks.map(task => (
-                    <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
-                      <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
-                      <div className="flex-1 truncate">
-                        <p className="font-bold truncate">{task.title}</p>
-                        <p className="text-[10px] text-muted-foreground">{task.dueDate ? format(task.dueDate.toDate(), 'dd/MM HH:mm') : ''}</p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-center py-4 text-xs text-muted-foreground italic">Nenhuma tarefa pendente no momento.</p>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+                <div className="space-y-4">
+                {isStaff && performanceData.length > 0 && (
+                    <>
+                    <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1 flex items-center gap-2">
+                        <Target className="h-4 w-4" /> Performance dos DJs
+                    </h2>
+                    <Card className="border-primary/10 shadow-sm">
+                        <CardHeader className="pb-2">
+                        <CardTitle className="text-lg font-bold">Ranking de Faturamento Bruto</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-2" style={{ height: chartHeight }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                            data={performanceData}
+                            layout="vertical"
+                            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                            barCategoryGap={4}
+                            >
+                            <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.05} />
+                            <XAxis type="number" hide />
+                            <YAxis 
+                                dataKey="name" 
+                                type="category" 
+                                axisLine={false} 
+                                tickLine={false}
+                                width={100}
+                                tick={{ fontSize: 11, fontWeight: '800' }}
+                            />
+                            <ReTooltip content={<CustomChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }} />
+                            <Bar 
+                                dataKey="total" 
+                                radius={[0, 4, 4, 0]} 
+                                barSize={24}
+                                className="cursor-pointer"
+                                onClick={(data) => router.push(`/schedule?djId=${data.djId}`)}
+                            >
+                                {performanceData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                            </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                    </>
                 )}
-              </div>
-              <Button variant="ghost" size="sm" className="w-full text-xs font-bold" asChild>
-                <Link href="/tasks">Ver todo o caderno <ArrowRight className="ml-2 h-3 w-3" /></Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                </div>
+
+                <div className="space-y-4">
+                <h2 className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground ml-1 flex items-center gap-2">
+                    <ClipboardList className="h-4 w-4" /> Suas Tarefas
+                </h2>
+                <Card className="border-primary/20 bg-primary/5">
+                    <CardContent className="p-4 space-y-4">
+                    <div className="flex gap-2">
+                        <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Vencidas</p>
+                        <p className="text-xl font-black text-destructive">{tasksSummary.overdue}</p>
+                        </div>
+                        <div className="flex-1 bg-background p-2 rounded-md border text-center">
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">Hoje</p>
+                        <p className="text-xl font-black text-primary">{tasksSummary.today}</p>
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        {tasksSummary.topTasks.length > 0 ? (
+                        tasksSummary.topTasks.map(task => (
+                            <div key={task.id} className="flex items-center gap-2 p-2 bg-background rounded-md border text-xs">
+                            <div className={`w-1 h-8 rounded-full ${task.priority === 'high' ? 'bg-destructive' : 'bg-primary'}`} />
+                            <div className="flex-1 truncate">
+                                <p className="font-bold truncate">{task.title}</p>
+                                <p className="text-[10px] text-muted-foreground">{task.dueDate ? format(task.dueDate.toDate(), 'dd/MM HH:mm') : ''}</p>
+                            </div>
+                            </div>
+                        ))
+                        ) : (
+                        <p className="text-center py-4 text-xs text-muted-foreground italic">Nenhuma tarefa pendente no momento.</p>
+                        )}
+                    </div>
+                    <Button variant="ghost" size="sm" className="w-full text-xs font-bold" asChild>
+                        <Link href="/tasks">Ver todo o caderno <ArrowRight className="ml-2 h-3 w-3" /></Link>
+                    </Button>
+                    </CardContent>
+                </Card>
+                </div>
+            </div>
+        </>
+      )}
     </div>
   );
 }

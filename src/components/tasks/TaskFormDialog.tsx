@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,18 +24,20 @@ import { createTask, defaultDueDateEndOfDay } from '@/lib/tasks';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import type { UserDetails, TaskStatus } from '@/lib/types';
-import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, Calendar as CalendarIcon, Users, User, CheckCircle2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const taskSchema = z.object({
   title: z.string().min(3, 'O título deve ter pelo menos 3 caracteres.'),
   description: z.string().optional(),
-  ownerUid: z.string().min(1, 'Selecione o destinatário.'),
+  assignedToUids: z.array(z.string()).min(1, 'Selecione pelo menos um destinatário.'),
   priority: z.enum(['low', 'medium', 'high'] as const),
-  category: z.enum(['operational', 'financial', 'meeting', 'equipment', 'other'] as const),
+  category: z.enum(['announcement', 'operational', 'financial', 'meeting', 'equipment', 'other'] as const),
   dueDate: z.date(),
 });
 
@@ -57,7 +60,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
     defaultValues: {
       title: '',
       description: '',
-      ownerUid: user?.uid || '',
+      assignedToUids: [],
       priority: 'medium',
       category: 'operational',
       dueDate: defaultDueDateEndOfDay(),
@@ -69,7 +72,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
       form.reset({
         title: '',
         description: '',
-        ownerUid: user?.uid || '',
+        assignedToUids: [user?.uid || ''],
         priority: 'medium',
         category: 'operational',
         dueDate: defaultDueDateEndOfDay(),
@@ -96,17 +99,20 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
     setIsSubmitting(true);
 
     try {
-      // Regra de status inicial: se criar para outro, começa como pending_acceptance
-      const initialStatus: TaskStatus = (data.ownerUid !== user.uid) ? 'pending_acceptance' : 'pending';
+      // Se houver apenas 1 destinatário e for o próprio usuário, status é pending.
+      // Se houver outros, todos começam como pending_acceptance para forçar a visualização.
+      const isOnlyMe = data.assignedToUids.length === 1 && data.assignedToUids[0] === user.uid;
+      const initialStatus: TaskStatus = isOnlyMe ? 'pending' : 'pending_acceptance';
 
       await createTask({
         ...data,
+        ownerUid: data.assignedToUids[0], // O primeiro é o "dono" principal (compatibilidade)
         createdByUid: user.uid,
         status: initialStatus,
-        assignedToUids: [user.uid, data.ownerUid],
+        assignedToUids: data.assignedToUids,
       });
 
-      toast({ title: 'Tarefa Criada!', description: 'O aviso foi registrado com sucesso.' });
+      toast({ title: 'Aviso Criado!', description: 'O comunicado foi enviado aos destinatários.' });
       onClose(true);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro ao criar', description: error.message });
@@ -115,121 +121,154 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
     }
   };
 
+  const toggleUserSelection = (uid: string) => {
+    const current = form.getValues('assignedToUids');
+    if (current.includes(uid)) {
+      form.setValue('assignedToUids', current.filter(id => id !== uid), { shouldValidate: true });
+    } else {
+      form.setValue('assignedToUids', [...current, uid], { shouldValidate: true });
+    }
+  };
+
+  const selectAllDjs = () => {
+    const djs = allUsers.filter(u => u.role === 'dj').map(u => u.uid);
+    form.setValue('assignedToUids', Array.from(new Set([...form.getValues('assignedToUids'), ...djs])), { shouldValidate: true });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-headline text-xl">Novo Aviso / Tarefa</DialogTitle>
+      <DialogContent className="sm:max-w-2xl max-h-[95vh] overflow-hidden flex flex-col p-0 border-none">
+        <DialogHeader className="p-6 pb-2">
+          <DialogTitle className="font-headline text-2xl uppercase italic tracking-tighter">Novo Comunicado / Tarefa</DialogTitle>
           <DialogDescription>
-            Crie um lembrete para você ou delegue uma tarefa para outro usuário.
+            Envie avisos operacionais ou delegue tarefas para o casting.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label htmlFor="title">Título da Tarefa</Label>
-            <Input id="title" placeholder="Ex: Enviar contrato da Festa X" {...form.register('title')} />
-            {form.formState.errors.title && <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>}
-          </div>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="flex-1 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1 px-6">
+            <div className="space-y-6 py-4">
+                <div className="space-y-2">
+                    <Label htmlFor="title" className="text-[10px] font-black uppercase tracking-widest text-primary">Título da Mensagem</Label>
+                    <Input id="title" placeholder="Ex: Briefing atualizado: Festa X" {...form.register('title')} className="h-12 text-lg font-bold" />
+                    {form.formState.errors.title && <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>}
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição (Opcional)</Label>
-            <Textarea id="description" placeholder="Detalhes adicionais..." {...form.register('description')} />
-          </div>
+                <div className="space-y-2">
+                    <Label htmlFor="description" className="text-[10px] font-black uppercase tracking-widest text-primary">Detalhes Técnicos</Label>
+                    <Textarea id="description" placeholder="Instruções completas aqui..." {...form.register('description')} className="min-h-[100px] bg-muted/30" />
+                </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Para quem? (Dono do Caderno)</Label>
-              <Controller
-                control={form.control}
-                name="ownerUid"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={isLoadingUsers ? "Carregando..." : "Selecione o destinatário"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={user?.uid || 'me'}>Para Mim</SelectItem>
-                      {allUsers.filter(u => u.uid !== user?.uid).map(u => (
-                        <SelectItem key={u.uid} value={u.uid}>{u.displayName || u.email}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                            <Users className="h-4 w-4" /> Destinatários
+                        </Label>
+                        <Button type="button" variant="ghost" size="sm" onClick={selectAllDjs} className="h-6 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">
+                            Selecionar todos DJs
+                        </Button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">
+                        {allUsers.map((u) => (
+                            <div 
+                                key={u.uid} 
+                                onClick={() => toggleUserSelection(u.uid)}
+                                className={cn(
+                                    "flex items-center gap-3 p-2 rounded-xl border cursor-pointer transition-all",
+                                    form.watch('assignedToUids').includes(u.uid) 
+                                        ? "bg-primary/10 border-primary shadow-sm" 
+                                        : "bg-background border-transparent hover:border-muted-foreground/20"
+                                )}
+                            >
+                                <div className={cn(
+                                    "h-4 w-4 rounded border flex items-center justify-center transition-colors",
+                                    form.watch('assignedToUids').includes(u.uid) ? "bg-primary border-primary" : "border-muted-foreground/30"
+                                )}>
+                                    {form.watch('assignedToUids').includes(u.uid) && <CheckCircle2 className="h-3 w-3 text-black" />}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-xs font-bold truncate leading-none">{u.displayName || u.email}</p>
+                                    <p className="text-[9px] text-muted-foreground uppercase font-black">{u.professionalType || u.role}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    {form.formState.errors.assignedToUids && <p className="text-xs text-destructive">{form.formState.errors.assignedToUids.message}</p>}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Tipo</Label>
+                        <Controller
+                            control={form.control}
+                            name="category"
+                            render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger className="h-10 text-xs font-bold uppercase tracking-widest">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="announcement">AVISO (Informativo)</SelectItem>
+                                    <SelectItem value="operational">OPERAÇÃO</SelectItem>
+                                    <SelectItem value="financial">FINANCEIRO</SelectItem>
+                                    <SelectItem value="equipment">EQUIPAMENTO</SelectItem>
+                                    <SelectItem value="other">OUTROS</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            )}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Prioridade</Label>
+                        <Controller
+                            control={form.control}
+                            name="priority"
+                            render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger className="h-10 text-xs font-bold uppercase tracking-widest">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="low">BAIXA</SelectItem>
+                                    <SelectItem value="medium">MÉDIA</SelectItem>
+                                    <SelectItem value="high">ALTA (CRÍTICO)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            )}
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-[10px] font-black uppercase tracking-widest text-primary">Prazo</Label>
+                        <Controller
+                            control={form.control}
+                            name="dueDate"
+                            render={({ field }) => (
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button variant="outline" className={cn("w-full h-10 justify-start text-left font-bold text-xs uppercase tracking-widest", !field.value && "text-muted-foreground")}>
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {field.value ? format(field.value, "dd/MM/yy") : "DATA LIMITE"}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar mode="single" selected={field.value} onSelect={(d) => d && field.onChange(d)} initialFocus />
+                                </PopoverContent>
+                            </Popover>
+                            )}
+                        />
+                    </div>
+                </div>
             </div>
+          </ScrollArea>
 
-            <div className="space-y-2">
-              <Label>Prazo Final</Label>
-              <Controller
-                control={form.control}
-                name="dueDate"
-                render={({ field }) => (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {field.value ? format(field.value, "dd/MM/yy") : "Escolha a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={(d) => d && field.onChange(d)} initialFocus />
-                    </PopoverContent>
-                  </Popover>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Prioridade</Label>
-              <Controller
-                control={form.control}
-                name="priority"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Baixa</SelectItem>
-                      <SelectItem value="medium">Média</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Categoria</Label>
-              <Controller
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="operational">Operacional</SelectItem>
-                      <SelectItem value="financial">Financeiro</SelectItem>
-                      <SelectItem value="meeting">Reunião</SelectItem>
-                      <SelectItem value="equipment">Equipamento</SelectItem>
-                      <SelectItem value="other">Outros</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="pt-4">
-            <Button type="button" variant="outline" onClick={() => onClose()} disabled={isSubmitting}>Cancelar</Button>
-            <Button type="submit" disabled={isSubmitting} className="bg-primary text-primary-foreground">
+          <DialogFooter className="p-6 bg-muted/10 border-t gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => onClose()} disabled={isSubmitting} className="h-12 uppercase text-[10px] font-black tracking-[0.2em]">
+                Cancelar
+            </Button>
+            <Button type="submit" disabled={isSubmitting} className="h-12 bg-primary text-black hover:bg-primary/90 uppercase text-[10px] font-black tracking-[0.2em] min-w-[200px]">
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Criar Tarefa
+              Disparar Comunicado
             </Button>
           </DialogFooter>
         </form>
