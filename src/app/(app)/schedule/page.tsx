@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { CalendarDays, List, Loader2, PlusCircle } from 'lucide-react';
+import { CalendarDays, List, Loader2, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy, addDoc, doc, updateDoc, deleteDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
 import type { Event, UserDetails } from '@/lib/types';
@@ -20,6 +20,7 @@ import EventForm, { type EventFormValues } from '@/components/events/EventForm';
 import EventView from '@/components/events/EventView';
 import { getEventOperationalState } from '@/lib/utils';
 import { useSearchParams } from 'next/navigation';
+
 
 type ViewMode = 'month' | 'list';
 
@@ -52,6 +53,14 @@ function ScheduleContent() {
   const [selectedMonth, setSelectedMonth] = useState<string | undefined>(undefined);
   const [selectedYear, setSelectedYear] = useState<string | undefined>(undefined);
 
+  const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
+
+  const VALID_YEARS = useMemo(() => {
+    const current = new Date().getFullYear();
+    return Array.from({ length: 5 }, (_, i) => current - 2 + i);
+  }, []);
+
+  // Sincronizar estados iniciais com Query Params
   useEffect(() => {
     const djId = searchParams.get('djId');
     const month = searchParams.get('month');
@@ -88,6 +97,7 @@ function ScheduleContent() {
         if (!data.data_evento) return null;
         return {
           id: docSnap.id,
+          path: docSnap.ref.path,
           ...data,
           data_evento: data.data_evento.toDate(),
           created_at: data.created_at?.toDate() || new Date(),
@@ -109,10 +119,25 @@ function ScheduleContent() {
 
   useEffect(() => { fetchAllData(); }, [authLoading, user, userDetails, fetchAllData]);
 
+  useEffect(() => {
+    if (selectedYear && selectedMonth) {
+      const year = parseInt(selectedYear, 10);
+      const month = parseInt(selectedMonth, 10);
+      if (isNaN(year) || isNaN(month)) return;
+
+      const newFrom = startOfMonth(new Date(year, month));
+      const newTo = endOfMonth(new Date(year, month));
+
+      if (!dateRange || !isEqual(dateRange.from, newFrom) || !isEqual(dateRange.to, newTo)) {
+        setDateRange({ from: newFrom, to: newTo });
+      }
+    }
+  }, [selectedMonth, selectedYear, dateRange]);
+
   const filteredEvents = useMemo(() => {
     return events.filter(e => {
       const matchesDj = selectedDjId === 'all' || e.dj_id === selectedDjId;
-      const matchesSearch = !searchTerm || e.nome_evento.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = !searchTerm || e.nome_evento.toLowerCase().includes(searchTerm.toLowerCase()) || (e.contratante_nome && e.contratante_nome.toLowerCase().includes(searchTerm.toLowerCase()));
       let matchesDate = true;
       if (dateRange?.from && e.data_evento) {
         matchesDate = e.data_evento >= startOfDay(dateRange.from) && (!dateRange.to || e.data_evento <= endOfMonth(dateRange.to));
@@ -120,6 +145,28 @@ function ScheduleContent() {
       return matchesDj && matchesSearch && matchesDate;
     });
   }, [events, selectedDjId, searchTerm, dateRange]);
+
+  const handlePrevMonth = () => {
+    const m = parseInt(selectedMonth || '0');
+    const y = parseInt(selectedYear || '0');
+    if (m === 0) {
+      setSelectedMonth('11');
+      setSelectedYear((y - 1).toString());
+    } else {
+      setSelectedMonth((m - 1).toString());
+    }
+  };
+
+  const handleNextMonth = () => {
+    const m = parseInt(selectedMonth || '0');
+    const y = parseInt(selectedYear || '0');
+    if (m === 11) {
+      setSelectedMonth('0');
+      setSelectedYear((y + 1).toString());
+    } else {
+      setSelectedMonth((m + 1).toString());
+    }
+  };
 
   const handleFormSubmit = async (values: EventFormValues) => {
     setIsSubmitting(true);
@@ -156,31 +203,90 @@ function ScheduleContent() {
           </div>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-            <Input placeholder="Buscar evento..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="h-9 text-xs" />
-            <Select value={selectedDjId} onValueChange={setSelectedDjId}>
-              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Filtrar por DJ" /></SelectTrigger>
-              <SelectContent><SelectItem value="all">Todos DJs</SelectItem>{allDjs.map(dj => <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName}</SelectItem>)}</SelectContent>
-            </Select>
+          
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
+              <Input 
+                placeholder="Buscar evento..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                className="h-9 text-xs w-full sm:w-64" 
+              />
+              {isStaff && (
+                <Select value={selectedDjId} onValueChange={setSelectedDjId}>
+                  <SelectTrigger className="h-9 text-xs w-full sm:w-48">
+                    <SelectValue placeholder="Filtrar por DJ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos DJs</SelectItem>
+                    {allDjs.map(dj => <SelectItem key={dj.uid} value={dj.uid}>{dj.displayName}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm self-end md:self-auto">
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handlePrevMonth} disabled={isLoading}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-2 px-2">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={isLoading}>
+                  <SelectTrigger className="h-8 border-0 bg-transparent font-bold focus:ring-0 w-[110px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={selectedYear} onValueChange={setSelectedYear} disabled={isLoading}>
+                  <SelectTrigger className="h-8 border-0 bg-transparent font-bold focus:ring-0 w-[70px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VALID_YEARS.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleNextMonth} disabled={isLoading}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
+
           <div className="relative">
             {viewMode === 'list' ? (
-              <ScheduleListView events={filteredEvents} allDjs={allDjs} onView={e => { setSelectedEvent(e); setIsViewOpen(true); }} onEdit={e => { setSelectedEvent(e); setIsFormOpen(true); }} onDelete={e => { setSelectedEvent(e); setIsDeleteConfirmOpen(true); }} isDjView={userDetails?.role === 'dj'} />
+              <ScheduleListView 
+                events={filteredEvents} 
+                allDjs={allDjs} 
+                onView={e => { setSelectedEvent(e); setIsViewOpen(true); }}
+                onEdit={e => { setSelectedEvent(e); setIsFormOpen(true); }}
+                onDelete={e => { setSelectedEvent(e); setIsDeleteConfirmOpen(true); }}
+                isDjView={userDetails?.role === 'dj'}
+              />
             ) : (
               <ScheduleCalendarView events={filteredEvents} allDjs={allDjs} />
             )}
           </div>
         </CardContent>
       </Card>
+
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{selectedEvent ? 'Editar Evento' : 'Novo Evento'}</DialogTitle></DialogHeader>
-          <EventForm event={selectedEvent} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} isLoading={isSubmitting} />
+          {selectedEvent && getEventOperationalState(selectedEvent) === 'closed' ? (
+            <div className="p-4 bg-muted rounded-md text-sm border-l-4 border-primary">
+              Este evento está <strong>Encerrado</strong> operacionalmente e financeiramente. Edições estão desabilitadas para preservar o histórico.
+            </div>
+          ) : (
+            <EventForm event={selectedEvent} onSubmit={handleFormSubmit} onCancel={() => setIsFormOpen(false)} isLoading={isSubmitting} />
+          )}
         </DialogContent>
       </Dialog>
+
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
         <DialogContent className="max-w-xl"><EventView event={selectedEvent} /></DialogContent>
       </Dialog>
+
       <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Excluir Evento?</AlertDialogTitle><AlertDialogDescription>Ação irreversível.</AlertDialogDescription></AlertDialogHeader>
