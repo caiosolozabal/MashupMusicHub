@@ -83,7 +83,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
   }, [isOpen, user?.uid, form]);
 
   const fetchUsers = async () => {
-    if (!db) return;
+    if (!db || !user) return;
     setIsLoadingUsers(true);
     try {
       const q = query(collection(db, 'users'));
@@ -94,13 +94,19 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
       
       if (isStaff) {
         // Admins/Partners vêem todos
-        filtered = fetchedUsers;
+        filtered = [...fetchedUsers];
       } else {
-        // DJs só vêem Admins e Partners
+        // DJs vêem Admins e Partners
         filtered = fetchedUsers.filter(u => {
           const r = u.role?.toLowerCase();
           return r === 'admin' || r === 'partner';
         });
+      }
+
+      // Garantir que "Eu mesmo" (Para mim) esteja sempre na lista
+      if (!filtered.find(u => u.uid === user.uid)) {
+        const me = fetchedUsers.find(u => u.uid === user.uid);
+        if (me) filtered.push(me);
       }
 
       // Ordenação manual por nome
@@ -134,7 +140,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
         assignedToUids: data.assignedToUids,
       });
 
-      toast({ title: 'Aviso Criado!', description: 'O comunicado foi enviado aos destinatários.' });
+      toast({ title: 'Sucesso!', description: isOnlyMe ? 'Tarefa salva no seu caderno.' : 'Comunicado enviado aos destinatários.' });
       onClose(true);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro ao criar', description: error.message });
@@ -160,11 +166,11 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-none bg-background">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 border-none bg-background shadow-2xl">
         <DialogHeader className="p-6 pb-2 shrink-0">
           <DialogTitle className="font-headline text-2xl uppercase italic tracking-tighter">Novo Comunicado / Tarefa</DialogTitle>
           <DialogDescription className="text-xs">
-            {isStaff ? 'Envie avisos operacionais ou delegue tarefas para o casting.' : 'Envie uma solicitação para a agência.'}
+            {isStaff ? 'Envie avisos operacionais ou salve lembretes para você mesmo.' : 'Envie uma solicitação para a agência ou um lembrete para você.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -173,7 +179,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
             <div className="px-6 py-2 space-y-5">
               <div className="space-y-1.5">
                 <Label htmlFor="title" className="text-[10px] font-black uppercase tracking-widest text-primary">Assunto</Label>
-                <Input id="title" placeholder="Ex: Alteração de Rider" {...form.register('title')} className="h-10 text-base font-bold" />
+                <Input id="title" placeholder="Ex: Alteração de Rider ou Tarefa Pessoal" {...form.register('title')} className="h-10 text-base font-bold" />
                 {form.formState.errors.title && <p className="text-[10px] text-destructive font-bold">{form.formState.errors.title.message}</p>}
               </div>
 
@@ -218,7 +224,10 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
                           {form.watch('assignedToUids').includes(u.uid) && <CheckCircle2 className="h-2.5 w-2.5 text-black" />}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs font-bold truncate leading-none">{u.displayName || u.email || 'Sem Nome'}</p>
+                          <p className="text-xs font-bold truncate leading-none">
+                            {u.displayName || u.email || 'Sem Nome'}
+                            {u.uid === user?.uid && <span className="ml-1 text-[9px] text-primary opacity-70">(Você)</span>}
+                          </p>
                         </div>
                       </div>
                     ))

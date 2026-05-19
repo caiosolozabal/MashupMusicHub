@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -89,7 +90,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && isOpen) {
       reset({
         displayName: user.displayName || '',
         role: user.role || 'dj',
@@ -106,7 +107,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
         pixKey: user.pixKey || '',
       });
     }
-  }, [user, reset]);
+  }, [user, reset, isOpen]);
 
   const selectedRole = watch('role');
   const currentColor = watch('dj_color');
@@ -115,16 +116,20 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
     setIsSubmitting(true);
     try {
       if (!db) throw new Error('Firestore not initialized');
+      
+      // Documento do usuário que está sendo editado
       const userRef = doc(db, 'users', user.uid);
 
-      const updateData: Partial<UserDetails> = {
+      // Campos base para qualquer usuário
+      const updateData: any = {
         displayName: data.displayName,
         role: data.role as UserRole, 
         professionalType: data.professionalType,
         updatedAt: serverTimestamp(),
       };
 
-      if (data.role === 'dj') {
+      // Se for DJ (ou mantendo compatibilidade com campos técnicos)
+      if (data.role === 'dj' || user.role === 'dj') {
         updateData.pode_locar = data.pode_locar;
         updateData.dj_percentual = data.dj_percentual;
         updateData.rental_percentual = data.rental_percentual;
@@ -138,11 +143,16 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
       }
 
       await updateDoc(userRef, updateData);
-      toast({ title: 'Usuário Atualizado!', description: `${data.displayName} foi atualizado com sucesso.` });
+      
+      toast({ title: 'Usuário Atualizado!', description: `${data.displayName} foi salvo com sucesso.` });
       onClose(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating user:', error);
-      toast({ variant: 'destructive', title: 'Erro ao atualizar usuário', description: (error as Error).message });
+      toast({ 
+        variant: 'destructive', 
+        title: 'Erro ao salvar alteração', 
+        description: error.message || 'Verifique as permissões de acesso.' 
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -152,19 +162,19 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-headline">Editar Usuário: {user.displayName || user.email}</DialogTitle>
-          <DialogDescription>Modifique os detalhes e a função profissional do usuário.</DialogDescription>
+          <DialogTitle className="font-headline text-xl">Editar Usuário: {user.displayName || user.email}</DialogTitle>
+          <DialogDescription>Modifique os detalhes e a função deste usuário na plataforma.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
           <div>
             <Label htmlFor="displayName">Nome de Exibição</Label>
-            <Input id="displayName" {...register('displayName')} />
+            <Input id="displayName" {...register('displayName')} placeholder="Nome completo" />
             {errors.displayName && <p className="text-sm text-destructive mt-1">{errors.displayName.message}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="role">Nível de Acesso</Label>
+              <Label htmlFor="role">Nível de Acesso (Role)</Label>
               <Controller
                 name="role"
                 control={control}
@@ -175,8 +185,9 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="partner">Sócio</SelectItem>
-                      <SelectItem value="dj">Prestador</SelectItem>
+                      <SelectItem value="partner">Sócio (Partner)</SelectItem>
+                      <SelectItem value="dj">Prestador (DJ/Staff)</SelectItem>
+                      <SelectItem value="financeiro">Financeiro</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -200,6 +211,7 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                       <SelectItem value="Técnico de Som">Técnico de Som</SelectItem>
                       <SelectItem value="Técnico de Luz">Técnico de Luz</SelectItem>
                       <SelectItem value="Promoter">Promoter</SelectItem>
+                      <SelectItem value="Gestor">Gestor</SelectItem>
                       <SelectItem value="Outro">Outro</SelectItem>
                     </SelectContent>
                   </Select>
@@ -231,10 +243,10 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                   )}
                 />
               <div className="mt-4 space-y-4">
-                <h3 className="text-md font-semibold text-primary">Cálculos e Agenda</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest text-primary">Configuração de Agenda</h3>
                 
                 <div className="space-y-2">
-                  <Label>Cor de Identificação na Agenda</Label>
+                  <Label>Cor de Identificação</Label>
                   <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-muted/20">
                     {pastelColors.map((color) => (
                       <button
@@ -251,15 +263,11 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                       </button>
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="h-6 w-6 rounded-full border" style={{ backgroundColor: currentColor }}></div>
-                    <span className="text-xs text-muted-foreground">Visualização da cor selecionada</span>
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <Label htmlFor="dj_percentual">Comissão Serviço (Ex: 0.7)</Label>
+                        <Label htmlFor="dj_percentual">Cachê Prestador (Ex: 0.70)</Label>
                         <Input
                             id="dj_percentual"
                             type="number"
@@ -268,10 +276,10 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                             max="1"
                             {...register('dj_percentual')}
                         />
-                        {errors.dj_percentual && <p className="text-sm text-destructive mt-1">{errors.dj_percentual.message}</p>}
+                        <p className="text-[10px] text-muted-foreground mt-1">0.70 representa 70% do valor líquido.</p>
                     </div>
                      <div>
-                        <Label htmlFor="rental_percentual">Comissão Locação (Ex: 0.2)</Label>
+                        <Label htmlFor="rental_percentual">Comissão Locação (Ex: 0.20)</Label>
                         <Input
                             id="rental_percentual"
                             type="number"
@@ -280,14 +288,13 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                             max="1"
                             {...register('rental_percentual')}
                         />
-                        {errors.rental_percentual && <p className="text-sm text-destructive mt-1">{errors.rental_percentual.message}</p>}
                     </div>
                 </div>
               </div>
 
               <Separator className="my-4" />
               <div className="space-y-4">
-                <h4 className="text-md font-semibold text-primary">Dados Bancários</h4>
+                <h4 className="text-sm font-black uppercase tracking-widest text-primary">Dados Bancários</h4>
                 <div>
                   <Label htmlFor="bankName">Nome do Banco</Label>
                   <Input id="bankName" {...register('bankName')} />
@@ -303,38 +310,20 @@ export default function EditUserDialog({ user, isOpen, onClose }: EditUserDialog
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="bankAccountType">Tipo</Label>
-                   <Controller
-                    name="bankAccountType"
-                    control={control}
-                    render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value || undefined}>
-                        <SelectTrigger id="bankAccountType">
-                            <SelectValue placeholder="Selecione..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="corrente">Corrente</SelectItem>
-                            <SelectItem value="poupanca">Poupança</SelectItem>
-                        </SelectContent>
-                        </Select>
-                    )}
-                    />
-                </div>
-                <div>
                   <Label htmlFor="pixKey">Chave PIX</Label>
-                  <Input id="pixKey" {...register('pixKey')} />
+                  <Input id="pixKey" {...register('pixKey')} placeholder="CPF, Email ou Telefone" />
                 </div>
               </div>
             </>
           )}
 
-          <DialogFooter className="pt-4">
+          <DialogFooter className="pt-4 gap-2 sm:gap-0">
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={() => onClose()} disabled={isSubmitting}>
                 Cancelar
               </Button>
             </DialogClose>
-            <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <Button type="submit" disabled={isSubmitting} className="bg-primary hover:bg-primary/90 text-primary-foreground min-w-[140px]">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Salvar Alterações
             </Button>
