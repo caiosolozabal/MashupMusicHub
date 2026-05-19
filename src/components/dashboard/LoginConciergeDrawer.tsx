@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Sparkles, Calendar, Bell, X, CheckCircle2 } from 'lucide-react';
 import type { Event, Task } from '@/lib/types';
-import { addHours, isBefore } from 'date-fns';
+import { addHours, isBefore, startOfDay } from 'date-fns';
 import DjOperationalCard from './DjOperationalCard';
 
 interface LoginConciergeDrawerProps {
@@ -27,10 +26,13 @@ export default function LoginConciergeDrawer({ events, alerts }: LoginConciergeD
     const hasSeenInSession = sessionStorage.getItem('mashup_concierge_seen');
     if (hasSeenInSession) return;
 
-    // Lógica para decidir se abre
+    const now = new Date();
+    const today = startOfDay(now);
+
+    // Lógica para decidir se abre: Apenas eventos HOJE ou nos próximos 48h
     const upcomingEvents = events.filter(e => {
-        const soon = addHours(new Date(), 48);
-        return isBefore(e.data_evento, soon);
+        const soon = addHours(now, 48);
+        return e.data_evento >= today && isBefore(e.data_evento, soon) && e.status_pagamento !== 'cancelado';
     });
 
     const importantAlerts = alerts.filter(a => a.priority === 'high' || a.status === 'pending_acceptance');

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo } from 'react';
@@ -28,8 +27,9 @@ interface DjOperationalCardProps {
 
 export default function DjOperationalCard({ events }: DjOperationalCardProps) {
   const sortedEvents = useMemo(() => {
+    const today = startOfDay(new Date());
     return [...events]
-      .filter(e => e.status_pagamento !== 'cancelado')
+      .filter(e => e.status_pagamento !== 'cancelado' && e.data_evento >= today)
       .sort((a, b) => a.data_evento.getTime() - b.data_evento.getTime())
       .slice(0, 3);
   }, [events]);

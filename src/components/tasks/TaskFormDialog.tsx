@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -49,11 +48,13 @@ interface TaskFormDialogProps {
 }
 
 export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps) {
-  const { user } = useAuth();
+  const { user, userDetails } = useAuth();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [allUsers, setAllUsers] = useState<UserDetails[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  const isStaff = userDetails?.role === 'admin' || userDetails?.role === 'partner';
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
@@ -82,11 +83,29 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
   }, [isOpen, user?.uid, form]);
 
   const fetchUsers = async () => {
+    if (!db) return;
     setIsLoadingUsers(true);
     try {
-      const q = query(collection(db, 'users'), orderBy('displayName'));
+      // Busca todos os usuários sem ordenação inicial para evitar erros de índice se displayName faltar
+      const q = query(collection(db, 'users'));
       const snap = await getDocs(q);
-      setAllUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails)));
+      const fetchedUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDetails));
+      
+      // Filtragem por permissão:
+      // Admins/Partners vêem todos.
+      // DJs só vêem Admins e Partners (comunicação vertical).
+      let filtered: UserDetails[] = [];
+      
+      if (isStaff) {
+        filtered = fetchedUsers;
+      } else {
+        filtered = fetchedUsers.filter(u => u.role === 'admin' || u.role === 'partner');
+      }
+
+      // Ordenação manual em memória
+      filtered.sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+      
+      setAllUsers(filtered);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -106,7 +125,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
 
       await createTask({
         ...data,
-        ownerUid: data.assignedToUids[0], // O primeiro é o "dono" principal (compatibilidade)
+        ownerUid: data.assignedToUids[0], 
         createdByUid: user.uid,
         status: initialStatus,
         assignedToUids: data.assignedToUids,
@@ -132,6 +151,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
 
   const selectAllDjs = () => {
     const djs = allUsers.filter(u => u.role === 'dj').map(u => u.uid);
+    if (djs.length === 0) return;
     form.setValue('assignedToUids', Array.from(new Set([...form.getValues('assignedToUids'), ...djs])), { shouldValidate: true });
   };
 
@@ -141,7 +161,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="font-headline text-2xl uppercase italic tracking-tighter">Novo Comunicado / Tarefa</DialogTitle>
           <DialogDescription>
-            Envie avisos operacionais ou delegue tarefas para o casting.
+            {isStaff ? 'Envie avisos operacionais ou delegue tarefas para o casting.' : 'Envie um comunicado para a coordenação da agência.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -150,7 +170,7 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
             <div className="space-y-6 py-4">
                 <div className="space-y-2">
                     <Label htmlFor="title" className="text-[10px] font-black uppercase tracking-widest text-primary">Título da Mensagem</Label>
-                    <Input id="title" placeholder="Ex: Briefing atualizado: Festa X" {...form.register('title')} className="h-12 text-lg font-bold" />
+                    <Input id="title" placeholder="Ex: Solicitação de alteração técnica" {...form.register('title')} className="h-12 text-lg font-bold" />
                     {form.formState.errors.title && <p className="text-xs text-destructive">{form.formState.errors.title.message}</p>}
                 </div>
 
@@ -164,35 +184,43 @@ export default function TaskFormDialog({ isOpen, onClose }: TaskFormDialogProps)
                         <Label className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                             <Users className="h-4 w-4" /> Destinatários
                         </Label>
-                        <Button type="button" variant="ghost" size="sm" onClick={selectAllDjs} className="h-6 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">
-                            Selecionar todos DJs
-                        </Button>
+                        {isStaff && (
+                            <Button type="button" variant="ghost" size="sm" onClick={selectAllDjs} className="h-6 text-[9px] font-black uppercase tracking-widest text-muted-foreground hover:text-primary">
+                                Selecionar todos DJs
+                            </Button>
+                        )}
                     </div>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 bg-muted/20 rounded-2xl border border-dashed">
-                        {allUsers.map((u) => (
-                            <div 
-                                key={u.uid} 
-                                onClick={() => toggleUserSelection(u.uid)}
-                                className={cn(
-                                    "flex items-center gap-3 p-2 rounded-xl border cursor-pointer transition-all",
-                                    form.watch('assignedToUids').includes(u.uid) 
-                                        ? "bg-primary/10 border-primary shadow-sm" 
-                                        : "bg-background border-transparent hover:border-muted-foreground/20"
-                                )}
-                            >
-                                <div className={cn(
-                                    "h-4 w-4 rounded border flex items-center justify-center transition-colors",
-                                    form.watch('assignedToUids').includes(u.uid) ? "bg-primary border-primary" : "border-muted-foreground/30"
-                                )}>
-                                    {form.watch('assignedToUids').includes(u.uid) && <CheckCircle2 className="h-3 w-3 text-black" />}
+                        {isLoadingUsers ? (
+                            <div className="col-span-full py-4 flex justify-center"><Loader2 className="h-4 w-4 animate-spin text-primary" /></div>
+                        ) : allUsers.length === 0 ? (
+                            <p className="col-span-full text-center py-4 text-xs text-muted-foreground">Nenhum destinatário disponível.</p>
+                        ) : (
+                            allUsers.map((u) => (
+                                <div 
+                                    key={u.uid} 
+                                    onClick={() => toggleUserSelection(u.uid)}
+                                    className={cn(
+                                        "flex items-center gap-3 p-2 rounded-xl border cursor-pointer transition-all",
+                                        form.watch('assignedToUids').includes(u.uid) 
+                                            ? "bg-primary/10 border-primary shadow-sm" 
+                                            : "bg-background border-transparent hover:border-muted-foreground/20"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "h-4 w-4 rounded border flex items-center justify-center transition-colors",
+                                        form.watch('assignedToUids').includes(u.uid) ? "bg-primary border-primary" : "border-muted-foreground/30"
+                                    )}>
+                                        {form.watch('assignedToUids').includes(u.uid) && <CheckCircle2 className="h-3 w-3 text-black" />}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold truncate leading-none">{u.displayName || u.email}</p>
+                                        <p className="text-[9px] text-muted-foreground uppercase font-black">{u.professionalType || u.role}</p>
+                                    </div>
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="text-xs font-bold truncate leading-none">{u.displayName || u.email}</p>
-                                    <p className="text-[9px] text-muted-foreground uppercase font-black">{u.professionalType || u.role}</p>
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
                     {form.formState.errors.assignedToUids && <p className="text-xs text-destructive">{form.formState.errors.assignedToUids.message}</p>}
                 </div>

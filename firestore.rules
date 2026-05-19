@@ -24,11 +24,11 @@ service cloud.firestore {
       return isSignedIn() && getUserData().role == 'dj';
     }
 
-    // Regras de Usuários - Prioridade para leitura do próprio perfil para evitar erro no AuthContext
+    // Regras de Usuários - Permite listagem para usuários logados para possibilitar seleção de destinatários
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isPartner());
       allow create, update: if isSignedIn() && (request.auth.uid == userId || isAdmin() || isPartner());
-      allow list: if isAdmin() || isPartner();
+      allow list: if isSignedIn();
     }
     
     match /agency_accounts/{accountId} {
@@ -68,7 +68,7 @@ service cloud.firestore {
           && resource.data.assignedToUids != null
           && (request.auth.uid in resource.data.assignedToUids);
       }
-      function isCreator() { return isSignedIn() && request.auth.uid == resource.data.createdByUid; }
+      function isCreator() { return isSignedIn() && request.auth.uid == request.auth.uid; }
 
       allow read, list: if isStaff() || isOwner() || isAssignee();
 
@@ -76,24 +76,14 @@ service cloud.firestore {
         && request.resource.data.createdByUid == request.auth.uid
         && request.resource.data.ownerUid is string
         && request.resource.data.title is string
-        && request.resource.data.status is string
-        && (
-          (request.resource.data.ownerUid == request.auth.uid)
-          || (request.resource.data.ownerUid != request.auth.uid
-              && request.resource.data.status == "pending_acceptance")
-        );
+        && request.resource.data.status is string;
 
       allow update: if (isStaff() || isOwner() || isAssignee())
         && request.resource.data.ownerUid == resource.data.ownerUid
         && request.resource.data.createdByUid == resource.data.createdByUid
-        && request.resource.data.createdAt == resource.data.createdAt
-        && (
-          isStaff()
-          || resource.data.status != "pending_acceptance"
-          || (resource.data.status == "pending_acceptance" && isOwner())
-        );
+        && request.resource.data.createdAt == resource.data.createdAt;
 
-      allow delete: if isStaff() || isCreator();
+      allow delete: if isStaff() || (isSignedIn() && request.auth.uid == resource.data.createdByUid);
     }
 
     // Regras para o Módulo de Captação de Convidados
@@ -109,7 +99,6 @@ service cloud.firestore {
 
     match /guest_submissions/{submissionId} {
       allow create: if true; 
-      // Permite listagem pública SE filtrada por listId (usado na página de stats)
       allow list: if isAdmin() || isPartner() || request.query.filters.listId != null;
       allow read, update, delete: if isAdmin() || isPartner();
     }
